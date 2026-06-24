@@ -1,26 +1,101 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* Design tokens (CSS variables, light + dark). Single source of color/scale. */
+@import "../styles/tokens.css";
 
+/* Dark mode is driven by next-themes' `class` strategy: a `.dark` class on
+   <html>. Tell Tailwind v4 to treat `.dark` as the dark variant. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/**
+ * Map design tokens onto Tailwind's theme so token-backed utilities exist:
+ *   bg-bg, bg-surface, bg-panel, border-border, text-primary,
+ *   text-secondary, text-tertiary, text-accent/bg-accent,
+ *   text-risk, text-minor, text-pass (+ bg-/border- variants).
+ *
+ * `@theme inline` emits the utilities referencing the var() directly, so the
+ * light/dark values from tokens.css resolve at runtime when `.dark` toggles.
+ */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* Colors — neutrals */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-panel: var(--panel);
+  --color-border: var(--border);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent: var(--accent);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Colors — functional / chromatic */
+  --color-risk: var(--risk);
+  --color-minor: var(--minor);
+  --color-pass: var(--pass);
+
+  /* Font family — Inter (via next/font) with the spec's fallback stack. */
+  --font-sans: var(--font-inter), -apple-system, "SF Pro Display", system-ui,
+    "Segoe UI", Roboto, sans-serif;
+
+  /* Type scale — UI. Tailwind pairs text-<name> with its line-height. */
+  --text-label-xs: var(--font-size-label-xs);
+  --text-label-xs--line-height: var(--line-height-label-xs);
+  --text-label-xs--font-weight: var(--font-weight-label-xs);
+  --text-label-xs--letter-spacing: var(--letter-spacing-label-xs);
+
+  --text-label-sm: var(--font-size-label-sm);
+  --text-label-sm--line-height: var(--line-height-label-sm);
+  --text-label-sm--font-weight: var(--font-weight-label-sm);
+
+  --text-body: var(--font-size-body);
+  --text-body--line-height: var(--line-height-body);
+  --text-body--font-weight: var(--font-weight-body);
+
+  --text-body-emphasis: var(--font-size-body-emphasis);
+  --text-body-emphasis--line-height: var(--line-height-body-emphasis);
+  --text-body-emphasis--font-weight: var(--font-weight-body-emphasis);
+
+  --text-title: var(--font-size-title);
+  --text-title--line-height: var(--line-height-title);
+  --text-title--font-weight: var(--font-weight-title);
+
+  --text-heading: var(--font-size-heading);
+  --text-heading--line-height: var(--line-height-heading);
+  --text-heading--font-weight: var(--font-weight-heading);
+  --text-heading--letter-spacing: var(--letter-spacing-heading);
+
+  --text-display: var(--font-size-display);
+  --text-display--line-height: var(--line-height-display);
+  --text-display--font-weight: var(--font-weight-display);
+  --text-display--letter-spacing: var(--letter-spacing-display);
+
+  /* Type scale — document content */
+  --text-doc-body: var(--font-size-doc-body);
+  --text-doc-body--line-height: var(--line-height-doc-body);
+  --text-doc-body--font-weight: var(--font-weight-doc-body);
+
+  --text-doc-title: var(--font-size-doc-title);
+  --text-doc-title--line-height: var(--line-height-doc-title);
+  --text-doc-title--font-weight: var(--font-weight-doc-title);
+  --text-doc-title--letter-spacing: var(--letter-spacing-doc-title);
+
+  /* Spacing — 4px grid (spacing-1 .. spacing-12 → p-1, gap-2, etc.) */
+  --spacing-1: var(--space-1);
+  --spacing-2: var(--space-2);
+  --spacing-3: var(--space-3);
+  --spacing-4: var(--space-4);
+  --spacing-6: var(--space-6);
+  --spacing-8: var(--space-8);
+  --spacing-12: var(--space-12);
+
+  /* Radius — rounded-control, rounded-card, rounded-pill */
+  --radius-control: var(--radius-control);
+  --radius-card: var(--radius-card);
+  --radius-pill: var(--radius-pill);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text-primary);
+  /* Tabular figures for numeric UI (signal scores, version numbers). */
+  font-variant-numeric: tabular-nums;
 }
