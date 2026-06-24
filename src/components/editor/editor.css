@@ -1,0 +1,23 @@
+/* SignalHighlight squiggle.
+ *
+ * A wavy underline under the flagged phrase — no background fill, so the document
+ * stays calm (design-tokens spec, "Highlights"). Colour comes from severity via the
+ * shared token variables; the VALUES of --risk / --minor are owned by the design
+ * tokens layer (light/dark). We only reference them here, never define them. */
+
+.signal-highlight {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  text-decoration-skip-ink: none;
+  cursor: pointer;
+}
+
+.signal-highlight[data-severity='risk'] {
+  text-decoration-color: var(--risk);
+}
+
+.signal-highlight[data-severity='minor'] {
+  text-decoration-color: var(--minor);
+}
