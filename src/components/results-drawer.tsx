@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { X } from 'lucide-react'
 import type { AppError } from '@/lib/errors'
 import type { ReviewResult, SignalDef } from '@/types'
@@ -59,6 +60,10 @@ export function ResultsDrawer({
   const defs = signalDefMap(signals)
   const inlineIds = inlineSignalIdSet(signals)
 
+  // Respect the OS reduce-motion preference: render instantly (no transforms),
+  // composing with the global CSS reduced-motion rule in globals.css.
+  const reduceMotion = useReducedMotion()
+
   // Hold a ref to the focused row so we can scroll it into view.
   const focusedRowRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
@@ -78,56 +83,90 @@ export function ResultsDrawer({
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // A snappy spring on open; an eased slide on close. When reduce-motion is set we
+  // skip the transform entirely (the panel just appears/disappears).
+  const sheetTransition = reduceMotion
+    ? { duration: 0 }
+    : { type: 'spring' as const, stiffness: 380, damping: 34, mass: 0.9 }
+
   return (
     <div
       aria-hidden={!open}
       className={cn(
-        'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-0 pb-0 transition-transform duration-300 ease-out sm:px-4 sm:pb-4',
-        open ? 'translate-y-0' : 'translate-y-[110%]',
+        'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-0 pb-0 sm:px-4 sm:pb-4',
       )}
     >
-      <section
-        role="dialog"
-        aria-label="Review results"
-        aria-modal="false"
-        className={cn(
-          'pointer-events-auto flex h-[min(60vh,32rem)] w-full max-w-3xl flex-col overflow-hidden',
-          'rounded-t-card border border-border bg-surface shadow-lg sm:rounded-card',
-        )}
-      >
-        <DrawerHeader review={review} loading={loading} error={error} onClose={onClose} />
+      <AnimatePresence>
+        {open ? (
+          <motion.section
+            key="results-drawer"
+            role="dialog"
+            aria-label="Review results"
+            aria-modal="false"
+            initial={reduceMotion ? false : { y: '110%' }}
+            animate={{ y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { y: '110%' }}
+            transition={sheetTransition}
+            className={cn(
+              'pointer-events-auto flex h-[min(60vh,32rem)] w-full max-w-3xl flex-col overflow-hidden',
+              'rounded-t-card border border-border bg-surface shadow-lg sm:rounded-card',
+            )}
+          >
+            <DrawerHeader review={review} loading={loading} error={error} onClose={onClose} />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-          {loading ? (
-            <LoadingState rows={6} label="Running review…" />
-          ) : error ? (
-            <ErrorState error={error} onRetry={onRetry} title="Review failed" />
-          ) : review ? (
-            <div className="flex flex-col gap-2">
-              {review.signals.map((result) => {
-                const def = defs.get(result.signalId)
-                if (!def) return null
-                const isFocused = focusedSignalId === result.signalId
-                return (
-                  <SignalRow
-                    key={result.signalId}
-                    ref={isFocused ? focusedRowRef : undefined}
-                    def={def}
-                    result={result}
-                    focused={isFocused}
-                    inline={inlineIds.has(result.signalId)}
-                    franchise={result.signalId === FRANCHISE_SIGNAL_ID}
-                    onPhraseClick={onPhraseClick}
-                    onFranchiseClick={onFranchiseClick}
-                  />
-                )
-              })}
+            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+              {loading ? (
+                <LoadingState rows={6} label="Running review…" />
+              ) : error ? (
+                <ErrorState error={error} onRetry={onRetry} title="Review failed" />
+              ) : review ? (
+                <motion.div
+                  className="flex flex-col gap-2"
+                  initial={reduceMotion ? false : 'hidden'}
+                  animate="shown"
+                  variants={reduceMotion ? undefined : LIST_VARIANTS}
+                >
+                  {review.signals.map((result) => {
+                    const def = defs.get(result.signalId)
+                    if (!def) return null
+                    const isFocused = focusedSignalId === result.signalId
+                    return (
+                      <motion.div
+                        key={result.signalId}
+                        variants={reduceMotion ? undefined : ROW_VARIANTS}
+                      >
+                        <SignalRow
+                          ref={isFocused ? focusedRowRef : undefined}
+                          def={def}
+                          result={result}
+                          focused={isFocused}
+                          inline={inlineIds.has(result.signalId)}
+                          franchise={result.signalId === FRANCHISE_SIGNAL_ID}
+                          onPhraseClick={onPhraseClick}
+                          onFranchiseClick={onFranchiseClick}
+                        />
+                      </motion.div>
+                    )
+                  })}
+                </motion.div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
-      </section>
+          </motion.section>
+        ) : null}
+      </AnimatePresence>
     </div>
   )
+}
+
+// Subtle staggered fade/slide-in for the signal rows when results render.
+const LIST_VARIANTS = {
+  hidden: {},
+  shown: { transition: { staggerChildren: 0.04, delayChildren: 0.06 } },
+}
+
+const ROW_VARIANTS = {
+  hidden: { opacity: 0, y: 6 },
+  shown: { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' as const } },
 }
 
 function DrawerHeader({
@@ -141,6 +180,7 @@ function DrawerHeader({
   error?: AppError | null
   onClose: () => void
 }) {
+  const reduceMotion = useReducedMotion()
   const verdict = review?.verdict
   const prominent = verdict ? isVerdictProminent(verdict.label) : false
   const notReady = verdict?.label === 'not_ready'
@@ -157,7 +197,13 @@ function DrawerHeader({
           {title}
         </h2>
         {prominent && verdict ? (
-          <span
+          <motion.span
+            // A small pop draws the eye to the most prominent verdict states.
+            // The key re-mounts the badge per verdict so the pop replays on change.
+            key={verdict.label}
+            initial={reduceMotion ? false : { scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 24 }}
             className={cn(
               'inline-flex items-center rounded-pill border px-2 py-0.5 text-label-xs uppercase tracking-[0.05em]',
               notReady ? 'border-risk text-risk' : 'border-minor text-minor',
@@ -165,7 +211,7 @@ function DrawerHeader({
             data-verdict={verdict.label}
           >
             {notReady ? 'Action needed' : 'Needs attention'}
-          </span>
+          </motion.span>
         ) : null}
         {!loading && !error && verdict ? (
           <span className="text-label-sm tabular-nums text-text-secondary">
