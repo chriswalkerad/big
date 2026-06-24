@@ -210,6 +210,61 @@ export function makeSnapshot(
   return { body, review, submittedAt }
 }
 
+// --- Document transitions (pure reducers) --------------------------------------
+//
+// The single source of truth for how a (re)submit, unsubmit, and reviewer actions
+// mutate a Document. The page component applies these and persists the result, so the
+// behaviour the tests assert here is exactly the behaviour the UI produces.
+
+export interface SubmitArgs {
+  /** The reviewed body (plain text) — becomes the snapshot body. */
+  body: string
+  review: ReviewResult
+  submittedAt: string
+}
+
+/**
+ * Apply a submit OR resubmit. Sets `submittedSnapshot` to a fresh snapshot of the
+ * reviewed body+review (resubmit REPLACES the prior snapshot — no history), prefills
+ * title/subtype respecting user sources, and auto-advances a draft to `submitted`
+ * (other statuses are preserved). The body is committed to the snapshotted text.
+ */
+export function applySubmit(doc: Document, args: SubmitArgs): Document {
+  const prefill = applyPrefill(doc, args.review)
+  return {
+    ...doc,
+    title: prefill.title,
+    body: args.body,
+    subtype: prefill.subtype,
+    subtypeSource: prefill.subtypeSource,
+    status: statusAfterSubmit(doc.status),
+    submittedSnapshot: makeSnapshot(args.body, args.review, args.submittedAt),
+  }
+}
+
+/**
+ * Unsubmit (manual only): clear the snapshot, return to `draft`, and drop routing.
+ * Never called automatically — editing the body must not trigger this.
+ */
+export function applyUnsubmit(doc: Document): Document {
+  return { ...doc, status: 'draft', routing: undefined, submittedSnapshot: undefined }
+}
+
+/** A reviewer status change to a non-approved status (caller validates legality). */
+export function applyReviewerStatus(doc: Document, status: SubmissionStatus): Document {
+  return { ...doc, status }
+}
+
+/** Approve with a routing destination — sets status `approved` and records `routing`. */
+export function applyApprove(doc: Document, routing: RoutingDestination): Document {
+  return { ...doc, status: 'approved', routing }
+}
+
+/** A manual subtype change: applies the subtype and locks the source to `user`. */
+export function applyManualSubtype(doc: Document, subtype: TextSubtype): Document {
+  return { ...doc, subtype, subtypeSource: 'user' }
+}
+
 // --- Signal lookup helpers -----------------------------------------------------
 
 /** Index signal definitions by id for O(1) lookup when rendering rows. */

@@ -18,11 +18,13 @@ import { requestReview } from '@/lib/review-client'
 import { htmlToText, textToHtml } from '@/lib/doc-body'
 import {
   ROUTING_LABELS,
-  applyPrefill,
+  applyApprove,
+  applyManualSubtype,
+  applyReviewerStatus,
+  applySubmit,
+  applyUnsubmit,
   hasDrift,
   inlineSignalIdSet,
-  makeSnapshot,
-  statusAfterSubmit,
   toHighlightIssues,
 } from '@/lib/doc-page'
 import { cn } from '@/lib/utils'
@@ -143,6 +145,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [loaded, snapshotReview, inlineIds])
 
   // --- Persistence -----------------------------------------------------------
+  // Persist a partial patch (used for small field edits like title/subtype).
   const persist = useCallback(
     (patch: Partial<Document>): Document | null => {
       const repo = repoRef.current
@@ -155,6 +158,23 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     },
     [doc],
   )
+
+  // Commit a full next Document (from a transition reducer): persist it and sync every
+  // mirrored working field so the UI reflects the new document atomically.
+  const commitDoc = useCallback((next: Document) => {
+    const repo = repoRef.current
+    if (!repo) return
+    const stamped: Document = { ...next, updatedAt: new Date().toISOString() }
+    repo.saveDocument(stamped)
+    setDoc(stamped)
+    setTitle(stamped.title)
+    setBody(stamped.body)
+    setSubtype(stamped.subtype)
+    setSubtypeSource(stamped.subtypeSource)
+    setStatus(stamped.status)
+    setRouting(stamped.routing)
+    setSnapshot(stamped.submittedSnapshot)
+  }, [])
 
   // --- Read mode: render the snapshot, not the live body ---------------------
   // The drawer always reflects the submitted snapshot's review (computed on submit,
@@ -203,78 +223,69 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [])
 
   // --- Submit / Resubmit -----------------------------------------------------
-  const runReview = useCallback(
-    async (isResubmit: boolean) => {
-      const repo = repoRef.current
-      if (!repo || !doc || !project) return
-      const text = htmlToText(body)
-      setReviewError(null)
-      setReviewLoading(true)
-      setDrawerOpen(true)
-      setFocusedSignalId(null)
+  // Submit and Resubmit run the same flow: review the current body, then apply the
+  // submit transition (which sets/replaces the snapshot, prefills, and advances the
+  // status). The reducer in @/lib/doc-page is the single source of truth for the
+  // resulting Document; this just orchestrates the async review and the overlay.
+  const runReview = useCallback(async () => {
+    const current = doc
+    if (!repoRef.current || !current || !project) return
+    const text = htmlToText(body)
+    setReviewError(null)
+    setReviewLoading(true)
+    setDrawerOpen(true)
+    setFocusedSignalId(null)
 
-      const result = await requestReview({ text, project, signals })
-      if (!result.ok) {
-        setReviewError(result.error)
-        setReviewLoading(false)
-        return
-      }
-
-      const review = result.data
-      const submittedAt = new Date().toISOString()
-      const newSnapshot = makeSnapshot(text, review, submittedAt)
-      const prefill = applyPrefill({ title, subtype, subtypeSource }, review)
-      const nextStatus = statusAfterSubmit(status)
-
-      setSnapshot(newSnapshot)
-      setTitle(prefill.title)
-      setSubtype(prefill.subtype)
-      setStatus(nextStatus)
+    const result = await requestReview({ text, project, signals })
+    if (!result.ok) {
+      setReviewError(result.error)
       setReviewLoading(false)
+      return
+    }
 
-      persist({
-        title: prefill.title,
-        body: text,
-        subtype: prefill.subtype,
-        subtypeSource: prefill.subtypeSource,
-        status: nextStatus,
-        submittedSnapshot: newSnapshot,
-      })
+    const review = result.data
+    // Build the working doc from live fields, then apply the submit transition.
+    const working: Document = {
+      ...current,
+      title,
+      body: text,
+      subtype,
+      subtypeSource,
+      status,
+    }
+    const next = applySubmit(working, { body: text, review, submittedAt: new Date().toISOString() })
+    setReviewLoading(false)
+    commitDoc(next)
 
-      // Render inline squiggles for the freshly submitted body.
-      canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
-      void isResubmit
-    },
-    [body, doc, project, signals, title, subtype, subtypeSource, status, persist, inlineIds],
-  )
+    // Render inline squiggles for the freshly submitted body.
+    canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
+  }, [body, doc, project, signals, title, subtype, subtypeSource, status, commitDoc, inlineIds])
 
   // --- Unsubmit (manual only) ------------------------------------------------
   const handleUnsubmit = useCallback(() => {
-    setSnapshot(undefined)
-    setStatus('draft')
-    setRouting(undefined)
+    const current = doc
+    if (!current) return
     setDrawerOpen(false)
     setFocusedSignalId(null)
     canvasRef.current?.setSignalHighlights([])
-    persist({ submittedSnapshot: undefined, status: 'draft', routing: undefined })
-  }, [persist])
+    commitDoc(applyUnsubmit(current))
+  }, [doc, commitDoc])
 
   // --- Reviewer actions ------------------------------------------------------
   const handleReviewerStatus = useCallback(
     (next: SubmissionStatus) => {
-      setStatus(next)
-      persist({ status: next })
+      if (!doc) return
+      commitDoc(applyReviewerStatus(doc, next))
     },
-    [persist],
+    [doc, commitDoc],
   )
 
   const handleApprove = useCallback(
     (destination: RoutingDestination) => {
-      setStatus('approved')
-      setRouting(destination)
-      persist({ status: 'approved', routing: destination })
+      if (!doc) return
+      commitDoc(applyApprove(doc, destination))
     },
-    [persist],
+    [doc, commitDoc],
   )
 
   // --- Editor change ---------------------------------------------------------
@@ -288,7 +299,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault()
-        if (!reviewLoading) void runReview(false)
+        if (!reviewLoading) void runReview()
       }
     }
     window.addEventListener('keydown', onKey)
@@ -341,7 +352,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           ) : (
             <button
               type="button"
-              onClick={() => void runReview(false)}
+              onClick={() => void runReview()}
               disabled={reviewLoading}
               className={cn(
                 'inline-flex h-8 items-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg',
@@ -391,9 +402,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
             <SubtypeSelect
               value={subtype}
               onChange={(next) => {
-                setSubtype(next)
-                setSubtypeSource('user')
-                persist({ subtype: next, subtypeSource: 'user' })
+                if (doc) {
+                  commitDoc(applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next))
+                }
               }}
             />
           )}
@@ -404,7 +415,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       {drift ? (
         <DriftIndicator
           busy={reviewLoading}
-          onResubmit={() => void runReview(true)}
+          onResubmit={() => void runReview()}
           onUnsubmit={handleUnsubmit}
         />
       ) : null}
@@ -429,7 +440,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
         signals={signals}
         focusedSignalId={focusedSignalId}
         onClose={() => setDrawerOpen(false)}
-        onRetry={() => void runReview(Boolean(snapshot))}
+        onRetry={() => void runReview()}
         onPhraseClick={handlePhraseClick}
         onFranchiseClick={() => setFranchiseOpen(true)}
       />
