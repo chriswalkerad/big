@@ -39,9 +39,11 @@ export interface BreadcrumbProps {
   className?: string;
 }
 
-/** Shared text styling for an interactive (link/button) segment. */
+/** Shared text styling for an interactive (link/button) segment.
+ *  De-emphasised: `text-label-sm` (12px) in the muted `text-text-tertiary` tier
+ *  so the trail recedes; it brightens to `text-text-primary` on hover. */
 const interactiveSegmentClass = cn(
-  "rounded-control text-label-sm text-text-secondary transition-colors",
+  "rounded-control text-label-sm text-text-tertiary transition-colors",
   "hover:text-text-primary",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
 );
@@ -127,7 +129,9 @@ function BreadcrumbItem({ segment }: { segment: BreadcrumbSegment }) {
       aria-current={ariaCurrent}
       className={cn(
         "block truncate text-label-sm",
-        current ? "text-text-primary" : "text-text-secondary",
+        // De-emphasised trail: non-current segments recede in the muted tertiary
+        // tier; the active segment stays emphasised in the primary tier.
+        current ? "text-text-primary" : "text-text-tertiary",
       )}
     >
       {label}

@@ -25,7 +25,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${inter.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-bg text-text-primary font-sans">
+      <body className="min-h-full flex flex-col bg-app-canvas text-text-primary font-sans">
         {/* Skip link: first focusable element, visually hidden until focused, so
             keyboard / screen-reader users can jump past the header straight to the
             page content (WCAG 2.4.1 Bypass Blocks). */}

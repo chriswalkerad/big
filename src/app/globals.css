@@ -9,7 +9,7 @@
 
 /**
  * Map design tokens onto Tailwind's theme so token-backed utilities exist:
- *   bg-bg, bg-surface, bg-panel, border-border, text-primary,
+ *   bg-bg, bg-surface, bg-panel, bg-app-canvas, border-border, text-primary,
  *   text-secondary, text-tertiary, text-accent/bg-accent,
  *   text-risk, text-minor, text-pass (+ bg-/border- variants).
  *
@@ -21,6 +21,7 @@
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-panel: var(--panel);
+  --color-app-canvas: var(--app-canvas);
   --color-border: var(--border);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
@@ -99,7 +100,9 @@
 }
 
 body {
-  background: var(--bg);
+  /* The subtle gray app canvas frames the page so white "paper" surfaces lift
+     off it (see `--app-canvas` in tokens.css). */
+  background: var(--app-canvas);
   color: var(--text-primary);
   /* Tabular figures for numeric UI (signal scores, version numbers). */
   font-variant-numeric: tabular-nums;

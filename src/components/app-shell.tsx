@@ -21,7 +21,7 @@ export interface AppShellProps {
  */
 export function AppShell({ children, className }: AppShellProps) {
   return (
-    <div className="flex min-h-full flex-1 flex-col bg-bg">
+    <div className="flex min-h-full flex-1 flex-col bg-app-canvas">
       <header className="sticky top-0 z-40 border-b border-border bg-bg/80 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link
