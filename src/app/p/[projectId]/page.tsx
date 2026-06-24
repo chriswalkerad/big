@@ -78,7 +78,10 @@ export function LibraryView({ projectId }: { projectId: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <AppBreadcrumb segments={[{ label: project.name, current: true }]} />
+      <AppBreadcrumb
+        segments={[{ label: project.name, current: true }]}
+        currentProjectId={projectId}
+      />
 
       <header className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
