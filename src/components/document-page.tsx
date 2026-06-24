@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Loader2, Send } from 'lucide-react'
+import { Loader2, Sparkles } from 'lucide-react'
 import type {
   Document,
   Project,
@@ -90,6 +90,14 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [focusedSignalId, setFocusedSignalId] = useState<string | null>(null)
   const [franchiseOpen, setFranchiseOpen] = useState(false)
 
+  // Review-then-confirm preview: a freshly run review held for the author to read
+  // BEFORE the doc is submitted. `pendingReview` is the result; `pendingBody` is the
+  // exact (plain-text) body it was run against. While set, nothing has been committed —
+  // no snapshot, no status change, no prefill — until `confirmSubmission` runs. Cleared
+  // when the author edits the body (the preview no longer matches) or on confirm.
+  const [pendingReview, setPendingReview] = useState<ReviewResult | null>(null)
+  const [pendingBody, setPendingBody] = useState<string | null>(null)
+
   // --- Load on mount ---------------------------------------------------------
   // localStorage is client-only and unavailable during SSR, so the document is loaded
   // from StorageRepository in a mount effect and synced into React state — the
@@ -177,9 +185,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [])
 
   // --- Read mode: render the snapshot, not the live body ---------------------
-  // The drawer always reflects the submitted snapshot's review (computed on submit,
-  // never live) in both modes; edits don't touch it.
-  const displayReview: ReviewResult | null = snapshot?.review ?? null
+  // The drawer reflects, in priority order: a pending preview review (edit mode, not
+  // yet confirmed), otherwise the submitted snapshot's review (computed on submit,
+  // never live). Edits don't touch the snapshot; they clear the preview.
+  const displayReview: ReviewResult | null =
+    (!isRead && pendingReview) || snapshot?.review || null
   const displayBody = isRead ? (snapshot?.body ?? body) : body
 
   // The HTML content fed to the canvas. In read mode it is the snapshot body; in edit
@@ -222,11 +232,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     }
   }, [])
 
-  // --- Submit / Resubmit -----------------------------------------------------
-  // Submit and Resubmit run the same flow: review the current body, then apply the
-  // submit transition (which sets/replaces the snapshot, prefills, and advances the
-  // status). The reducer in @/lib/doc-page is the single source of truth for the
-  // resulting Document; this just orchestrates the async review and the overlay.
+  // --- Review preview (step 1 of review-then-confirm) ------------------------
+  // The edit-mode primary action (button / Resubmit / Cmd+Enter) runs the AI review of
+  // the current body and shows it in the drawer with inline squiggles, but DOES NOT
+  // submit: no snapshot, no status change, no prefill. The result is held as a pending
+  // preview for the author to read; they may edit (which clears the preview) and re-run,
+  // or confirm to commit. The submit transition itself lives in `confirmSubmission`.
   const runReview = useCallback(async () => {
     const current = doc
     if (!repoRef.current || !current || !project) return
@@ -244,7 +255,26 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     }
 
     const review = result.data
-    // Build the working doc from live fields, then apply the submit transition.
+    setReviewLoading(false)
+    // Hold the preview (result + exact reviewed body); nothing is committed yet.
+    setPendingReview(review)
+    setPendingBody(text)
+
+    // Render inline squiggles for the previewed body.
+    canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
+  }, [body, doc, project, signals, inlineIds])
+
+  // --- Confirm submission (step 2 of review-then-confirm) --------------------
+  // Commit the pending preview: build the working doc from live fields with the exact
+  // reviewed body, apply the submit transition (sets/replaces the snapshot, prefills,
+  // advances the status), persist, render squiggles from the committed review, and clear
+  // the preview. This is exactly the old one-step submit behaviour, now gated behind the
+  // author reading the review first.
+  const confirmSubmission = useCallback(() => {
+    const current = doc
+    if (!current || !pendingReview || pendingBody === null) return
+    const review = pendingReview
+    const text = pendingBody
     const working: Document = {
       ...current,
       title,
@@ -254,12 +284,13 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       status,
     }
     const next = applySubmit(working, { body: text, review, submittedAt: new Date().toISOString() })
-    setReviewLoading(false)
     commitDoc(next)
 
-    // Render inline squiggles for the freshly submitted body.
+    // Render inline squiggles for the freshly submitted body, then clear the preview.
     canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
-  }, [body, doc, project, signals, title, subtype, subtypeSource, status, commitDoc, inlineIds])
+    setPendingReview(null)
+    setPendingBody(null)
+  }, [doc, pendingReview, pendingBody, title, subtype, subtypeSource, status, commitDoc, inlineIds])
 
   // --- Unsubmit (manual only) ------------------------------------------------
   const handleUnsubmit = useCallback(() => {
@@ -267,6 +298,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     if (!current) return
     setDrawerOpen(false)
     setFocusedSignalId(null)
+    setPendingReview(null)
+    setPendingBody(null)
     canvasRef.current?.setSignalHighlights([])
     commitDoc(applyUnsubmit(current))
   }, [doc, commitDoc])
@@ -289,8 +322,13 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   )
 
   // --- Editor change ---------------------------------------------------------
+  // Editing invalidates any pending review preview (it no longer matches the body), so
+  // the author must re-run the review before they can confirm. Squiggles already clear
+  // on edit inside the canvas. Functional updaters keep this handler dependency-free.
   const handleBodyChange = useCallback((html: string) => {
     setBody(htmlToText(html))
+    setPendingReview((prev) => (prev ? null : prev))
+    setPendingBody((prev) => (prev ? null : prev))
   }, [])
 
   // --- Keyboard: Cmd/Ctrl+Enter = Submit (edit mode) -------------------------
@@ -363,9 +401,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               {reviewLoading ? (
                 <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
               ) : (
-                <Send className="size-3.5" aria-hidden="true" />
+                <Sparkles className="size-3.5" aria-hidden="true" />
               )}
-              {reviewLoading ? 'Reviewing…' : 'Submit'}
+              {reviewLoading ? 'Reviewing…' : 'Run review'}
             </button>
           )}
         </div>
@@ -439,8 +477,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
         review={displayReview}
         signals={signals}
         focusedSignalId={focusedSignalId}
+        pending={!isRead && pendingReview !== null}
         onClose={() => setDrawerOpen(false)}
         onRetry={() => void runReview()}
+        onConfirm={confirmSubmission}
         onPhraseClick={handlePhraseClick}
         onFranchiseClick={() => setFranchiseOpen(true)}
       />
