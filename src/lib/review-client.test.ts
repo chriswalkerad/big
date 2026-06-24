@@ -32,13 +32,13 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 describe('requestReview', () => {
   it('posts text/project/signals and returns the data on success', async () => {
-    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true, data: RESULT }))
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({ ok: true, data: RESULT }))
     const out = await requestReview({ text: 'hello', project: PROJECT, signals: SIGNALS, fetchImpl })
     expect(out).toEqual({ ok: true, data: RESULT })
 
     const [url, init] = fetchImpl.mock.calls[0]
     expect(url).toBe('/api/review')
-    const sent = JSON.parse((init as RequestInit).body as string)
+    const sent = JSON.parse(init?.body as string)
     expect(sent).toEqual({ text: 'hello', project: PROJECT, signals: SIGNALS })
   })
 
