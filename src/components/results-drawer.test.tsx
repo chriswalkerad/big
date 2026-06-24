@@ -108,3 +108,28 @@ describe('ResultsDrawer states', () => {
     expect(focused).toBeTruthy()
   })
 })
+
+describe('ResultsDrawer confirm submission (review-then-confirm)', () => {
+  it('shows a Confirm submission button for a pending preview and fires onConfirm', () => {
+    const onConfirm = vi.fn()
+    renderDrawer({ pending: true, onConfirm })
+    const confirm = screen.getByRole('button', { name: /confirm submission/i })
+    expect(confirm).toBeInTheDocument()
+    fireEvent.click(confirm)
+    expect(onConfirm).toHaveBeenCalled()
+  })
+
+  it('hides Confirm submission for an already-submitted snapshot (not pending)', () => {
+    renderDrawer({ onConfirm: () => {} })
+    expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+  })
+
+  it('does not show Confirm submission while loading or on error', () => {
+    const onConfirm = vi.fn()
+    renderDrawer({ pending: true, loading: true, review: null, onConfirm })
+    expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+    cleanup()
+    renderDrawer({ pending: true, error: appError('AI_RATE_LIMIT'), review: null, onConfirm })
+    expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+  })
+})

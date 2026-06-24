@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { X } from 'lucide-react'
+import { Check, X } from 'lucide-react'
 import type { AppError } from '@/lib/errors'
 import type { ReviewResult, SignalDef } from '@/types'
 import { cn } from '@/lib/utils'
@@ -29,9 +29,17 @@ interface ResultsDrawerProps {
   signals: SignalDef[]
   /** The currently focused signal id (bidirectional focus from a squiggle click). */
   focusedSignalId?: string | null
+  /**
+   * When true, the displayed review is an unsubmitted PREVIEW (review-then-confirm):
+   * the drawer offers a "Confirm submission" action that commits the submit. Omitted /
+   * false for an already-submitted snapshot, which shows no confirm affordance.
+   */
+  pending?: boolean
   onClose: () => void
   /** Retry the review (only meaningful with a retryable error). */
   onRetry?: () => void
+  /** Commit the previewed review (only meaningful while `pending`). */
+  onConfirm?: () => void
   /** Click a flagged phrase → focus its squiggle in the canvas. */
   onPhraseClick?: (signalId: string, quote: string) => void
   /** Open the franchise detail (from the Franchise Fit row). */
@@ -52,13 +60,19 @@ export function ResultsDrawer({
   review,
   signals,
   focusedSignalId,
+  pending,
   onClose,
   onRetry,
+  onConfirm,
   onPhraseClick,
   onFranchiseClick,
 }: ResultsDrawerProps) {
   const defs = signalDefMap(signals)
   const inlineIds = inlineSignalIdSet(signals)
+
+  // The confirm bar shows only for a settled preview review (not loading/error) that
+  // has a confirm handler — i.e. a review-then-confirm preview awaiting commit.
+  const showConfirm = Boolean(pending && onConfirm && review && !loading && !error)
 
   // Respect the OS reduce-motion preference: render instantly (no transforms),
   // composing with the global CSS reduced-motion rule in globals.css.
@@ -151,6 +165,26 @@ export function ResultsDrawer({
                 </motion.div>
               ) : null}
             </div>
+
+            {showConfirm ? (
+              <footer className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+                <p className="text-label-sm text-text-secondary">
+                  Review preview — not submitted yet. Edit to revise, or confirm to submit.
+                </p>
+                <button
+                  type="button"
+                  onClick={onConfirm}
+                  className={cn(
+                    'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg',
+                    'transition-[transform,opacity] hover:opacity-90 active:scale-[0.98]',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                  )}
+                >
+                  <Check className="size-3.5" aria-hidden="true" />
+                  Confirm submission
+                </button>
+              </footer>
+            ) : null}
           </motion.section>
         ) : null}
       </AnimatePresence>

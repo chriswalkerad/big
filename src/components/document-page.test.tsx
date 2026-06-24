@@ -63,7 +63,7 @@ describe('DocumentPage edit mode — submit flow', () => {
     })
   })
 
-  it('submits, opens the drawer with the verdict, and updates status + storage', async () => {
+  it('runs a review preview WITHOUT submitting, then confirm commits status + storage', async () => {
     seedDoc()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
@@ -71,16 +71,27 @@ describe('DocumentPage edit mode — submit flow', () => {
 
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
 
-    const submit = await screen.findByRole('button', { name: /submit/i })
-    fireEvent.click(submit)
+    // Step 1: the primary action runs the review (no longer labelled "Submit").
+    const runReview = await screen.findByRole('button', { name: /run review/i })
+    fireEvent.click(runReview)
 
-    // Verdict header appears in the drawer.
+    // Verdict header appears in the drawer (the preview).
     await waitFor(() => {
       expect(screen.getByText('Needs work')).toBeInTheDocument()
     })
     expect(screen.getByText('1 of 6 need attention')).toBeInTheDocument()
 
-    // Status auto-advanced to submitted and was persisted.
+    // The preview did NOT submit: still draft, no snapshot, title/subtype untouched.
+    const previewed = createStorageRepository().getDocument('doc-test')
+    expect(previewed?.status).toBe('draft')
+    expect(previewed?.submittedSnapshot).toBeUndefined()
+    expect(previewed?.title).toBe('')
+    expect(previewed?.subtype).toBe('story_premise')
+
+    // Step 2: confirm submission commits exactly the old submit behaviour.
+    const confirm = screen.getByRole('button', { name: /confirm submission/i })
+    fireEvent.click(confirm)
+
     await waitFor(() => {
       const saved = createStorageRepository().getDocument('doc-test')
       expect(saved?.status).toBe('submitted')
@@ -88,6 +99,13 @@ describe('DocumentPage edit mode — submit flow', () => {
       // Empty title prefilled from the suggestion; subtype detected (source still auto).
       expect(saved?.title).toBe('AI Title')
       expect(saved?.subtype).toBe('character_concept')
+    })
+
+    // The confirm action is gone once the doc is submitted (snapshot, not preview).
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', { name: /confirm submission/i }),
+      ).not.toBeInTheDocument()
     })
   })
 
@@ -98,12 +116,14 @@ describe('DocumentPage edit mode — submit flow', () => {
     )
 
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
-    fireEvent.click(await screen.findByRole('button', { name: /submit/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
 
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveAttribute('data-error-code', 'AI_RATE_LIMIT')
     })
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
+    // A failed preview offers no confirm affordance.
+    expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
   })
 })
 
@@ -127,13 +147,23 @@ describe('DocumentPage version drift (edit mode)', () => {
     expect(createStorageRepository().getDocument('doc-test')?.status).toBe('submitted')
   })
 
-  it('Resubmit replaces the snapshot with the current body', async () => {
+  it('Resubmit previews then confirm replaces the snapshot with the current body', async () => {
     seedDrifted()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
     )
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
     fireEvent.click(await screen.findByRole('button', { name: /resubmit/i }))
+
+    // Resubmit runs a preview — the snapshot is unchanged until confirmed.
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /confirm submission/i })).toBeInTheDocument()
+    })
+    expect(createStorageRepository().getDocument('doc-test')?.submittedSnapshot?.body).toBe(
+      'original snapshot body',
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /confirm submission/i }))
 
     await waitFor(() => {
       const saved = createStorageRepository().getDocument('doc-test')
