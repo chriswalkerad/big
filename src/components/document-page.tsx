@@ -36,7 +36,7 @@ import { SubtypeSelect } from '@/components/subtype-select'
 import { ReviewerStatusControl } from '@/components/reviewer-status-control'
 import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
-import { ResultsDrawer } from '@/components/results-drawer'
+import { ResultsPanel } from '@/components/results-panel'
 import { FranchiseDetail } from '@/components/franchise-detail'
 import { SubmissionCelebration } from '@/components/celebration/submission-celebration'
 import { LoadingState } from '@/components/loading-state'
@@ -67,6 +67,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const repoRef = useRef<StorageRepository | null>(null)
   const canvasRef = useRef<DocumentCanvasHandle | null>(null)
   const editorContainerRef = useRef<HTMLDivElement | null>(null)
+  // The inline results panel (right column). Held so Run review can scroll the freshly
+  // revealed feedback into view while the editor + author text stay visible.
+  const resultsPanelRef = useRef<HTMLElement | null>(null)
 
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<AppError | null>(null)
@@ -84,8 +87,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [routing, setRouting] = useState<RoutingDestination | undefined>(undefined)
   const [snapshot, setSnapshot] = useState<SubmittedSnapshot | undefined>(undefined)
 
-  // Review / drawer state.
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  // Review state.
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewError, setReviewError] = useState<AppError | null>(null)
   const [focusedSignalId, setFocusedSignalId] = useState<string | null>(null)
@@ -127,8 +129,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setStatus(found.status)
     setRouting(found.routing)
     setSnapshot(found.submittedSnapshot)
-    // In read mode, open the drawer on load so the reviewer sees the verdict.
-    if (mode === 'read' && found.submittedSnapshot) setDrawerOpen(true)
     setLoaded(true)
   }, [docId, projectId, mode])
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -188,8 +188,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [])
 
   // --- Read mode: render the snapshot, not the live body ---------------------
-  // The drawer reflects, in priority order: a pending preview review (edit mode, not
-  // yet confirmed), otherwise the submitted snapshot's review (computed on submit,
+  // The results panel reflects, in priority order: a pending preview review (edit mode,
+  // not yet confirmed), otherwise the submitted snapshot's review (computed on submit,
   // never live). Edits don't touch the snapshot; they clear the preview.
   const displayReview: ReviewResult | null =
     (!isRead && pendingReview) || snapshot?.review || null
@@ -206,13 +206,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   )
 
   // --- Bidirectional focus ---------------------------------------------------
-  // Squiggle click → focus the matching drawer row.
+  // Squiggle click → focus the matching panel row (the row scrolls itself into view).
   const handleHighlightClick = useCallback((signalId: string) => {
     setFocusedSignalId(signalId)
-    setDrawerOpen(true)
   }, [])
 
-  // Drawer phrase click → scroll to + emphasise the squiggle in the canvas.
+  // Panel phrase click → scroll to + emphasise the squiggle in the canvas.
   const handlePhraseClick = useCallback((signalId: string, quote: string) => {
     setFocusedSignalId(signalId)
     const root = editorContainerRef.current
@@ -235,9 +234,31 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     }
   }, [])
 
+  // --- Apply prompt (AI rewrite — placeholder) -------------------------------
+  // The "Apply" button in the review summary hands the suggested prompt to an AI
+  // rewrite of the body. That AI call is wired by a sibling change (the orchestrator);
+  // here we only expose the affordance with a no-op callback so the button renders and
+  // is testable. When the rewrite is wired it will also drive an `applying` flag passed
+  // to <ResultsPanel applying={...} /> to show the in-flight spinner.
+  const handleApplyPrompt = useCallback(() => {
+    // Intentionally empty: the AI rewrite is implemented by the orchestrator.
+  }, [])
+
+  // --- Run review auto-scroll ------------------------------------------------
+  // Bring the right-side results panel into view when a review run begins / lands, so
+  // feedback no longer hides behind a bottom sheet — the editor + the author's text
+  // stay visible while they read. On desktop the panel is sticky beside the editor, so
+  // this matters most on narrow screens where the panel sits below the editor.
+  const scrollResultsIntoView = useCallback(() => {
+    const el = resultsPanelRef.current
+    if (el && typeof el.scrollIntoView === 'function') {
+      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    }
+  }, [])
+
   // --- Review preview (step 1 of review-then-confirm) ------------------------
   // The edit-mode primary action (button / Resubmit / Cmd+Enter) runs the AI review of
-  // the current body and shows it in the drawer with inline squiggles, but DOES NOT
+  // the current body and shows it in the right panel with inline squiggles, but DOES NOT
   // submit: no snapshot, no status change, no prefill. The result is held as a pending
   // preview for the author to read; they may edit (which clears the preview) and re-run,
   // or confirm to commit. The submit transition itself lives in `confirmSubmission`.
@@ -247,13 +268,15 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     const text = htmlToText(body)
     setReviewError(null)
     setReviewLoading(true)
-    setDrawerOpen(true)
     setFocusedSignalId(null)
+    // Reveal the panel's loading state immediately (next frame, after it mounts/paints).
+    requestAnimationFrame(scrollResultsIntoView)
 
     const result = await requestReview({ text, project, signals })
     if (!result.ok) {
       setReviewError(result.error)
       setReviewLoading(false)
+      requestAnimationFrame(scrollResultsIntoView)
       return
     }
 
@@ -262,10 +285,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     // Hold the preview (result + exact reviewed body); nothing is committed yet.
     setPendingReview(review)
     setPendingBody(text)
+    // Keep the feedback in view now that the verdict + rows have rendered.
+    requestAnimationFrame(scrollResultsIntoView)
 
     // Render inline squiggles for the previewed body.
     canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
-  }, [body, doc, project, signals, inlineIds])
+  }, [body, doc, project, signals, inlineIds, scrollResultsIntoView])
 
   // --- Confirm submission (step 2 of review-then-confirm) --------------------
   // Commit the pending preview: build the working doc from live fields with the exact
@@ -301,7 +326,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const handleUnsubmit = useCallback(() => {
     const current = doc
     if (!current) return
-    setDrawerOpen(false)
     setFocusedSignalId(null)
     setPendingReview(null)
     setPendingBody(null)
@@ -368,136 +392,157 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const audienceShort = shortAudience(project.audience)
 
   return (
-    <div className="flex flex-col gap-6 pb-[calc(60vh+2rem)]">
-      {/* Top bar */}
-      <div className="flex flex-col gap-3 border-b border-border pb-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <AppBreadcrumb
-            segments={[
-              { label: project.name, href: `/p/${projectId}` },
-              { label: title || 'Untitled', current: true },
-            ]}
-            className="min-w-0 flex-1"
-          />
-          <ContextChip name={project.name} audience={audienceShort} />
-          {isRead ? (
-            <ReviewerStatusControl
-              status={status}
-              routing={routing}
-              onStatusChange={handleReviewerStatus}
-              onApprove={handleApprove}
-            />
-          ) : (
-            <StatusChip status={status} />
-          )}
-          {isRead ? (
-            <CopyLinkButton url={reviewUrl} />
-          ) : (
-            <button
-              type="button"
-              onClick={() => void runReview()}
-              disabled={reviewLoading}
-              className={cn(
-                'inline-flex h-8 items-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg',
-                'transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100',
-                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-              )}
-            >
-              {reviewLoading ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-              ) : (
-                <Sparkles className="size-3.5" aria-hidden="true" />
-              )}
-              {reviewLoading ? 'Reviewing…' : 'Run review'}
-            </button>
-          )}
-        </div>
-
-        {isRead && routing ? (
-          <RoutedNote destination={routing} />
-        ) : null}
-      </div>
-
-      {/* Title + subtype */}
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {isRead ? (
-            <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
-          ) : (
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              onBlur={() => persist({ title })}
-              placeholder="Untitled"
-              aria-label="Title"
-              className={cn(
-                'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
-                'focus:outline-none',
-              )}
-            />
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {isRead ? (
-            <SubtypeChip subtype={subtype} />
-          ) : (
-            <SubtypeSelect
-              value={subtype}
-              onChange={(next) => {
-                if (doc) {
-                  commitDoc(applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next))
-                }
-              }}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Drift indicator (edit mode) */}
-      {drift ? (
-        <DriftIndicator
-          busy={reviewLoading}
-          onResubmit={() => void runReview()}
-          onUnsubmit={handleUnsubmit}
-        />
-      ) : null}
-
-      {/* Body — a "paper on a desk": the gray desk frames a white paper sheet with a
-          soft shadow, rounded corners and document padding, so the writing surface
-          stands out. The desk/paper backgrounds are theme-aware tokens (.document-desk
-          / .document-paper, defined in editor.css): white-on-gray in light, elevated-
-          surface-on-darker in dark. Applied to edit and read alike. */}
-      <div
-        ref={editorContainerRef}
-        className="document-desk -mx-4 rounded-card p-4 sm:-mx-6 sm:p-8"
-      >
-        <div className="document-paper mx-auto max-w-3xl rounded-card border border-border p-6 shadow-lg sm:p-8">
-          <DocumentCanvas
-            ref={canvasRef}
-            mode={mode}
-            content={initialContent}
-            onChange={isRead ? undefined : handleBodyChange}
-            onHighlightClick={handleHighlightClick}
-          />
-        </div>
-      </div>
-
-      {/* Results drawer */}
-      <ResultsDrawer
-        open={drawerOpen}
-        loading={reviewLoading}
-        error={reviewError}
-        review={displayReview}
-        signals={signals}
-        focusedSignalId={focusedSignalId}
-        pending={!isRead && pendingReview !== null}
-        onClose={() => setDrawerOpen(false)}
-        onRetry={() => void runReview()}
-        onConfirm={confirmSubmission}
-        onPhraseClick={handlePhraseClick}
-        onFranchiseClick={() => setFranchiseOpen(true)}
+    <div className="flex flex-col gap-6">
+      {/* Breadcrumb — page navigation chrome, above the editor + panel columns. */}
+      <AppBreadcrumb
+        segments={[
+          { label: project.name, href: `/p/${projectId}` },
+          { label: title || 'Untitled', current: true },
+        ]}
+        className="min-w-0"
       />
+
+      {/* Two-column layout: the editor "paper" gets the main/left area with more vertical
+          height; the metadata + controls and the review results live in a right-side
+          panel with its own scroll, sticky to the viewport on desktop. On narrow screens
+          the grid collapses to one column and the right panel stacks BELOW the editor. */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        {/* LEFT — the writing surface. A "paper on a desk": the gray desk frames a white
+            paper sheet with a soft shadow, rounded corners and document padding, so the
+            writing surface stands out. The desk/paper backgrounds are theme-aware tokens
+            (.document-desk / .document-paper, defined in editor.css): white-on-gray in
+            light, elevated-surface-on-darker in dark. Applied to edit and read alike. */}
+        <div
+          ref={editorContainerRef}
+          className="document-desk order-1 rounded-card p-4 sm:p-6"
+        >
+          <div className="document-paper mx-auto max-w-3xl rounded-card border border-border p-6 shadow-lg sm:p-8">
+            <DocumentCanvas
+              ref={canvasRef}
+              mode={mode}
+              content={initialContent}
+              onChange={isRead ? undefined : handleBodyChange}
+              onHighlightClick={handleHighlightClick}
+            />
+          </div>
+        </div>
+
+        {/* RIGHT — metadata + controls, then the review results. On desktop this column
+            sticks to the viewport with its own scroll so it tracks the page as the author
+            reads/edits; on mobile it simply stacks below the editor. */}
+        <aside
+          aria-label="Document details and review"
+          className={cn(
+            'order-2 flex min-w-0 flex-col gap-4',
+            'lg:sticky lg:top-6 lg:max-h-[calc(100vh-5rem)] lg:overflow-y-auto',
+          )}
+        >
+          {/* Metadata + controls (moved out of the old top bar). */}
+          <div className="flex flex-col gap-3 rounded-card border border-border bg-surface p-4">
+            <ContextChip
+              name={project.name}
+              audience={audienceShort}
+              className="self-start"
+            />
+
+            <div className="flex flex-wrap items-center gap-2">
+              {isRead ? (
+                <ReviewerStatusControl
+                  status={status}
+                  routing={routing}
+                  onStatusChange={handleReviewerStatus}
+                  onApprove={handleApprove}
+                />
+              ) : (
+                <StatusChip status={status} />
+              )}
+              {isRead ? <CopyLinkButton url={reviewUrl} /> : null}
+            </div>
+
+            {isRead && routing ? <RoutedNote destination={routing} /> : null}
+
+            {!isRead ? (
+              <button
+                type="button"
+                onClick={() => void runReview()}
+                disabled={reviewLoading}
+                className={cn(
+                  'inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg',
+                  'transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                )}
+              >
+                {reviewLoading ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="size-3.5" aria-hidden="true" />
+                )}
+                {reviewLoading ? 'Reviewing…' : 'Run review'}
+              </button>
+            ) : null}
+
+            <div className="flex flex-col gap-2 border-t border-border pt-3">
+              {isRead ? (
+                <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
+              ) : (
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onBlur={() => persist({ title })}
+                  placeholder="Untitled"
+                  aria-label="Title"
+                  className={cn(
+                    'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
+                    'focus:outline-none',
+                  )}
+                />
+              )}
+              <div className="flex items-center gap-2">
+                {isRead ? (
+                  <SubtypeChip subtype={subtype} />
+                ) : (
+                  <SubtypeSelect
+                    value={subtype}
+                    onChange={(next) => {
+                      if (doc) {
+                        commitDoc(
+                          applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next),
+                        )
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Drift indicator (edit mode). */}
+            {drift ? (
+              <DriftIndicator
+                busy={reviewLoading}
+                onResubmit={() => void runReview()}
+                onUnsubmit={handleUnsubmit}
+              />
+            ) : null}
+          </div>
+
+          {/* Review results — inline, replacing the old bottom-sheet drawer. */}
+          <ResultsPanel
+            ref={resultsPanelRef}
+            loading={reviewLoading}
+            error={reviewError}
+            review={displayReview}
+            signals={signals}
+            focusedSignalId={focusedSignalId}
+            pending={!isRead && pendingReview !== null}
+            onRetry={() => void runReview()}
+            onConfirm={confirmSubmission}
+            onPhraseClick={handlePhraseClick}
+            onFranchiseClick={() => setFranchiseOpen(true)}
+            onApplyPrompt={isRead ? undefined : handleApplyPrompt}
+          />
+        </aside>
+      </div>
 
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
 
