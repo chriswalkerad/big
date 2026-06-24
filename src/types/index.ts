@@ -116,3 +116,23 @@ export interface ReviewRequest {
 export type ReviewResponse =
   | { ok: true; data: ReviewResult }
   | { ok: false; error: import('@/lib/errors').AppError }
+
+/**
+ * Request body for POST /api/apply. The AI rewrites `text` to satisfy
+ * `instruction` (typically a review's suggestedPrompt) and returns plain text.
+ */
+export interface ApplyRequest {
+  text: string
+  instruction: string
+  project: Project
+}
+
+/** Successful payload from POST /api/apply: the rewritten document text. */
+export interface ApplyResult {
+  text: string
+}
+
+/** Discriminated response from POST /api/apply. */
+export type ApplyResponse =
+  | { ok: true; data: ApplyResult }
+  | { ok: false; error: import('@/lib/errors').AppError }

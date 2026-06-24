@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { MockProvider, reviewSync } from './mock'
+import { applyEditSync, MockProvider, reviewSync } from './mock'
 import { reviewResultSchema } from '@/lib/schemas'
 import { seedDocuments, seedProject, seedSignals } from '@/lib/seed-data'
-import type { ReviewInput } from './interface'
+import type { ApplyInput, ReviewInput } from './interface'
 
 function inputFor(text: string): ReviewInput {
   return { text, project: seedProject, signals: seedSignals }
+}
+
+function applyInputFor(text: string, instruction = 'Tighten the opening for clarity.'): ApplyInput {
+  return { text, instruction, project: seedProject }
 }
 
 describe('MockProvider', () => {
@@ -183,5 +187,51 @@ describe('MockProvider', () => {
     expect(result.signals).toHaveLength(1)
     expect(result.signals[0].signalId).toBe('pacing')
     expect(() => reviewResultSchema.parse(result)).not.toThrow()
+  })
+})
+
+describe('MockProvider applyEdit', () => {
+  it('applies a visible change and is never a pure echo', async () => {
+    const provider = new MockProvider()
+    const original = seedDocuments[0].body
+    const out = await provider.applyEdit(applyInputFor(original))
+    expect(typeof out).toBe('string')
+    expect(out.length).toBeGreaterThan(0)
+    expect(out).not.toBe(original)
+    // The original body survives (minus trimmed filler) under the new opening line.
+    expect(out).toContain('\n\n')
+  })
+
+  it('is deterministic: identical (text, instruction) yields identical output', async () => {
+    const provider = new MockProvider()
+    const input = applyInputFor(seedDocuments[1].body)
+    const a = await provider.applyEdit(input)
+    const b = await provider.applyEdit(input)
+    expect(a).toBe(b)
+    // Stable across the sync core too.
+    expect(applyEditSync(input)).toBe(a)
+  })
+
+  it('varies the opening verb with the instruction (guided, not echoed)', () => {
+    const text = 'A short caper about a precocious kid at a grand hotel.'
+    const safer = applyEditSync(applyInputFor(text, 'Make this fully family-safe and on-brand.'))
+    const clearer = applyEditSync(applyInputFor(text, 'Tighten this for clarity and concision.'))
+    expect(safer.startsWith('Refocus')).toBe(true)
+    expect(clearer.startsWith('Tighten')).toBe(true)
+    expect(safer).not.toBe(clearer)
+  })
+
+  it('trims hedging filler from the body', () => {
+    const text = 'This is basically just a really cool idea, you know, sort of about a kid.'
+    const out = applyEditSync(applyInputFor(text))
+    expect(out.toLowerCase()).not.toContain('basically')
+    expect(out.toLowerCase()).not.toContain('you know')
+    // Still preserves the substantive content.
+    expect(out.toLowerCase()).toContain('kid')
+  })
+
+  it('still returns a non-empty rewrite for filler-only / minimal text', () => {
+    const out = applyEditSync(applyInputFor('really just basically'))
+    expect(out.length).toBeGreaterThan(0)
   })
 })

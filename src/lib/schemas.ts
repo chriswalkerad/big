@@ -5,6 +5,7 @@
 
 import { z } from 'zod'
 import type {
+  ApplyRequest,
   Project,
   ReviewRequest,
   ReviewResult,
@@ -78,5 +79,13 @@ export const reviewRequestSchema: z.ZodType<ReviewRequest> = z.object({
   signals: z.array(signalDefSchema),
 })
 
+/** Request body for POST /api/apply. */
+export const applyRequestSchema: z.ZodType<ApplyRequest> = z.object({
+  text: z.string(),
+  instruction: z.string(),
+  project: projectSchema,
+})
+
 export type ReviewResultInput = z.input<typeof reviewResultSchema>
 export type ReviewRequestInput = z.input<typeof reviewRequestSchema>
+export type ApplyRequestInput = z.input<typeof applyRequestSchema>

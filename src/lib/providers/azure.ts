@@ -10,8 +10,13 @@
 import OpenAI from 'openai'
 import type { ReviewResult } from '@/types'
 import { appError, toAppError } from '@/lib/errors'
-import type { ReviewInput, ReviewProvider } from './interface'
-import { buildPrompt, buildSystemInstruction } from './gemini'
+import type { ApplyInput, ReviewInput, ReviewProvider } from './interface'
+import {
+  buildApplyPrompt,
+  buildApplySystemInstruction,
+  buildPrompt,
+  buildSystemInstruction,
+} from './gemini'
 
 export const DEFAULT_AZURE_DEPLOYMENT = 'gpt-5.5'
 
@@ -132,6 +137,29 @@ export class AzureProvider implements ReviewProvider {
     } catch (e) {
       // toAppError maps timeouts -> AI_TIMEOUT, 429 -> AI_RATE_LIMIT, 5xx ->
       // AI_UNAVAILABLE, offline -> NETWORK_OFFLINE, and passes AppErrors through.
+      throw toAppError(e)
+    }
+  }
+
+  async applyEdit(input: ApplyInput): Promise<string> {
+    try {
+      const completion = await this.getClient().chat.completions.create(
+        {
+          model: this.deployment,
+          messages: [
+            { role: 'system', content: buildApplySystemInstruction(input) },
+            { role: 'user', content: buildApplyPrompt(input) },
+          ],
+        },
+        { timeout: REQUEST_TIMEOUT_MS },
+      )
+
+      const raw = completion.choices[0]?.message?.content
+      if (!raw || !raw.trim()) {
+        throw appError('AI_BAD_JSON', 'The model returned an empty rewrite.')
+      }
+      return raw.trim()
+    } catch (e) {
       throw toAppError(e)
     }
   }

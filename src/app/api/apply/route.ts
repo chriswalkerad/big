@@ -1,0 +1,33 @@
+// POST /api/apply — applies an AI rewrite of the document text per an instruction
+// (typically a review's suggestedPrompt). Like /api/review, its job is to keep the
+// provider keys off the client. It parses the JSON body, delegates to handleApply
+// (the testable core), and serializes the typed ApplyResponse. It stores nothing.
+//
+// Next 16 route-handler convention (per node_modules/next/dist/docs/01-app/
+// 03-api-reference/03-file-conventions/route.md): export an async function named
+// after the HTTP method that takes the Web `Request` and returns a `Response`; read
+// the body with `await request.json()` and reply with `Response.json(...)`.
+
+import { appError } from '@/lib/errors'
+import { handleApply } from './handler'
+
+// The provider SDKs and process.env need the Node.js runtime, not the edge runtime.
+export const runtime = 'nodejs'
+// Always run per-request; nothing here is cacheable.
+export const dynamic = 'force-dynamic'
+
+export async function POST(request: Request): Promise<Response> {
+  let body: unknown
+  try {
+    body = await request.json()
+  } catch (e) {
+    // Malformed/absent JSON body — return a typed error, never throw.
+    return Response.json(
+      { ok: false, error: appError('UNKNOWN', 'Request body was not valid JSON.', e) },
+      { status: 400 },
+    )
+  }
+
+  const result = await handleApply(body)
+  return Response.json(result)
+}

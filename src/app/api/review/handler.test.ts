@@ -43,6 +43,9 @@ describe('handleReview', () => {
       async review() {
         return { detectedSubtype: 'not_a_subtype', signals: 'oops' } as unknown as ReviewResult
       },
+      async applyEdit() {
+        return ''
+      },
     }
     const res = await handleReview(bodyFor('A real concept with words.'), { provider: badProvider })
     expect(res.ok).toBe(false)
@@ -56,6 +59,9 @@ describe('handleReview', () => {
     const throwingProvider: ReviewProvider = {
       async review() {
         throw appError('AI_RATE_LIMIT')
+      },
+      async applyEdit() {
+        return ''
       },
     }
     const res = await handleReview(bodyFor('A real concept with words.'), { provider: throwingProvider })
@@ -74,7 +80,14 @@ describe('handleReview', () => {
       signals: [{ signalId: 'clarity', score: 8, rationale: 'clear', issues: [] }],
       verdict: { label: 'looks_ready', flagCount: 0 },
     }
-    const provider: ReviewProvider = { async review() { return valid } }
+    const provider: ReviewProvider = {
+      async review() {
+        return valid
+      },
+      async applyEdit() {
+        return ''
+      },
+    }
     const res = await handleReview(bodyFor('A real concept with words.'), { provider })
     expect(res).toEqual({ ok: true, data: valid })
   })

@@ -13,7 +13,7 @@ import type {
   SignalResult,
   TextSubtype,
 } from '@/types'
-import type { ReviewInput, ReviewProvider } from './interface'
+import type { ApplyInput, ReviewInput, ReviewProvider } from './interface'
 
 // --- Deterministic PRNG --------------------------------------------------------
 
@@ -486,6 +486,70 @@ export class MockProvider implements ReviewProvider {
   async review(input: ReviewInput): Promise<ReviewResult> {
     return reviewSync(input)
   }
+
+  async applyEdit(input: ApplyInput): Promise<string> {
+    return applyEditSync(input)
+  }
+}
+
+// --- Deterministic "apply suggested prompt" edit -------------------------------
+// The mock has no LLM, so it makes a SMALL but VISIBLE, deterministic rewrite of the
+// author's text guided by the instruction: it trims hedging filler and prepends one
+// tightened clarifying opening line whose verb is chosen from the instruction. Same
+// (text, instruction) in → byte-identical text out. It is never a pure echo: the
+// opening line is always added, so the returned text differs from the input.
+
+/** Hedging filler the demo trims to show a concrete, deterministic change. */
+const FILLER_PATTERNS: RegExp[] = [
+  /\b(?:basically|literally|really|just|kind of|sort of|a whole vibe|you know|honestly|i think|maybe|somehow|or something|stuff like that)\b/gi,
+  /\b(?:very|quite|pretty|totally|actually)\s+/gi,
+]
+
+/** Collapse the whitespace left behind after trimming filler words. */
+function tidyWhitespace(text: string): string {
+  return text
+    .split(/\r?\n/)
+    .map((line) =>
+      line
+        .replace(/[ \t]{2,}/g, ' ')
+        .replace(/\s+([,.;:!?])/g, '$1')
+        .replace(/[ \t]+$/g, ''),
+    )
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+/**
+ * Choose a leading verb for the clarifying line from the instruction, so the edit
+ * visibly reflects what was asked (e.g. "make it safer" → "Refocus"). Deterministic:
+ * first matching rule in order wins, with a stable default.
+ */
+function clarifyingVerb(instruction: string): string {
+  const i = instruction.toLowerCase()
+  if (/\b(safe|family|brand|remove|replace)\b/.test(i)) return 'Refocus'
+  if (/\b(clear|clarity|concise|tighten|simpl)\b/.test(i)) return 'Tighten'
+  if (/\b(hook|open|grab|attention)\b/.test(i)) return 'Sharpen'
+  if (/\b(character|protagonist|hero|lead)\b/.test(i)) return 'Ground'
+  if (/\b(complete|detail|expand|flesh)\b/.test(i)) return 'Anchor'
+  return 'Revise'
+}
+
+/**
+ * Deterministic, LLM-free rewrite for the demo. Trims filler and prepends a single
+ * tightened clarifying opening line derived from the instruction and the text's own
+ * subject (its suggested title). Returns plain text; same input → same output.
+ */
+export function applyEditSync(input: ApplyInput): string {
+  const { text, instruction } = input
+  const body = tidyWhitespace(
+    FILLER_PATTERNS.reduce((acc, pattern) => acc.replace(pattern, ''), text),
+  )
+  const subject = suggestTitle(body || text)
+  const verb = clarifyingVerb(instruction)
+  // One concrete clarifying line that names the subject and the asked-for direction.
+  const opener = `${verb} "${subject}" so the intent is unmistakable on the first read.`
+  return body.length > 0 ? `${opener}\n\n${body}` : opener
 }
 
 /** Pure, synchronous core — handy for tests that want a value without a promise. */

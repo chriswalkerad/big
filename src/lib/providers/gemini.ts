@@ -8,7 +8,7 @@
 import { GoogleGenAI, Type, type Schema } from '@google/genai'
 import type { ReviewResult } from '@/types'
 import { appError, toAppError } from '@/lib/errors'
-import type { ReviewInput, ReviewProvider } from './interface'
+import type { ApplyInput, ReviewInput, ReviewProvider } from './interface'
 
 export const DEFAULT_GEMINI_MODEL_ID = 'gemini-3.5-flash'
 
@@ -120,6 +120,41 @@ export function buildPrompt(input: ReviewInput): string {
   ].join('\n')
 }
 
+// --- Apply (rewrite) prompt — shared with the Azure provider -------------------
+
+/** System instruction for the "apply suggested prompt" plain-text rewrite. */
+export function buildApplySystemInstruction(input: ApplyInput): string {
+  const { project } = input
+  return [
+    'You are a script editor. Rewrite the author\'s text to satisfy the instruction. Return ONLY the rewritten text, no preamble or quotes.',
+    '',
+    'PROJECT CONTEXT',
+    `Name: ${project.name}`,
+    `Audience: ${project.audience}`,
+    `Tags: ${project.tags.join(', ')}`,
+    `Franchise context: ${project.franchiseContext}`,
+    '',
+    'OUTPUT RULES',
+    '- Return ONLY the rewritten text. No preamble, no explanation, no surrounding quotes or code fences.',
+    '- Preserve the author\'s voice and any details the instruction does not ask you to change.',
+    '- Keep it appropriate for the project audience and on-brand for the franchise context.',
+  ].join('\n')
+}
+
+/** User prompt carrying the instruction and the author's current text. */
+export function buildApplyPrompt(input: ApplyInput): string {
+  const { text, instruction } = input
+  return [
+    'INSTRUCTION:',
+    instruction,
+    '',
+    "AUTHOR'S TEXT (rewrite this):",
+    '"""',
+    text,
+    '"""',
+  ].join('\n')
+}
+
 export class GeminiProvider implements ReviewProvider {
   private readonly client: GoogleGenAI
   private readonly modelId: string
@@ -164,6 +199,32 @@ export class GeminiProvider implements ReviewProvider {
       // toAppError already maps AbortError -> AI_TIMEOUT, status 429 -> AI_RATE_LIMIT,
       // fetch/offline -> NETWORK_OFFLINE, SyntaxError/json -> AI_BAD_JSON, and passes
       // through AppErrors we threw above unchanged.
+      throw toAppError(e)
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
+  async applyEdit(input: ApplyInput): Promise<string> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    try {
+      const response = await this.client.models.generateContent({
+        model: this.modelId,
+        contents: buildApplyPrompt(input),
+        config: {
+          systemInstruction: buildApplySystemInstruction(input),
+          temperature: 0.4,
+          abortSignal: controller.signal,
+        },
+      })
+
+      const raw = response.text
+      if (!raw || !raw.trim()) {
+        throw appError('AI_BAD_JSON', 'The model returned an empty rewrite.')
+      }
+      return raw.trim()
+    } catch (e) {
       throw toAppError(e)
     } finally {
       clearTimeout(timer)
