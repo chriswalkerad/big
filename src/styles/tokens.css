@@ -1,0 +1,108 @@
+/**
+ * Design tokens for the Creative Review Workspace.
+ *
+ * This file is the SINGLE source of hard-coded values in the codebase.
+ * Components must reference these CSS variables (directly or via the
+ * token-backed Tailwind utilities wired up in globals.css), never raw hex.
+ *
+ * Palette: neutral zinc-like grayscale. The only chromatic colors are the
+ * functional severity colors (risk/minor/pass), used solely in highlight
+ * squiggles and signal fill bars.
+ *
+ * Light values live in :root, dark values in .dark (next-themes "class"
+ * strategy toggles `.dark` on the <html> element).
+ */
+
+:root {
+  /* Neutrals — light */
+  --bg: #ffffff;
+  --surface: #fafafa;
+  --panel: #f4f4f5;
+  --border: #e4e4e7;
+  --text-primary: #18181b;
+  --text-secondary: #71717a;
+  --text-tertiary: #a1a1aa;
+  --accent: #18181b;
+
+  /* Functional / chromatic — light (highlights + signal bars only) */
+  --risk: #dc2626;
+  --minor: #d97706;
+  --pass: #16a34a;
+
+  /* Type scale — UI (13px base, 4px baseline grid).
+     Each entry: font-size / line-height / font-weight (+ tracking where noted). */
+  --font-size-label-xs: 11px;
+  --line-height-label-xs: 16px;
+  --font-weight-label-xs: 500;
+  --letter-spacing-label-xs: 0.05em;
+
+  --font-size-label-sm: 12px;
+  --line-height-label-sm: 16px;
+  --font-weight-label-sm: 500;
+
+  --font-size-body: 13px;
+  --line-height-body: 20px;
+  --font-weight-body: 400;
+
+  --font-size-body-emphasis: 14px;
+  --line-height-body-emphasis: 20px;
+  --font-weight-body-emphasis: 500;
+
+  --font-size-title: 16px;
+  --line-height-title: 24px;
+  --font-weight-title: 600;
+
+  --font-size-heading: 20px;
+  --line-height-heading: 28px;
+  --font-weight-heading: 600;
+  --letter-spacing-heading: -0.01em;
+
+  --font-size-display: 28px;
+  --line-height-display: 36px;
+  --font-weight-display: 600;
+  --letter-spacing-display: -0.01em;
+
+  /* Type scale — document content */
+  --font-size-doc-body: 15px;
+  --line-height-doc-body: 24px;
+  --font-weight-doc-body: 400;
+
+  --font-size-doc-title: 24px;
+  --line-height-doc-title: 32px;
+  --font-weight-doc-title: 600;
+  --letter-spacing-doc-title: -0.01em;
+
+  /* Document measure */
+  --measure-doc: 70ch;
+
+  /* Spacing — 4px grid */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Radius */
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-pill: 9999px;
+}
+
+.dark {
+  /* Neutrals — dark */
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --panel: #1c1c1f;
+  --border: #262626;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-tertiary: #71717a;
+  --accent: #fafafa;
+
+  /* Functional / chromatic — dark (highlights + signal bars only) */
+  --risk: #f87171;
+  --minor: #fbbf24;
+  --pass: #4ade80;
+}
