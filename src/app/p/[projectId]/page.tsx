@@ -91,7 +91,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
             className={cn(
               "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-control px-3",
               "border border-border bg-text-primary text-label-sm font-medium text-bg",
-              "transition-opacity hover:opacity-90",
+              "transition-[transform,opacity] hover:opacity-90 active:scale-[0.98]",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             )}
           >
