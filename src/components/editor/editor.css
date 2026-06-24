@@ -1,3 +1,78 @@
+/* "Paper on a desk" surfaces.
+ *
+ * The neutral token scale flips elevation between themes: in light, `bg` (#fff) is the
+ * brightest page and `surface`/`panel` are progressively grayer/recessed; in dark, `bg`
+ * (#0a0a0a) is the darkest base and `surface`/`panel` are progressively lighter/elevated.
+ * No single token reads as "paper" in both themes, so we key the right token off `.dark`
+ * here (still token-only — no literal colors):
+ *   - .document-desk  → the surrounding desk: grayer-than-paper in light, darker-than-
+ *                        paper in dark, so the sheet always stands out.
+ *   - .document-paper → the sheet: pure white in light, the elevated surface in dark. */
+
+.document-desk {
+  background-color: var(--panel);
+}
+
+.dark .document-desk {
+  background-color: var(--bg);
+}
+
+.document-paper {
+  background-color: var(--bg);
+}
+
+.dark .document-paper {
+  background-color: var(--surface);
+}
+
+/* Document content surface ("the paper").
+ *
+ * `.document-canvas` is the EditorContent wrapper; `.document-canvas-prose` is the
+ * ProseMirror editable element. The paper look (background, shadow, rounded corners,
+ * border, padding) lives on the container in document-page.tsx via tokens; here we
+ * only shape the writing surface: a tall, page-like sheet whose content uses the
+ * document body type scale and a comfortable reading measure, with the caret resting
+ * at the top. All values are token-driven — no literal colors. */
+
+.document-canvas {
+  display: flex;
+  flex-direction: column;
+  min-height: 70vh;
+}
+
+.document-canvas-prose {
+  flex: 1 1 auto;
+  /* Fill the sheet so the whole paper is a click target and the caret sits at the
+     top on an empty document, like a fresh page. */
+  min-height: 70vh;
+  max-width: var(--measure-doc);
+  font-size: var(--font-size-doc-body);
+  line-height: var(--line-height-doc-body);
+  font-weight: var(--font-weight-doc-body);
+  color: var(--text-primary);
+}
+
+.document-canvas-prose:focus {
+  outline: none;
+}
+
+.document-canvas-prose p {
+  margin: 0 0 var(--space-4);
+}
+
+.document-canvas-prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* Placeholder shown on the empty first paragraph (Tiptap Placeholder extension). */
+.document-canvas-prose p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: var(--text-tertiary);
+}
+
 /* SignalHighlight squiggle.
  *
  * A wavy underline under the flagged phrase — no background fill, so the document

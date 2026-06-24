@@ -79,6 +79,9 @@ function DocumentCanvasInner(
     ],
     content: initialContent,
     editable: mode === 'edit',
+    // Edit mode: place the caret at the top of the sheet on load so the author can
+    // start typing immediately without clicking in. Read mode never grabs focus.
+    autofocus: mode === 'edit' ? 'start' : false,
     // Prevent Next.js SSR hydration mismatch (rule 3).
     immediatelyRender: false,
     editorProps: {
