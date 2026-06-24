@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { StorageRepository } from './storage'
-import { seedDocuments, seedProject, seedSignals } from '@/lib/seed-data'
+import { seedDocuments, seedProject, seedProjects, seedSignals } from '@/lib/seed-data'
 import type { AppError } from '@/lib/errors'
 import type { Document, Project, SignalDef } from '@/types'
 
@@ -93,6 +93,8 @@ describe('StorageRepository seeding', () => {
   it('seeds an empty store on first run', () => {
     const repo = new StorageRepository({ store })
     expect(repo.getProject(seedProject.id)).toEqual(seedProject)
+    expect(repo.listProjects()).toHaveLength(seedProjects.length)
+    expect(repo.getProject('proj-speed-anime')).toEqual(seedProjects[1])
     expect(repo.listSignals()).toHaveLength(seedSignals.length)
     expect(repo.listDocuments()).toHaveLength(seedDocuments.length)
     const doc = repo.getDocument('doc-haunted-elevator') as Document

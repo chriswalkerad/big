@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Agent git worktrees are full repo copies; never lint them.
+    ".claude/**",
   ]),
 ]);
 
