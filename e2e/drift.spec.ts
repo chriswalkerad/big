@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { DOC, docUrl, drawer, typeInBody } from './helpers'
+import { DOC, docUrl, resultsPanel, typeInBody } from './helpers'
 
 const BODY =
   ' Eloise stages a surprise birthday breakfast for the night doorman, recruiting the kitchen ' +
@@ -10,7 +10,7 @@ async function submitDraft(page: import('@playwright/test').Page) {
   await page.goto(docUrl(DOC.rooftop))
   await typeInBody(page, BODY)
   await page.getByRole('button', { name: 'Submit' }).click()
-  await expect(drawer(page)).toBeVisible()
+  await expect(resultsPanel(page)).toBeVisible()
   await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
 }
 
@@ -37,7 +37,7 @@ test.describe('Version drift', () => {
     await drift.getByRole('button', { name: 'Resubmit' }).click()
 
     // The drawer updates with a fresh review (six rows) and status stays Submitted.
-    await expect(drawer(page).locator('[data-signal-id]')).toHaveCount(6)
+    await expect(resultsPanel(page).locator('[data-signal-id]')).toHaveCount(6)
     await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
     // After resubmit the snapshot matches the body again → drift clears.
     await expect(drift).toHaveCount(0)
@@ -51,7 +51,7 @@ test.describe('Version drift', () => {
     await drift.getByRole('button', { name: 'Unsubmit' }).click()
 
     // Drawer closes, status back to Draft, drift indicator gone.
-    await expect(drawer(page)).toBeHidden()
+    await expect(resultsPanel(page)).toBeHidden()
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
     await expect(drift).toHaveCount(0)
   })

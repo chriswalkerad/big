@@ -20,9 +20,9 @@ export function reviewUrl(docId: string): string {
   return `/p/${PROJECT_ID}/d/${docId}/review`
 }
 
-/** The results drawer (bottom sheet). */
-export function drawer(page: Page) {
-  return page.getByRole('dialog', { name: 'Review results' })
+/** The inline review-results panel (right column on desktop, stacked on mobile). */
+export function resultsPanel(page: Page) {
+  return page.getByRole('region', { name: 'Review results' })
 }
 
 /**

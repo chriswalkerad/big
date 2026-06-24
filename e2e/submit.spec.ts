@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { DOC, docUrl, drawer, typeInBody } from './helpers'
+import { DOC, docUrl, resultsPanel, typeInBody } from './helpers'
 
 const SAMPLE_BODY =
   ' Eloise organizes a treasure hunt across the Plaza for the bored children of weekend guests, ' +
@@ -12,13 +12,13 @@ test.describe('Submit flow', () => {
 
     // The draft stub is editable and has no drawer yet.
     await expect(page.getByRole('button', { name: 'Submit' })).toBeVisible()
-    await expect(drawer(page)).toBeHidden()
+    await expect(resultsPanel(page)).toBeHidden()
 
     await typeInBody(page, SAMPLE_BODY)
     await page.getByRole('button', { name: 'Submit' }).click()
 
     // Drawer slides up with a verdict header and exactly six signal rows.
-    const d = drawer(page)
+    const d = resultsPanel(page)
     await expect(d).toBeVisible()
     const verdict = d.getByRole('heading', { level: 2 })
     await expect(verdict).toHaveAttribute('data-verdict', /looks_ready|needs_work|not_ready/)
@@ -48,7 +48,7 @@ test.describe('Submit flow', () => {
     // Keyboard shortcut, not the button.
     await page.keyboard.press('ControlOrMeta+Enter')
 
-    const d = drawer(page)
+    const d = resultsPanel(page)
     await expect(d).toBeVisible()
     await expect(d.locator('[data-signal-id]')).toHaveCount(6)
     await expect(d.getByText(/of 6 need attention/)).toBeVisible()
@@ -62,7 +62,7 @@ test.describe('Submit flow', () => {
     await typeInBody(page, SAMPLE_BODY, true)
     await page.getByRole('button', { name: 'Submit' }).click()
 
-    await expect(drawer(page)).toBeVisible()
+    await expect(resultsPanel(page)).toBeVisible()
     // The title is filled from the AI suggestion (no longer empty).
     await expect(title).not.toHaveValue('')
   })

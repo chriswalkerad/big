@@ -109,7 +109,26 @@ describe('DocumentPage edit mode — submit flow', () => {
     })
   })
 
-  it('renders a typed error in the drawer when the review fails (retryable)', async () => {
+  it('exposes an Apply button in the suggested-prompt area of the review panel', async () => {
+    seedDoc()
+    const REVIEW_WITH_PROMPT: ReviewResult = {
+      ...REVIEW,
+      summary: 'Tighten clarity and resubmit.',
+      suggestedPrompt: 'Revise the following concept: …',
+    }
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, data: REVIEW_WITH_PROMPT }), { status: 200 }),
+    )
+
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
+
+    // The Apply button is wired (orchestrator implements the rewrite); Copy is gone.
+    expect(await screen.findByRole('button', { name: /apply suggested prompt/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /copy suggested prompt/i })).not.toBeInTheDocument()
+  })
+
+  it('renders a typed error in the panel when the review fails (retryable)', async () => {
     seedDoc()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ ok: false, error: { code: 'AI_RATE_LIMIT', message: 'rate limited', retryable: true } }), { status: 429 }),
@@ -190,7 +209,7 @@ describe('DocumentPage version drift (edit mode)', () => {
 })
 
 describe('DocumentPage read mode — reviewer actions', () => {
-  it('opens the drawer with the snapshot verdict and offers reviewer status', async () => {
+  it('shows the snapshot verdict inline in the review panel and offers reviewer status', async () => {
     seedDoc({
       status: 'submitted',
       title: 'A Concept',
@@ -202,6 +221,9 @@ describe('DocumentPage read mode — reviewer actions', () => {
     await waitFor(() => {
       expect(screen.getByText('Needs work')).toBeInTheDocument()
     })
+    // The review lives in an inline region, not a dismissable bottom-sheet dialog.
+    expect(screen.getByRole('region', { name: 'Review results' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /dismiss results/i })).not.toBeInTheDocument()
     // Reviewer status control is present.
     expect(screen.getByRole('button', { name: /change review status/i })).toBeInTheDocument()
     // A copy-link affordance exists.

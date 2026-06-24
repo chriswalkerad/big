@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import type { ReviewResult, SignalDef } from '@/types'
 import { appError } from '@/lib/errors'
-import { ResultsDrawer } from './results-drawer'
+import { ResultsPanel } from './results-panel'
 
 afterEach(cleanup)
 
@@ -30,37 +30,43 @@ const REVIEW: ReviewResult = {
   verdict: { label: 'needs_work', flagCount: 3 },
 }
 
-function renderDrawer(props: Partial<React.ComponentProps<typeof ResultsDrawer>> = {}) {
-  return render(
-    <ResultsDrawer open review={REVIEW} signals={SIGNALS} onClose={() => {}} {...props} />,
-  )
+function renderPanel(props: Partial<React.ComponentProps<typeof ResultsPanel>> = {}) {
+  return render(<ResultsPanel review={REVIEW} signals={SIGNALS} {...props} />)
 }
 
-describe('ResultsDrawer header', () => {
+describe('ResultsPanel header', () => {
   it('renders the verdict label and flag count from the review', () => {
-    renderDrawer()
+    renderPanel()
     expect(screen.getByText('Needs work')).toBeInTheDocument()
     expect(screen.getByText('3 of 6 need attention')).toBeInTheDocument()
   })
 
   it('renders "Looks ready" with zero flags', () => {
     const review: ReviewResult = { ...REVIEW, verdict: { label: 'looks_ready', flagCount: 0 } }
-    renderDrawer({ review })
+    renderPanel({ review })
     expect(screen.getByText('Looks ready')).toBeInTheDocument()
     expect(screen.getByText('0 of 6 need attention')).toBeInTheDocument()
   })
 
   it('marks not_ready as the most prominent state', () => {
     const review: ReviewResult = { ...REVIEW, verdict: { label: 'not_ready', flagCount: 2 } }
-    renderDrawer({ review })
+    renderPanel({ review })
     expect(screen.getByText('Not ready')).toBeInTheDocument()
     expect(screen.getByText('Action needed')).toBeInTheDocument()
   })
+
+  it('exposes a labelled "Review results" region (inline, not a dialog)', () => {
+    renderPanel()
+    expect(screen.getByRole('region', { name: 'Review results' })).toBeInTheDocument()
+    // The old bottom-sheet dialog and its dismiss affordance are gone.
+    expect(screen.queryByRole('dialog', { name: 'Review results' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /dismiss results/i })).not.toBeInTheDocument()
+  })
 })
 
-describe('ResultsDrawer body', () => {
+describe('ResultsPanel body', () => {
   it('renders a row per signal with name and score', () => {
-    renderDrawer()
+    renderPanel()
     expect(screen.getByText('Clarity')).toBeInTheDocument()
     expect(screen.getByText('Franchise Fit')).toBeInTheDocument()
     // Six rows, six meters.
@@ -68,27 +74,33 @@ describe('ResultsDrawer body', () => {
     expect(meters).toHaveLength(6)
   })
 
+  it('shows an empty placeholder when there is no review yet', () => {
+    renderPanel({ review: null })
+    expect(screen.getByText('No review yet.')).toBeInTheDocument()
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+  })
+
   it('lists flagged phrases only for inline signals', () => {
-    renderDrawer()
+    renderPanel()
     expect(screen.getByText('“vague phrase”')).toBeInTheDocument()
   })
 
   it('fires onPhraseClick with the signal id and quote', () => {
     const onPhraseClick = vi.fn()
-    renderDrawer({ onPhraseClick })
+    renderPanel({ onPhraseClick })
     fireEvent.click(screen.getByText('“vague phrase”'))
     expect(onPhraseClick).toHaveBeenCalledWith('clarity', 'vague phrase')
   })
 
   it('exposes a franchise affordance that fires onFranchiseClick', () => {
     const onFranchiseClick = vi.fn()
-    renderDrawer({ onFranchiseClick })
+    renderPanel({ onFranchiseClick })
     fireEvent.click(screen.getByText('View franchise'))
     expect(onFranchiseClick).toHaveBeenCalled()
   })
 })
 
-describe('ResultsDrawer summary + suggested prompt', () => {
+describe('ResultsPanel summary + suggested prompt (Apply)', () => {
   const REVIEW_WITH_SUMMARY: ReviewResult = {
     ...REVIEW,
     summary: 'Tighten Character Distinctiveness and resubmit.',
@@ -96,7 +108,7 @@ describe('ResultsDrawer summary + suggested prompt', () => {
   }
 
   it('renders the summary above the signal rows when present', () => {
-    renderDrawer({ review: REVIEW_WITH_SUMMARY })
+    renderPanel({ review: REVIEW_WITH_SUMMARY })
     expect(screen.getByText('Summary — what to do')).toBeInTheDocument()
     expect(
       screen.getByText('Tighten Character Distinctiveness and resubmit.'),
@@ -105,82 +117,96 @@ describe('ResultsDrawer summary + suggested prompt', () => {
     expect(screen.getByText('Clarity')).toBeInTheDocument()
   })
 
-  it('renders the suggested prompt with a copy button', () => {
-    renderDrawer({ review: REVIEW_WITH_SUMMARY })
+  it('renders the suggested prompt with an Apply button (replacing Copy)', () => {
+    renderPanel({ review: REVIEW_WITH_SUMMARY, onApplyPrompt: () => {} })
     expect(screen.getByText('Suggested prompt')).toBeInTheDocument()
     expect(
       screen.getByText('Revise the following concept:', { exact: false }),
     ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /copy suggested prompt/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /apply suggested prompt/i })).toBeInTheDocument()
+    // The old clipboard "Copy" button is gone.
+    expect(screen.queryByRole('button', { name: /copy suggested prompt/i })).not.toBeInTheDocument()
   })
 
-  it('copies the suggested prompt to the clipboard on click', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined)
-    vi.stubGlobal('navigator', { clipboard: { writeText } })
-    renderDrawer({ review: REVIEW_WITH_SUMMARY })
-    fireEvent.click(screen.getByRole('button', { name: /copy suggested prompt/i }))
-    expect(writeText).toHaveBeenCalledWith(REVIEW_WITH_SUMMARY.suggestedPrompt)
-    // Awaiting the transient "Copied" confirmation flushes the async state update.
-    expect(await screen.findByText('Copied')).toBeInTheDocument()
-    vi.unstubAllGlobals()
+  it('fires onApplyPrompt when the Apply button is clicked', () => {
+    const onApplyPrompt = vi.fn()
+    renderPanel({ review: REVIEW_WITH_SUMMARY, onApplyPrompt })
+    fireEvent.click(screen.getByRole('button', { name: /apply suggested prompt/i }))
+    expect(onApplyPrompt).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows a busy/disabled Apply button while applying', () => {
+    renderPanel({ review: REVIEW_WITH_SUMMARY, onApplyPrompt: () => {}, applying: true })
+    const apply = screen.getByRole('button', { name: /apply suggested prompt/i })
+    expect(apply).toBeDisabled()
+    expect(apply).toHaveAttribute('aria-busy', 'true')
+    expect(screen.getByText('Applying…')).toBeInTheDocument()
+  })
+
+  it('omits the Apply button when no onApplyPrompt handler is provided', () => {
+    renderPanel({ review: REVIEW_WITH_SUMMARY })
+    expect(screen.getByText('Suggested prompt')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /apply suggested prompt/i })).not.toBeInTheDocument()
   })
 
   it('omits the summary block when no summary is provided', () => {
-    renderDrawer()
+    renderPanel()
     expect(screen.queryByText('Summary — what to do')).not.toBeInTheDocument()
   })
 
   it('renders the summary without a prompt block when suggestedPrompt is absent', () => {
     const review: ReviewResult = { ...REVIEW, summary: 'Do a final proofread.' }
-    renderDrawer({ review })
+    renderPanel({ review, onApplyPrompt: () => {} })
     expect(screen.getByText('Do a final proofread.')).toBeInTheDocument()
     expect(screen.queryByText('Suggested prompt')).not.toBeInTheDocument()
+    // No prompt → no Apply affordance.
+    expect(screen.queryByRole('button', { name: /apply suggested prompt/i })).not.toBeInTheDocument()
   })
 })
 
-describe('ResultsDrawer states', () => {
+describe('ResultsPanel states', () => {
   it('shows a loading state while reviewing', () => {
-    renderDrawer({ loading: true, review: null })
+    renderPanel({ loading: true, review: null })
     expect(screen.getByLabelText('Running review…')).toBeInTheDocument()
   })
 
   it('shows an error state with retry when retryable', () => {
     const onRetry = vi.fn()
-    renderDrawer({ error: appError('AI_RATE_LIMIT'), review: null, onRetry })
+    renderPanel({ error: appError('AI_RATE_LIMIT'), review: null, onRetry })
     expect(screen.getByRole('alert')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /retry/i }))
     expect(onRetry).toHaveBeenCalled()
   })
 
   it('emphasises the focused row', () => {
-    const { container } = renderDrawer({ focusedSignalId: 'clarity' })
+    const { container } = renderPanel({ focusedSignalId: 'clarity' })
     const focused = container.querySelector('[data-signal-id="clarity"][data-focused="true"]')
     expect(focused).toBeTruthy()
   })
 })
 
-describe('ResultsDrawer score explanation', () => {
+describe('ResultsPanel score explanation', () => {
   function toggle() {
     return screen.getByRole('button', { name: /how is this calculated\?/i })
   }
 
   it('offers the "How is this calculated?" toggle for a settled review', () => {
-    renderDrawer()
+    renderPanel()
     const button = toggle()
     expect(button).toBeInTheDocument()
     expect(button).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('does not offer the toggle while loading or on error', () => {
-    renderDrawer({ loading: true, review: null })
+    renderPanel({ loading: true, review: null })
     expect(screen.queryByRole('button', { name: /how is this calculated\?/i })).not.toBeInTheDocument()
     cleanup()
-    renderDrawer({ error: appError('AI_RATE_LIMIT'), review: null })
+    renderPanel({ error: appError('AI_RATE_LIMIT'), review: null })
     expect(screen.queryByRole('button', { name: /how is this calculated\?/i })).not.toBeInTheDocument()
   })
 
   it('replaces the signal rows with the explanation when toggled on', () => {
-    renderDrawer()
+    renderPanel()
     // Rows visible first (one meter per signal).
     expect(screen.getAllByRole('meter')).toHaveLength(6)
     fireEvent.click(toggle())
@@ -192,19 +218,19 @@ describe('ResultsDrawer score explanation', () => {
   })
 
   it('lists each signal with its pass threshold in the explanation', () => {
-    renderDrawer()
+    renderPanel()
     fireEvent.click(toggle())
     // Every signal name appears (within the methodology list).
     for (const def of SIGNALS) {
       expect(screen.getByText(def.name)).toBeInTheDocument()
     }
-    // Thresholds are stated as "passes at N/10": 7 and 6 both appear.
+    // Thresholds are stated as "passes at N/10".
     const passesAt = screen.getAllByText(/passes at/i)
     expect(passesAt).toHaveLength(SIGNALS.length)
   })
 
   it('explains the verdict rule (looks ready / not ready / needs work)', () => {
-    renderDrawer()
+    renderPanel()
     fireEvent.click(toggle())
     // "Needs work" also appears in the header verdict for this fixture, so allow ≥1.
     expect(screen.getAllByText('Looks ready').length).toBeGreaterThanOrEqual(1)
@@ -213,7 +239,7 @@ describe('ResultsDrawer score explanation', () => {
   })
 
   it('"Back to results" restores the signal rows', () => {
-    renderDrawer()
+    renderPanel()
     fireEvent.click(toggle())
     expect(screen.queryByRole('meter')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: /back to results/i }))
@@ -222,10 +248,10 @@ describe('ResultsDrawer score explanation', () => {
   })
 })
 
-describe('ResultsDrawer confirm submission (review-then-confirm)', () => {
+describe('ResultsPanel confirm submission (review-then-confirm)', () => {
   it('shows a Confirm submission button for a pending preview and fires onConfirm', () => {
     const onConfirm = vi.fn()
-    renderDrawer({ pending: true, onConfirm })
+    renderPanel({ pending: true, onConfirm })
     const confirm = screen.getByRole('button', { name: /confirm submission/i })
     expect(confirm).toBeInTheDocument()
     fireEvent.click(confirm)
@@ -233,16 +259,16 @@ describe('ResultsDrawer confirm submission (review-then-confirm)', () => {
   })
 
   it('hides Confirm submission for an already-submitted snapshot (not pending)', () => {
-    renderDrawer({ onConfirm: () => {} })
+    renderPanel({ onConfirm: () => {} })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
   })
 
   it('does not show Confirm submission while loading or on error', () => {
     const onConfirm = vi.fn()
-    renderDrawer({ pending: true, loading: true, review: null, onConfirm })
+    renderPanel({ pending: true, loading: true, review: null, onConfirm })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
     cleanup()
-    renderDrawer({ pending: true, error: appError('AI_RATE_LIMIT'), review: null, onConfirm })
+    renderPanel({ pending: true, error: appError('AI_RATE_LIMIT'), review: null, onConfirm })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
   })
 })
