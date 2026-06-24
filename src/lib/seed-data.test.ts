@@ -1,5 +1,29 @@
 import { describe, it, expect } from 'vitest'
-import { seedDocuments, seedSignals } from './seed-data'
+import { seedDocuments, seedProject, seedProjects, seedSignals } from './seed-data'
+
+describe('seed projects', () => {
+  it('seeds both announced franchises with exact ids', () => {
+    expect(seedProjects.map((p) => p.id)).toEqual(['proj-eloise', 'proj-speed-anime'])
+  })
+
+  it('exposes Eloise as the default single-project export', () => {
+    expect(seedProject).toBe(seedProjects[0])
+    expect(seedProject.id).toBe('proj-eloise')
+  })
+
+  it('every document belongs to a seeded project', () => {
+    const ids = new Set(seedProjects.map((p) => p.id))
+    for (const doc of seedDocuments) {
+      expect(ids.has(doc.projectId), `${doc.id} -> ${doc.projectId}`).toBe(true)
+    }
+  })
+
+  it('seeds 13 documents (8 Eloise + 5 Speed)', () => {
+    expect(seedDocuments).toHaveLength(13)
+    expect(seedDocuments.filter((d) => d.projectId === 'proj-eloise')).toHaveLength(8)
+    expect(seedDocuments.filter((d) => d.projectId === 'proj-speed-anime')).toHaveLength(5)
+  })
+})
 
 describe('seed signals', () => {
   it('has the six signals with exact ids in order', () => {

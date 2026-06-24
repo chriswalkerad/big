@@ -8,7 +8,7 @@
 
 import type { Document, Project, SignalDef } from '@/types'
 import { type AppError, appError, toAppError } from '@/lib/errors'
-import { seedDocuments, seedProject, seedSignals } from '@/lib/seed-data'
+import { seedDocuments, seedProjects, seedSignals } from '@/lib/seed-data'
 
 const NS = 'bsp'
 const KEY = {
@@ -251,7 +251,7 @@ export class StorageRepository {
         this.listDocuments().length === 0 &&
         this.listSignals().length === 0
       if (empty) {
-        this.saveProject(seedProject)
+        for (const project of seedProjects) this.saveProject(project)
         for (const signal of seedSignals) this.saveSignal(signal)
         for (const doc of seedDocuments) this.saveDocument(doc)
       }
