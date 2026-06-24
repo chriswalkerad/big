@@ -23,6 +23,10 @@
   --bg: #ffffff;
   --surface: #fafafa;
   --panel: #f4f4f5;
+  /* Outer app canvas: a subtle gray (just below `--panel`) for the page frame,
+     so white `--bg` "paper" surfaces lift off it. Tuned to keep AA contrast —
+     `--text-tertiary` still clears 4.5:1 here (4.68:1). */
+  --app-canvas: #f1f1f3;
   --border: #e4e4e7;
   --text-primary: #18181b;
   --text-secondary: #5e5e66;
@@ -112,6 +116,9 @@
   --bg: #0a0a0a;
   --surface: #141414;
   --panel: #1c1c1f;
+  /* Dark mode already reads as a dark canvas, so the app frame keeps the base
+     `--bg` value (surfaces lift via `--surface`/`--panel`, not a lighter frame). */
+  --app-canvas: #0a0a0a;
   --border: #262626;
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
