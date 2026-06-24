@@ -31,6 +31,10 @@ const DOC1_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 9, rationale: 'Creator-authentic, anime-native, and globally resonant — squarely in the Speed world.', issues: [] },
   ],
   verdict: { label: 'looks_ready', flagCount: 0 },
+  summary:
+    'This is ready as written — every signal is at or above threshold, with a strong 24-hour-clock hook and Speed in character via Chaos Drive. Give it a final proofread before submitting.',
+  suggestedPrompt:
+    'Lightly polish the following anime pilot concept for tone and pacing without changing the premise, the teens 13-24 audience, or any specific details. Keep it high-energy, creator-authentic, and on-brand. Return only the revised concept:\n\n[paste your text here]',
 }
 
 const DOC2_BODY =
@@ -60,6 +64,10 @@ const DOC2_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 8, rationale: 'Sport-as-combat factions and live-chat kanji fit the creator-meets-anime tone well.', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 2 },
+  summary:
+    "This needs work: Character Distinctiveness and Completeness are below threshold for a world bible — expected, but worth addressing. Add a format recommendation for how the world reaches the screen and clarify the vague \"instinct\" mechanic flagged in Clarity.",
+  suggestedPrompt:
+    'Revise the following world-building document to strengthen Completeness and Character Distinctiveness. Recommend a concrete format for introducing the world on screen, and clarify how Speed instinctively knows the Ancient Pitch rules. Keep the creator-meets-anime tone for the teens 13-24 audience. Return only the revised document:\n\n[paste your text here]',
 }
 
 const DOC3_BODY =
@@ -95,6 +103,10 @@ const DOC3_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 3, rationale: 'Dark-web violence and a 17+ rating would prevent the Sony theatrical path and the YouTube launch strategy entirely. Needs a full tone revision.', issues: [] },
   ],
   verdict: { label: 'not_ready', flagCount: 2 },
+  summary:
+    "Brand Safety is below threshold, so this isn't ready: fatal, graphic, on-screen violence and a 17+ framing are off-limits for the 13-24 audience and would block the Sony and YouTube paths. Rework the arc to keep the high-stakes undercover hook without lethal or graphic content before resubmitting.",
+  suggestedPrompt:
+    'Rewrite the following arc concept to be safe and on-brand for a teens 13-24 audience and a YouTube/Sony launch. Remove all fatal violence, on-screen injury, graphic sequences, and any 17+ framing, while keeping the undercover infiltration hook and Speed in character. Return only the revised concept:\n\n[paste your text here]',
 }
 
 const DOC4_BODY = 'INT. SPEED\'S BEDROOM - MORNING. Speed wakes up. Something is different. TBD from here.'
@@ -115,6 +127,10 @@ const DOC5_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 9, rationale: 'Creator-native, live-first, and globally resonant — exactly the Speed launch playbook.', issues: [] },
   ],
   verdict: { label: 'looks_ready', flagCount: 0 },
+  summary:
+    'This launch brief is ready — announcement, format, timing, and pre-launch teaser are all specified for the digital window, with a powerful live-reveal hook. Do a final consistency pass before circulating.',
+  suggestedPrompt:
+    'Lightly polish the following launch strategy brief for clarity and consistency without changing the tactics, timing, audience, or any specific details. Keep it creator-native and on-brand for the Speed launch. Return only the revised brief:\n\n[paste your text here]',
 }
 
 export const speedDocuments: Document[] = [

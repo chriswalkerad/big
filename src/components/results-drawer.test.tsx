@@ -88,6 +88,56 @@ describe('ResultsDrawer body', () => {
   })
 })
 
+describe('ResultsDrawer summary + suggested prompt', () => {
+  const REVIEW_WITH_SUMMARY: ReviewResult = {
+    ...REVIEW,
+    summary: 'Tighten Character Distinctiveness and resubmit.',
+    suggestedPrompt: 'Revise the following concept:\n\n[paste your text here]',
+  }
+
+  it('renders the summary above the signal rows when present', () => {
+    renderDrawer({ review: REVIEW_WITH_SUMMARY })
+    expect(screen.getByText('Summary — what to do')).toBeInTheDocument()
+    expect(
+      screen.getByText('Tighten Character Distinctiveness and resubmit.'),
+    ).toBeInTheDocument()
+    // Signal rows still render alongside the summary.
+    expect(screen.getByText('Clarity')).toBeInTheDocument()
+  })
+
+  it('renders the suggested prompt with a copy button', () => {
+    renderDrawer({ review: REVIEW_WITH_SUMMARY })
+    expect(screen.getByText('Suggested prompt')).toBeInTheDocument()
+    expect(
+      screen.getByText('Revise the following concept:', { exact: false }),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /copy suggested prompt/i })).toBeInTheDocument()
+  })
+
+  it('copies the suggested prompt to the clipboard on click', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { clipboard: { writeText } })
+    renderDrawer({ review: REVIEW_WITH_SUMMARY })
+    fireEvent.click(screen.getByRole('button', { name: /copy suggested prompt/i }))
+    expect(writeText).toHaveBeenCalledWith(REVIEW_WITH_SUMMARY.suggestedPrompt)
+    // Awaiting the transient "Copied" confirmation flushes the async state update.
+    expect(await screen.findByText('Copied')).toBeInTheDocument()
+    vi.unstubAllGlobals()
+  })
+
+  it('omits the summary block when no summary is provided', () => {
+    renderDrawer()
+    expect(screen.queryByText('Summary — what to do')).not.toBeInTheDocument()
+  })
+
+  it('renders the summary without a prompt block when suggestedPrompt is absent', () => {
+    const review: ReviewResult = { ...REVIEW, summary: 'Do a final proofread.' }
+    renderDrawer({ review })
+    expect(screen.getByText('Do a final proofread.')).toBeInTheDocument()
+    expect(screen.queryByText('Suggested prompt')).not.toBeInTheDocument()
+  })
+})
+
 describe('ResultsDrawer states', () => {
   it('shows a loading state while reviewing', () => {
     renderDrawer({ loading: true, review: null })

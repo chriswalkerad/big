@@ -407,6 +407,79 @@ function computeVerdict(signals: SignalResult[], defs: SignalDef[]): ReviewVerdi
   return { label, flagCount }
 }
 
+// --- Overall summary + suggested prompt ----------------------------------------
+// Deterministic, derived purely from the computed review (verdict, the lowest-
+// scoring signals below threshold, and any brand-safety risks). Same review in →
+// same summary/prompt out. No PRNG here, so it stays byte-stable.
+
+/** Human-friendly label for a signal, derived from its def (id/name fallback). */
+function signalLabel(def: SignalDef): string {
+  return def.name?.trim() || def.id
+}
+
+/** The signals scoring below their threshold, weakest first, with their defs. */
+function flaggedSignals(
+  signals: SignalResult[],
+  defs: SignalDef[],
+): Array<{ result: SignalResult; def: SignalDef }> {
+  const defById = new Map(defs.map((d) => [d.id, d]))
+  return signals
+    .flatMap((result) => {
+      const def = defById.get(result.signalId)
+      if (!def || result.score >= def.threshold) return []
+      return [{ result, def }]
+    })
+    .sort((a, b) => a.result.score - b.result.score)
+}
+
+/** Join names like ["a", "b", "c"] → "a, b and c". */
+function joinNames(names: string[]): string {
+  if (names.length === 0) return ''
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+}
+
+/**
+ * Build a 1-3 sentence "what to do" summary plus a ready-to-paste AI prompt. Both
+ * are deterministic functions of the computed review — they reference the lowest-
+ * scoring signals and call out any brand-safety risk specifically.
+ */
+function buildSummary(
+  signals: SignalResult[],
+  defs: SignalDef[],
+  verdict: ReviewVerdict,
+): { summary: string; suggestedPrompt: string } {
+  const flagged = flaggedSignals(signals, defs)
+  const brandSafety = flagged.find((f) => /brand[\s_-]?safety|safety/.test(f.def.id.toLowerCase()))
+  // Up to three weakest signals, brand safety always surfaced first if present.
+  const focus = brandSafety
+    ? [brandSafety, ...flagged.filter((f) => f !== brandSafety)].slice(0, 3)
+    : flagged.slice(0, 3)
+  const focusNames = focus.map((f) => signalLabel(f.def))
+
+  let summary: string
+  let suggestedPrompt: string
+
+  if (flagged.length === 0) {
+    summary =
+      'This reads as ready — every signal is at or above its threshold. Give it a final proofread for tone and consistency before you submit.'
+    suggestedPrompt =
+      'Lightly polish the following creative concept for tone and clarity without changing its meaning, audience, or any specific details. Keep it family-appropriate and on-brand:\n\n[paste your text here]'
+  } else if (brandSafety) {
+    const others = focusNames.filter((n) => n !== signalLabel(brandSafety.def))
+    const tail = others.length > 0 ? ` Also tighten ${joinNames(others)}.` : ''
+    summary = `Brand Safety is below threshold, so this isn't ready as written — rewrite or remove the unsafe content before resubmitting.${tail}`
+    suggestedPrompt =
+      'Rewrite the following creative concept to be fully family-safe and on-brand for the target audience. Remove or replace any violent, scary, mature, or off-brand content while preserving the core premise and the parts that work. Return only the revised concept:\n\n[paste your text here]'
+  } else {
+    const verb = verdict.label === 'not_ready' ? 'needs significant work' : 'needs some work'
+    summary = `This ${verb}: ${joinNames(focusNames)} ${focusNames.length === 1 ? 'is' : 'are'} below threshold. Revise ${focusNames.length === 1 ? 'that area' : 'those areas'} and resubmit.`
+    suggestedPrompt = `Revise the following creative concept to strengthen ${joinNames(focusNames)}. Be concrete and specific, keep the audience and format intact, and stay on-brand. Return only the revised concept:\n\n[paste your text here]`
+  }
+
+  return { summary, suggestedPrompt }
+}
+
 // --- Provider ------------------------------------------------------------------
 
 export class MockProvider implements ReviewProvider {
@@ -427,11 +500,15 @@ export function reviewSync(input: ReviewInput): ReviewResult {
     rng,
   }
   const signalResults = signals.map((def) => evaluateSignal(def, ctx))
+  const verdict = computeVerdict(signalResults, signals)
+  const { summary, suggestedPrompt } = buildSummary(signalResults, signals, verdict)
   return {
     detectedSubtype: detectSubtype(text),
     suggestedTitle: suggestTitle(text),
     themes: extractThemes(text),
     signals: signalResults,
-    verdict: computeVerdict(signalResults, signals),
+    verdict,
+    summary,
+    suggestedPrompt,
   }
 }

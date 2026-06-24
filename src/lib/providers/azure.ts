@@ -20,7 +20,9 @@ const REQUEST_TIMEOUT_MS = 60_000
 
 // JSON Schema for OpenAI strict structured outputs, mirroring ReviewResult.
 // Strict mode requires every object to set additionalProperties:false and list
-// all of its properties in "required" — ReviewResult already requires them all.
+// all of its properties in "required". ReviewResult's two optional fields
+// (summary, suggestedPrompt) are listed in "required" here so strict stays valid;
+// the model always emits them, and the route re-validates with zod regardless.
 const RESPONSE_JSON_SCHEMA: Record<string, unknown> = {
   type: 'object',
   additionalProperties: false,
@@ -66,8 +68,13 @@ const RESPONSE_JSON_SCHEMA: Record<string, unknown> = {
       },
       required: ['label', 'flagCount'],
     },
+    summary: { type: 'string' },
+    suggestedPrompt: { type: 'string' },
   },
-  required: ['detectedSubtype', 'suggestedTitle', 'themes', 'signals', 'verdict'],
+  // Strict json_schema requires every property to be listed in "required". These
+  // two are optional on ReviewResult, but the model always returns them (asked for
+  // in buildSystemInstruction), so listing them keeps strict mode valid.
+  required: ['detectedSubtype', 'suggestedTitle', 'themes', 'signals', 'verdict', 'summary', 'suggestedPrompt'],
 }
 
 export class AzureProvider implements ReviewProvider {

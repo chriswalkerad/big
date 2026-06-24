@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type Ref } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { Check, HelpCircle, X } from 'lucide-react'
+import { Check, Copy, HelpCircle, Sparkles, X } from 'lucide-react'
 import type { AppError } from '@/lib/errors'
 import type { ReviewResult, SignalDef } from '@/types'
 import { cn } from '@/lib/utils'
@@ -169,35 +169,43 @@ export function ResultsDrawer({
               ) : showExplanation ? (
                 <ScoreExplanation signals={signals} onBack={closeExplanation} />
               ) : review ? (
-                <motion.div
-                  className="flex flex-col gap-2"
-                  initial={reduceMotion ? false : 'hidden'}
-                  animate="shown"
-                  variants={reduceMotion ? undefined : LIST_VARIANTS}
-                >
-                  {review.signals.map((result) => {
-                    const def = defs.get(result.signalId)
-                    if (!def) return null
-                    const isFocused = focusedSignalId === result.signalId
-                    return (
-                      <motion.div
-                        key={result.signalId}
-                        variants={reduceMotion ? undefined : ROW_VARIANTS}
-                      >
-                        <SignalRow
-                          ref={isFocused ? focusedRowRef : undefined}
-                          def={def}
-                          result={result}
-                          focused={isFocused}
-                          inline={inlineIds.has(result.signalId)}
-                          franchise={result.signalId === FRANCHISE_SIGNAL_ID}
-                          onPhraseClick={onPhraseClick}
-                          onFranchiseClick={onFranchiseClick}
-                        />
-                      </motion.div>
-                    )
-                  })}
-                </motion.div>
+                <div className="flex flex-col gap-3">
+                  {review.summary ? (
+                    <ReviewSummary
+                      summary={review.summary}
+                      suggestedPrompt={review.suggestedPrompt}
+                    />
+                  ) : null}
+                  <motion.div
+                    className="flex flex-col gap-2"
+                    initial={reduceMotion ? false : 'hidden'}
+                    animate="shown"
+                    variants={reduceMotion ? undefined : LIST_VARIANTS}
+                  >
+                    {review.signals.map((result) => {
+                      const def = defs.get(result.signalId)
+                      if (!def) return null
+                      const isFocused = focusedSignalId === result.signalId
+                      return (
+                        <motion.div
+                          key={result.signalId}
+                          variants={reduceMotion ? undefined : ROW_VARIANTS}
+                        >
+                          <SignalRow
+                            ref={isFocused ? focusedRowRef : undefined}
+                            def={def}
+                            result={result}
+                            focused={isFocused}
+                            inline={inlineIds.has(result.signalId)}
+                            franchise={result.signalId === FRANCHISE_SIGNAL_ID}
+                            onPhraseClick={onPhraseClick}
+                            onFranchiseClick={onFranchiseClick}
+                          />
+                        </motion.div>
+                      )
+                    })}
+                  </motion.div>
+                </div>
               ) : null}
             </div>
 
@@ -236,6 +244,82 @@ const LIST_VARIANTS = {
 const ROW_VARIANTS = {
   hidden: { opacity: 0, y: 6 },
   shown: { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' as const } },
+}
+
+/**
+ * The overall "what to do" summary plus an optional copy-able AI prompt, rendered
+ * at the top of the drawer body above the signal rows. The copy button reuses the
+ * clipboard pattern from CopyLinkButton (transient "Copied" confirmation).
+ */
+function ReviewSummary({
+  summary,
+  suggestedPrompt,
+}: {
+  summary: string
+  suggestedPrompt?: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1800)
+    return () => clearTimeout(t)
+  }, [copied])
+
+  async function copyPrompt() {
+    if (!suggestedPrompt) return
+    try {
+      await navigator.clipboard?.writeText(suggestedPrompt)
+      setCopied(true)
+    } catch {
+      // Clipboard blocked (permissions / insecure context); fail quietly.
+      setCopied(false)
+    }
+  }
+
+  return (
+    <section
+      aria-label="Summary and suggested prompt"
+      className="flex flex-col gap-2 rounded-card border border-border bg-panel px-3 py-3"
+    >
+      <div className="flex flex-col gap-1">
+        <h3 className="text-label-xs font-medium uppercase tracking-[0.05em] text-text-tertiary">
+          Summary — what to do
+        </h3>
+        <p className="text-label-sm text-text-primary">{summary}</p>
+      </div>
+      {suggestedPrompt ? (
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <h4 className="inline-flex items-center gap-1.5 text-label-xs font-medium uppercase tracking-[0.05em] text-text-tertiary">
+              <Sparkles className="size-3" aria-hidden="true" />
+              Suggested prompt
+            </h4>
+            <button
+              type="button"
+              onClick={copyPrompt}
+              aria-label="Copy suggested prompt"
+              className={cn(
+                'inline-flex h-7 shrink-0 items-center gap-1.5 rounded-control border border-border bg-surface px-2 text-label-xs text-text-secondary',
+                'transition-colors hover:bg-panel hover:text-text-primary',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              )}
+            >
+              {copied ? (
+                <Check className="size-3 text-pass" aria-hidden="true" />
+              ) : (
+                <Copy className="size-3" aria-hidden="true" />
+              )}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+          <p className="whitespace-pre-wrap rounded-control border border-border bg-surface px-2.5 py-2 text-label-sm text-text-secondary">
+            {suggestedPrompt}
+          </p>
+        </div>
+      ) : null}
+    </section>
+  )
 }
 
 function DrawerHeader({

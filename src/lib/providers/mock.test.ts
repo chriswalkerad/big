@@ -126,6 +126,47 @@ describe('MockProvider', () => {
     }
   })
 
+  it('produces a deterministic summary and suggestedPrompt for every seed doc', () => {
+    for (const doc of seedDocuments) {
+      const a = reviewSync(inputFor(doc.body))
+      const b = reviewSync(inputFor(doc.body))
+      expect(typeof a.summary).toBe('string')
+      expect(a.summary!.length).toBeGreaterThan(0)
+      expect(typeof a.suggestedPrompt).toBe('string')
+      expect(a.suggestedPrompt!.length).toBeGreaterThan(0)
+      // Deterministic across calls.
+      expect(b.summary).toBe(a.summary)
+      expect(b.suggestedPrompt).toBe(a.suggestedPrompt)
+    }
+  })
+
+  it('calls out Brand Safety in the summary when it is below threshold', () => {
+    const doc = seedDocuments.find((d) => d.id === 'doc-haunted-elevator')
+    if (!doc) throw new Error('missing seed doc')
+    const result = reviewSync(inputFor(doc.body))
+    expect(result.verdict.label).toBe('not_ready')
+    expect(result.summary!.toLowerCase()).toContain('brand safety')
+    // The suggested prompt should steer the author toward making it safe.
+    expect(result.suggestedPrompt!.toLowerCase()).toContain('family-safe')
+  })
+
+  it('summarises a clean concept as ready with no flagged signals', () => {
+    const doc = seedDocuments.find((d) => d.id === 'doc-midnight-caper')
+    if (!doc) throw new Error('missing seed doc')
+    const result = reviewSync(inputFor(doc.body))
+    expect(result.verdict.label).toBe('looks_ready')
+    expect(result.summary!.toLowerCase()).toContain('ready')
+  })
+
+  it('references a lowest-scoring signal name in the summary for a soft-gate', () => {
+    const doc = seedDocuments.find((d) => d.id === 'doc-new-friend')
+    if (!doc) throw new Error('missing seed doc')
+    const result = reviewSync(inputFor(doc.body))
+    expect(result.verdict.label).toBe('needs_work')
+    // Character Distinctiveness is the weakest signal for this concept.
+    expect(result.summary).toContain('Character Distinctiveness')
+  })
+
   it('handles custom signals with a generic fallback', () => {
     const customSignal = {
       id: 'pacing',
