@@ -12,6 +12,14 @@ import type { Document, Project, SignalDef } from '@/types'
 import { eloiseDocuments, eloiseProject } from './seed/eloise'
 import { speedDocuments, speedProject } from './seed/speed'
 
+/**
+ * Seed schema version. Bump this whenever the seed content below changes so that
+ * StorageRepository refreshes the demo records in already-seeded browsers (it
+ * upserts the seed records on a version change without deleting user-created
+ * documents). v1 = single Eloise project; v2 = Eloise + Speed (13 documents).
+ */
+export const SEED_VERSION = 2
+
 /** Both seeded projects, in display order. */
 export const seedProjects: Project[] = [eloiseProject, speedProject]
 

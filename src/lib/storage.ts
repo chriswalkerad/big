@@ -8,7 +8,7 @@
 
 import type { Document, Project, SignalDef } from '@/types'
 import { type AppError, appError, toAppError } from '@/lib/errors'
-import { seedDocuments, seedProjects, seedSignals } from '@/lib/seed-data'
+import { SEED_VERSION, seedDocuments, seedProjects, seedSignals } from '@/lib/seed-data'
 
 const NS = 'bsp'
 const KEY = {
@@ -71,7 +71,7 @@ export class StorageRepository {
     this.onError = options.onError
     this.store = options.store ?? this.resolveStore()
     if (options.seed !== false) {
-      this.seedIfEmpty()
+      this.seedIfStale()
     }
   }
 
@@ -243,20 +243,20 @@ export class StorageRepository {
     return appError('STORAGE_UNAVAILABLE', message, e)
   }
 
-  private seedIfEmpty(): void {
+  private seedIfStale(): void {
     try {
-      if (this.store.getItem(KEY.seeded) === '1') return
-      const empty =
-        this.listProjects().length === 0 &&
-        this.listDocuments().length === 0 &&
-        this.listSignals().length === 0
-      if (empty) {
-        for (const project of seedProjects) this.saveProject(project)
-        for (const signal of seedSignals) this.saveSignal(signal)
-        for (const doc of seedDocuments) this.saveDocument(doc)
-      }
+      // Already seeded at the current schema version → nothing to do.
+      if (this.store.getItem(KEY.seeded) === String(SEED_VERSION)) return
+      // Empty store, OR a store seeded at an older version: (re)seed by UPSERTING
+      // every seed record. This adds newly-introduced demo records (e.g. a new
+      // project and its documents) and refreshes existing ones by id. Documents
+      // the user created — ids that are not part of the seed — are never written
+      // here and therefore survive a version bump.
+      for (const project of seedProjects) this.saveProject(project)
+      for (const signal of seedSignals) this.saveSignal(signal)
+      for (const doc of seedDocuments) this.saveDocument(doc)
       // Plain marker (not JSON) so the early-return check above can compare it.
-      this.writeRaw(KEY.seeded, '1')
+      this.writeRaw(KEY.seeded, String(SEED_VERSION))
     } catch (e) {
       // Seeding must never crash the app; degrade and keep going.
       this.degrade(toAppError(e))

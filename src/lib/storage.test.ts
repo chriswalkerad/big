@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { StorageRepository } from './storage'
-import { seedDocuments, seedProject, seedProjects, seedSignals } from '@/lib/seed-data'
+import { SEED_VERSION, seedDocuments, seedProject, seedProjects, seedSignals } from '@/lib/seed-data'
 import type { AppError } from '@/lib/errors'
 import type { Document, Project, SignalDef } from '@/types'
 
@@ -99,6 +99,40 @@ describe('StorageRepository seeding', () => {
     expect(repo.listDocuments()).toHaveLength(seedDocuments.length)
     const doc = repo.getDocument('doc-haunted-elevator') as Document
     expect(doc.submittedSnapshot?.review.verdict.label).toBe('not_ready')
+  })
+
+  it('re-seeds on a version bump and preserves user-created documents', () => {
+    // A browser seeded at an older version, with one user-authored document.
+    store.setItem('bsp:meta:seeded', '1')
+    const userDoc: Document = {
+      id: 'user-doc-1',
+      projectId: 'proj-eloise',
+      title: 'My draft',
+      body: 'mine',
+      subtype: 'story_premise',
+      subtypeSource: 'auto',
+      status: 'draft',
+      createdBy: 'Me',
+      createdAt: '2026-06-23T00:00:00.000Z',
+      updatedAt: '2026-06-23T00:00:00.000Z',
+    }
+    new StorageRepository({ store, seed: false }).saveDocument(userDoc)
+
+    // A fresh repository refreshes the seed to the current version...
+    const repo = new StorageRepository({ store })
+    expect(repo.listProjects()).toHaveLength(seedProjects.length)
+    expect(repo.getProject('proj-speed-anime')).toEqual(seedProjects[1])
+    expect(store.getItem('bsp:meta:seeded')).toBe(String(SEED_VERSION))
+    // ...without clobbering the user's own document.
+    expect(repo.getDocument('user-doc-1')).toEqual(userDoc)
+  })
+
+  it('does not re-seed when already at the current version', () => {
+    new StorageRepository({ store }) // seeds → marker at the current version
+    const spy = vi.spyOn(store, 'setItem')
+    new StorageRepository({ store }) // should early-return, writing nothing
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
   })
 
   it('does not reseed when a seeded marker is present', () => {
