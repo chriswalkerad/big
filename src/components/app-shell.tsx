@@ -27,11 +27,18 @@ export function AppShell({ children, className }: AppShellProps) {
           <Link
             href="/"
             className={cn(
-              "rounded-control text-label-sm font-medium uppercase tracking-[0.05em] text-text-secondary transition-colors",
+              "inline-flex items-center gap-2 rounded-control text-label-sm font-medium uppercase tracking-[0.05em] text-text-secondary transition-colors",
               "hover:text-text-primary",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             )}
           >
+            <img
+              src="/big-shot-icon.png"
+              alt="Big Shot Pictures"
+              width={28}
+              height={28}
+              className="size-7 rounded-[6px]"
+            />
             Creative Review
           </Link>
           <nav aria-label="Primary" className="flex items-center gap-2">
