@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -9,16 +9,20 @@ import { cn } from "@/lib/utils";
  * One node in a breadcrumb trail.
  *
  * Rendering is decided by which fields are present, in this order:
+ *   - `content`  → a caller-supplied node (e.g. an interactive switcher), rendered
+ *                  verbatim in the segment slot. `label` is then only its key/text.
  *   - `href`     → a `next/link` (client-side navigation).
  *   - `onClick`  → a `<button>` (in-page action, e.g. opening a popup).
- *   - neither    → a plain `<span>` (a static label).
+ *   - none       → a plain `<span>` (a static label).
  *
  * Set `current: true` on the active/last segment to emphasise it and expose
  * `aria-current="page"` for assistive technology.
  */
 export interface BreadcrumbSegment {
-  /** Visible text for the segment. */
+  /** Visible text for the segment (and a stable key, even when `content` renders). */
   label: string;
+  /** Custom node rendered in place of the default label/link/button. */
+  content?: ReactNode;
   /** Navigate here via `next/link` when provided. */
   href?: string;
   /** Run this when the segment is activated; renders the segment as a button. */
@@ -76,11 +80,16 @@ export function Breadcrumb({ segments, ariaLabel = "Breadcrumb", className }: Br
 }
 
 function BreadcrumbItem({ segment }: { segment: BreadcrumbSegment }) {
-  const { label, href, onClick, current } = segment;
+  const { label, content, href, onClick, current } = segment;
 
   // The active segment is emphasised and announced as the current page.
   const currentClass = "truncate text-label-sm text-text-primary";
   const ariaCurrent = current ? ("page" as const) : undefined;
+
+  // A caller-supplied node owns its own markup (and accessibility); render it as-is.
+  if (content !== undefined) {
+    return <>{content}</>;
+  }
 
   if (href) {
     return (

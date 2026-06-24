@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Breadcrumb, type BreadcrumbSegment } from "@/components/breadcrumb";
 import { AccountDialog } from "@/components/account-dialog";
+import { ProjectSwitcher } from "@/components/project-switcher";
 
 export interface AppBreadcrumbProps {
   /**
@@ -13,6 +14,13 @@ export interface AppBreadcrumbProps {
   segments: BreadcrumbSegment[];
   /** Label for the leading account segment. Defaults to "Account". */
   accountLabel?: string;
+  /**
+   * When set, the project segment (the first of `segments`) renders as the
+   * interactive `ProjectSwitcher` dropdown instead of plain text, letting the
+   * user jump between projects. The Account segment and any later segments are
+   * unchanged.
+   */
+  currentProjectId?: string;
   className?: string;
 }
 
@@ -38,6 +46,7 @@ export interface AppBreadcrumbProps {
 export function AppBreadcrumb({
   segments,
   accountLabel = "Account",
+  currentProjectId,
   className,
 }: AppBreadcrumbProps) {
   const [accountOpen, setAccountOpen] = useState(false);
@@ -47,9 +56,25 @@ export function AppBreadcrumb({
     onClick: () => setAccountOpen(true),
   };
 
+  // When a project id is supplied, swap the project (first) segment's content for
+  // the interactive switcher, keeping its label/current flag for keying + a11y.
+  const projectSegments =
+    currentProjectId && segments.length > 0
+      ? [
+          {
+            ...segments[0],
+            content: <ProjectSwitcher currentProjectId={currentProjectId} />,
+          },
+          ...segments.slice(1),
+        ]
+      : segments;
+
   return (
     <>
-      <Breadcrumb segments={[accountSegment, ...segments]} className={className} />
+      <Breadcrumb
+        segments={[accountSegment, ...projectSegments]}
+        className={className}
+      />
       <AccountDialog open={accountOpen} onClose={() => setAccountOpen(false)} />
     </>
   );
