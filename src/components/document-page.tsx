@@ -38,6 +38,7 @@ import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
 import { ResultsDrawer } from '@/components/results-drawer'
 import { FranchiseDetail } from '@/components/franchise-detail'
+import { SubmissionCelebration } from '@/components/celebration/submission-celebration'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
 import {
@@ -89,6 +90,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [reviewError, setReviewError] = useState<AppError | null>(null)
   const [focusedSignalId, setFocusedSignalId] = useState<string | null>(null)
   const [franchiseOpen, setFranchiseOpen] = useState(false)
+  // The GREENLIGHT celebration plays the instant a submission is confirmed.
+  const [celebrating, setCelebrating] = useState(false)
 
   // Review-then-confirm preview: a freshly run review held for the author to read
   // BEFORE the doc is submitted. `pendingReview` is the result; `pendingBody` is the
@@ -290,6 +293,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
     setPendingReview(null)
     setPendingBody(null)
+    // 🎬 The WOOOO moment — the studio just greenlit the submission.
+    setCelebrating(true)
   }, [doc, pendingReview, pendingBody, title, subtype, subtypeSource, status, commitDoc, inlineIds])
 
   // --- Unsubmit (manual only) ------------------------------------------------
@@ -495,6 +500,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       />
 
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
+
+      <SubmissionCelebration
+        show={celebrating}
+        onDone={() => setCelebrating(false)}
+        title={title || 'Untitled'}
+      />
     </div>
   )
 }
