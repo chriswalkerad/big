@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type Ref } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { Check, X } from 'lucide-react'
+import { Check, HelpCircle, X } from 'lucide-react'
 import type { AppError } from '@/lib/errors'
 import type { ReviewResult, SignalDef } from '@/types'
 import { cn } from '@/lib/utils'
@@ -14,6 +14,7 @@ import {
   signalDefMap,
 } from '@/lib/doc-page'
 import { SignalRow } from '@/components/signal-row'
+import { ScoreExplanation } from '@/components/score-explanation'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
 
@@ -70,9 +71,32 @@ export function ResultsDrawer({
   const defs = signalDefMap(signals)
   const inlineIds = inlineSignalIdSet(signals)
 
+  // The methodology panel ("How is this calculated?") replaces the score view in the
+  // body while open. It's only meaningful for a settled review, so loading/error/no
+  // review force it closed below.
+  const [explaining, setExplaining] = useState(false)
+
   // The confirm bar shows only for a settled preview review (not loading/error) that
   // has a confirm handler — i.e. a review-then-confirm preview awaiting commit.
   const showConfirm = Boolean(pending && onConfirm && review && !loading && !error)
+
+  // The methodology toggle only applies when settled results are showing.
+  const canExplain = Boolean(review && !loading && !error)
+
+  // Close the panel when the drawer is closed, so reopening shows the rows again — and
+  // never show it over a loading/error/no-review state. Adjusting state during render
+  // (React's documented pattern) keeps this in sync without a cascading effect.
+  if (explaining && (!open || !canExplain)) setExplaining(false)
+  const showExplanation = explaining && canExplain
+
+  // The header toggle, so "Back to results" can return focus to it.
+  const explainToggleRef = useRef<HTMLButtonElement | null>(null)
+
+  function closeExplanation() {
+    setExplaining(false)
+    // Return focus to the toggle that opened the panel.
+    explainToggleRef.current?.focus()
+  }
 
   // Respect the OS reduce-motion preference: render instantly (no transforms),
   // composing with the global CSS reduced-motion rule in globals.css.
@@ -126,13 +150,24 @@ export function ResultsDrawer({
               'rounded-t-card border border-border bg-surface shadow-lg sm:rounded-card',
             )}
           >
-            <DrawerHeader review={review} loading={loading} error={error} onClose={onClose} />
+            <DrawerHeader
+              review={review}
+              loading={loading}
+              error={error}
+              onClose={onClose}
+              canExplain={canExplain}
+              explaining={showExplanation}
+              onToggleExplain={() => setExplaining((v) => !v)}
+              explainToggleRef={explainToggleRef}
+            />
 
             <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
               {loading ? (
                 <LoadingState rows={6} label="Running review…" />
               ) : error ? (
                 <ErrorState error={error} onRetry={onRetry} title="Review failed" />
+              ) : showExplanation ? (
+                <ScoreExplanation signals={signals} onBack={closeExplanation} />
               ) : review ? (
                 <motion.div
                   className="flex flex-col gap-2"
@@ -208,11 +243,23 @@ function DrawerHeader({
   loading,
   error,
   onClose,
+  canExplain,
+  explaining,
+  onToggleExplain,
+  explainToggleRef,
 }: {
   review?: ReviewResult | null
   loading?: boolean
   error?: AppError | null
   onClose: () => void
+  /** Whether the "How is this calculated?" toggle should be offered. */
+  canExplain: boolean
+  /** Whether the methodology panel is currently shown (drives aria + label). */
+  explaining: boolean
+  /** Toggle the methodology panel on/off. */
+  onToggleExplain: () => void
+  /** Ref to the toggle so "Back to results" can restore focus to it. */
+  explainToggleRef: Ref<HTMLButtonElement>
 }) {
   const reduceMotion = useReducedMotion()
   const verdict = review?.verdict
@@ -253,14 +300,33 @@ function DrawerHeader({
           </span>
         ) : null}
       </div>
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label="Dismiss results"
-        className="rounded-control p-1 text-text-tertiary transition-colors hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      >
-        <X className="size-4" aria-hidden="true" />
-      </button>
+      <div className="flex items-center gap-1">
+        {canExplain ? (
+          <button
+            ref={explainToggleRef}
+            type="button"
+            onClick={onToggleExplain}
+            aria-expanded={explaining}
+            aria-pressed={explaining}
+            className={cn(
+              'inline-flex h-7 items-center gap-1.5 rounded-control px-2 text-label-sm text-text-secondary transition-colors',
+              'hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              explaining ? 'bg-panel text-text-primary' : '',
+            )}
+          >
+            <HelpCircle className="size-3.5" aria-hidden="true" />
+            How is this calculated?
+          </button>
+        ) : null}
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Dismiss results"
+          className="rounded-control p-1 text-text-tertiary transition-colors hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          <X className="size-4" aria-hidden="true" />
+        </button>
+      </div>
     </header>
   )
 }

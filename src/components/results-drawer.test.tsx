@@ -109,6 +109,69 @@ describe('ResultsDrawer states', () => {
   })
 })
 
+describe('ResultsDrawer score explanation', () => {
+  function toggle() {
+    return screen.getByRole('button', { name: /how is this calculated\?/i })
+  }
+
+  it('offers the "How is this calculated?" toggle for a settled review', () => {
+    renderDrawer()
+    const button = toggle()
+    expect(button).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('does not offer the toggle while loading or on error', () => {
+    renderDrawer({ loading: true, review: null })
+    expect(screen.queryByRole('button', { name: /how is this calculated\?/i })).not.toBeInTheDocument()
+    cleanup()
+    renderDrawer({ error: appError('AI_RATE_LIMIT'), review: null })
+    expect(screen.queryByRole('button', { name: /how is this calculated\?/i })).not.toBeInTheDocument()
+  })
+
+  it('replaces the signal rows with the explanation when toggled on', () => {
+    renderDrawer()
+    // Rows visible first (one meter per signal).
+    expect(screen.getAllByRole('meter')).toHaveLength(6)
+    fireEvent.click(toggle())
+    // Explanation panel is shown; the score-bar meters are gone.
+    expect(screen.getByRole('region', { name: /how the score is calculated/i })).toBeInTheDocument()
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    // Toggle reflects the open state.
+    expect(toggle()).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('lists each signal with its pass threshold in the explanation', () => {
+    renderDrawer()
+    fireEvent.click(toggle())
+    // Every signal name appears (within the methodology list).
+    for (const def of SIGNALS) {
+      expect(screen.getByText(def.name)).toBeInTheDocument()
+    }
+    // Thresholds are stated as "passes at N/10": 7 and 6 both appear.
+    const passesAt = screen.getAllByText(/passes at/i)
+    expect(passesAt).toHaveLength(SIGNALS.length)
+  })
+
+  it('explains the verdict rule (looks ready / not ready / needs work)', () => {
+    renderDrawer()
+    fireEvent.click(toggle())
+    // "Needs work" also appears in the header verdict for this fixture, so allow ≥1.
+    expect(screen.getAllByText('Looks ready').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Not ready').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('Needs work').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('"Back to results" restores the signal rows', () => {
+    renderDrawer()
+    fireEvent.click(toggle())
+    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /back to results/i }))
+    // Rows are back.
+    expect(screen.getAllByRole('meter')).toHaveLength(6)
+  })
+})
+
 describe('ResultsDrawer confirm submission (review-then-confirm)', () => {
   it('shows a Confirm submission button for a pending preview and fires onConfirm', () => {
     const onConfirm = vi.fn()
