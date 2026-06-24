@@ -12,8 +12,8 @@ import {
 } from "@/lib/library";
 import { useLibraryData } from "@/lib/use-library-data";
 import { AppBreadcrumb } from "@/components/app-breadcrumb";
-import { StatusChip, STATUS_LABELS, STATUS_ORDER } from "@/components/status-chip";
-import { SubtypeChip } from "@/components/subtype-chip";
+import { STATUS_LABELS, STATUS_ORDER } from "@/components/status-chip";
+import { SUBTYPE_LABELS } from "@/components/subtype-chip";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
@@ -184,19 +184,21 @@ function DocumentRow({ projectId, doc }: { projectId: string; doc: Document }) {
     <Link
       href={`/p/${projectId}/d/${doc.id}`}
       className={cn(
-        "flex flex-col gap-2 px-4 py-3 transition-colors",
+        // Title / Subtype / Status as three aligned columns (fixed widths on ≥sm
+        // keep the Subtype and Status columns lined up across rows); the meta line
+        // spans the full width beneath.
+        "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-4 py-3 transition-colors",
+        "sm:grid-cols-[minmax(0,1fr)_8.5rem_10rem]",
         "hover:bg-panel",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
       )}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 flex-1 truncate text-body-emphasis text-text-primary">
-          {doc.title || "Untitled"}
-        </span>
-        <SubtypeChip subtype={doc.subtype} />
-        <StatusChip status={doc.status} />
-      </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary">
+      <span className="col-span-2 min-w-0 truncate text-body-emphasis text-text-primary sm:col-span-1">
+        {doc.title || "Untitled"}
+      </span>
+      <span className="text-label-sm text-text-secondary">{SUBTYPE_LABELS[doc.subtype]}</span>
+      <span className="text-label-sm text-text-secondary">{STATUS_LABELS[doc.status]}</span>
+      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary sm:col-span-3">
         <span>By {doc.createdBy}</span>
         {doc.reviewer ? (
           <>
