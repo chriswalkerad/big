@@ -34,6 +34,8 @@ describe('toAppError', () => {
     { name: 'timeout message → AI_TIMEOUT', input: new Error('Request timed out'), code: 'AI_TIMEOUT', retryable: true },
     { name: 'status 429 → AI_RATE_LIMIT', input: { status: 429, message: 'slow down' }, code: 'AI_RATE_LIMIT', retryable: true },
     { name: 'rate limit message → AI_RATE_LIMIT', input: new Error('rate limit exceeded'), code: 'AI_RATE_LIMIT', retryable: true },
+    { name: 'status 503 → AI_UNAVAILABLE', input: { status: 503, message: 'The model is overloaded' }, code: 'AI_UNAVAILABLE', retryable: true },
+    { name: 'high-demand message → AI_UNAVAILABLE', input: new Error('This model is currently experiencing high demand'), code: 'AI_UNAVAILABLE', retryable: true },
     { name: 'SyntaxError → AI_BAD_JSON', input: new SyntaxError('Unexpected token < in JSON'), code: 'AI_BAD_JSON', retryable: true },
     { name: 'TypeError fetch → NETWORK_OFFLINE', input: new TypeError('Failed to fetch'), code: 'NETWORK_OFFLINE', retryable: true },
     { name: 'QuotaExceededError → STORAGE_QUOTA', input: Object.assign(new Error('exceeded'), { name: 'QuotaExceededError' }), code: 'STORAGE_QUOTA', retryable: false },
