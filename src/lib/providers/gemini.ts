@@ -62,9 +62,19 @@ const RESPONSE_SCHEMA: Schema = {
       required: ['label', 'flagCount'],
       propertyOrdering: ['label', 'flagCount'],
     },
+    summary: { type: Type.STRING },
+    suggestedPrompt: { type: Type.STRING },
   },
-  required: ['detectedSubtype', 'suggestedTitle', 'themes', 'signals', 'verdict'],
-  propertyOrdering: ['detectedSubtype', 'suggestedTitle', 'themes', 'signals', 'verdict'],
+  required: ['detectedSubtype', 'suggestedTitle', 'themes', 'signals', 'verdict', 'summary', 'suggestedPrompt'],
+  propertyOrdering: [
+    'detectedSubtype',
+    'suggestedTitle',
+    'themes',
+    'signals',
+    'verdict',
+    'summary',
+    'suggestedPrompt',
+  ],
 }
 
 export function buildSystemInstruction(input: ReviewInput): string {
@@ -86,6 +96,8 @@ export function buildSystemInstruction(input: ReviewInput): string {
     '- Each issue\'s "quote" MUST be an EXACT, VERBATIM substring of the concept text below — copy it character-for-character, do not paraphrase, trim, or correct it. If you cannot quote verbatim, omit the issue.',
     '- Brand-safety issues use severity "risk"; clarity/other inline issues use severity "minor".',
     '- "flagCount" is the number of signals scoring below their threshold. Verdict: "looks_ready" if none are below threshold; "not_ready" if any Brand Safety signal is below threshold OR 4+ signals are flagged; otherwise "needs_work".',
+    '- "summary": a 1-3 sentence plain-language overview of what the author should do next. Reference the lowest-scoring signals and call out any brand-safety risk specifically. Be concrete and actionable.',
+    '- "suggestedPrompt": a ready-to-paste prompt the author can give an AI to revise their text in line with this review. Target the weakest signals, instruct the AI to keep audience/format/on-brand details intact, and end with a placeholder like "[paste your text here]" for the author\'s concept.',
   ].join('\n')
 }
 

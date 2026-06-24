@@ -74,6 +74,10 @@ export interface ReviewResult {
   themes: string[]
   signals: SignalResult[]
   verdict: ReviewVerdict
+  /** A short (1-3 sentence) "what to do" summary of the review. Optional so older snapshots stay valid. */
+  summary?: string
+  /** A ready-to-paste AI prompt the author can apply to their text to improve it. Optional. */
+  suggestedPrompt?: string
 }
 
 // The frozen version that is "in review". A snapshot, NOT a live pointer. Editing

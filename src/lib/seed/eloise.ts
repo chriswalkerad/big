@@ -31,6 +31,10 @@ const DOC1_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 9, rationale: 'Playful, upscale-Manhattan, family tone — squarely in the Eloise world.', issues: [] },
   ],
   verdict: { label: 'looks_ready', flagCount: 0 },
+  summary:
+    'This is ready as written — every signal is at or above threshold, with a warm, family-safe hook. Give it a final proofread before submitting.',
+  suggestedPrompt:
+    'Lightly polish the following animated short concept for tone and rhythm without changing the premise, the kids 6-12 audience, or any specific details. Keep it playful, warm, and family-safe. Return only the revised concept:\n\n[paste your text here]',
 }
 
 const DOC2_BODY =
@@ -57,6 +61,10 @@ const DOC2_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 6, rationale: 'Plausibly fits the Plaza world, but too thin to be sure.', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 3 },
+  summary:
+    'This needs work: Character Distinctiveness, Clarity, and Completeness are all below threshold because the concept describes a vibe rather than a person. Replace the vague phrasing with concrete traits, a want, and a format, then resubmit.',
+  suggestedPrompt:
+    'Revise the following character concept to strengthen Character Distinctiveness, Clarity, and Completeness. Replace every vague "vibe"/"energy" phrase with a specific trait, want, or quirk, and add a target audience and format (short/series). Keep it on-brand for the Eloise world. Return only the revised concept:\n\n[paste your text here]',
 }
 
 const DOC3_BODY =
@@ -83,6 +91,10 @@ const DOC3_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 4, rationale: 'A horror tone with a body count clashes with the playful, family-safe Eloise world.', issues: [] },
   ],
   verdict: { label: 'not_ready', flagCount: 2 },
+  summary:
+    "Brand Safety is below threshold, so this isn't ready: the horror tone, implied deaths, and body count are off-limits for kids 6-12. Rewrite it as a gentle, playful Plaza mystery — keep Eloise's resourcefulness, drop the scares — before resubmitting.",
+  suggestedPrompt:
+    'Rewrite the following story premise to be fully family-safe and on-brand for kids 6-12. Remove all horror, jump scares, implied harm, and any body count, and re-pitch the haunted-elevator idea as a gentle, whimsical Plaza mystery that keeps Eloise brave and resourceful. Return only the revised concept:\n\n[paste your text here]',
 }
 
 const DOC4_BODY = 'Eloise does something on the rooftop. TBD.'
@@ -108,6 +120,10 @@ const DOC5_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 8, rationale: 'Playful, upscale-Manhattan ensemble comedy — right in the Eloise world.', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 1 },
+  summary:
+    'Almost there — only Completeness is below threshold because the format is left TBD. Commit to a standalone short or a series pilot and the concept is ready to move.',
+  suggestedPrompt:
+    'Revise the following story premise to strengthen Completeness by committing to a single format — either a standalone 7-minute short or a series pilot — and stating it explicitly. Leave the premise, events, and twist intact and on-brand for the Eloise world. Return only the revised concept:\n\n[paste your text here]',
 }
 
 const DOC6_BODY =
@@ -136,6 +152,10 @@ const DOC7_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 7, rationale: 'The magical depth beneath the comedy fits the upscale, whimsical Eloise world.', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 3 },
+  summary:
+    'The atmosphere is strong, but Hook Strength, Character Distinctiveness, and Completeness are below threshold for a world-building doc. Add a clear kid-facing hook, introduce a character to anchor the world, and suggest how it would appear on screen.',
+  suggestedPrompt:
+    'Revise the following world-building document to strengthen Hook Strength, Character Distinctiveness, and Completeness. Add a concrete hook a 6-year-old would stop for, introduce at least one specific character who anchors the below-lobby world, and suggest how this would surface on screen. Keep the whimsical, family-safe Eloise tone. Return only the revised document:\n\n[paste your text here]',
 }
 
 const DOC8_BODY =
@@ -154,6 +174,10 @@ const DOC8_REVIEW: ReviewResult = {
     { signalId: 'franchise_fit', score: 10, rationale: 'Playful, mischievous, upscale-Manhattan whimsical — exactly the Eloise brand.', issues: [] },
   ],
   verdict: { label: 'looks_ready', flagCount: 0 },
+  summary:
+    'This brief is ready — premise, audience, format, cast, distribution, and success metric are all specified and on-brand. Do a final pass for consistency before circulating.',
+  suggestedPrompt:
+    'Lightly polish the following creative brief for clarity and consistency without changing the strategy, metrics, audience, or any specific details. Keep it on-brand for the Eloise franchise. Return only the revised brief:\n\n[paste your text here]',
 }
 
 export const eloiseDocuments: Document[] = [

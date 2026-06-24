@@ -67,6 +67,8 @@ export const reviewResultSchema: z.ZodType<ReviewResult> = z.object({
   themes: z.array(z.string()),
   signals: z.array(signalResultSchema),
   verdict: reviewVerdictSchema,
+  summary: z.string().optional(),
+  suggestedPrompt: z.string().optional(),
 })
 
 /** Request body for POST /api/review. */
