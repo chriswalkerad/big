@@ -356,7 +356,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               disabled={reviewLoading}
               className={cn(
                 'inline-flex h-8 items-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg',
-                'transition-opacity hover:opacity-90 disabled:opacity-60',
+                'transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
               )}
             >

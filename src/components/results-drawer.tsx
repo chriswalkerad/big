@@ -82,7 +82,7 @@ export function ResultsDrawer({
     <div
       aria-hidden={!open}
       className={cn(
-        'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-4 pb-4 transition-transform duration-300 ease-out',
+        'pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center px-0 pb-0 transition-transform duration-300 ease-out sm:px-4 sm:pb-4',
         open ? 'translate-y-0' : 'translate-y-[110%]',
       )}
     >
@@ -92,7 +92,7 @@ export function ResultsDrawer({
         aria-modal="false"
         className={cn(
           'pointer-events-auto flex h-[min(60vh,32rem)] w-full max-w-3xl flex-col overflow-hidden',
-          'rounded-card border border-border bg-surface shadow-lg',
+          'rounded-t-card border border-border bg-surface shadow-lg sm:rounded-card',
         )}
       >
         <DrawerHeader review={review} loading={loading} error={error} onClose={onClose} />

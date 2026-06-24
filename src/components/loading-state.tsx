@@ -19,7 +19,7 @@ export function LoadingState({ rows = 3, className, label = "Loading…" }: Load
       {Array.from({ length: rows }).map((_, i) => (
         <div
           key={`skeleton-row-${i}`}
-          className="h-4 animate-pulse rounded-control bg-panel"
+          className="skeleton h-4 rounded-control"
           style={{ width: `${90 - i * 12}%` }}
         />
       ))}

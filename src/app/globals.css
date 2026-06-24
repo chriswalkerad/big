@@ -115,3 +115,57 @@ body {
     transition: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Polish layer (EPIC 15): motion, skeletons, and global interaction defaults.
+   Everything here is token-driven (no literal colors) and yields to the OS
+   "reduce motion" preference via the single media query at the bottom.
+--------------------------------------------------------------------------- */
+
+/* Smooth in-page scrolling for the squiggle ↔ drawer focus jumps. */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Showpiece skeleton: a soft highlight sweeping across a panel-toned block.
+   The gradient is mixed from the neutral surface token, so it adapts to
+   light/dark automatically. Used by LoadingState. */
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.skeleton {
+  background-color: var(--panel);
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    color-mix(in oklab, var(--surface) 75%, transparent) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-repeat: no-repeat;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+/* One place that honors prefers-reduced-motion for the whole app: neutralize
+   long transitions, looping animations, and smooth scrolling so individual
+   components don't each have to guard. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

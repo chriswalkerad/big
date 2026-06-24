@@ -12,12 +12,31 @@
   text-underline-offset: 3px;
   text-decoration-skip-ink: none;
   cursor: pointer;
+  border-radius: 2px;
+  /* Hover affordance (EPIC 15): the wavy line thickens and a faint severity-
+     toned wash appears, so flagged phrases read as interactive. The native
+     `title` (set on the decoration) still provides the rationale tooltip. */
+  transition:
+    text-decoration-thickness 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.signal-highlight:hover {
+  text-decoration-thickness: 2px;
 }
 
 .signal-highlight[data-severity='risk'] {
   text-decoration-color: var(--risk);
 }
 
+.signal-highlight[data-severity='risk']:hover {
+  background-color: color-mix(in oklab, var(--risk) 12%, transparent);
+}
+
 .signal-highlight[data-severity='minor'] {
   text-decoration-color: var(--minor);
+}
+
+.signal-highlight[data-severity='minor']:hover {
+  background-color: color-mix(in oklab, var(--minor) 12%, transparent);
 }
