@@ -7,6 +7,7 @@
 import type {
   Document,
   ReviewResult,
+  RoutingDestination,
   SignalDef,
   SignalIssue,
   SignalResult,
@@ -114,6 +115,27 @@ export const REVIEWER_STATUSES: readonly SubmissionStatus[] = [
   'changes_requested',
   'approved',
 ]
+
+/** Routing destinations (the approve picker), default first. */
+export const ROUTING_ORDER: readonly RoutingDestination[] = [
+  'digital_test',
+  'animation',
+  'marketing',
+  'development',
+  'production',
+]
+
+/** The default destination pre-selected when approving. */
+export const DEFAULT_ROUTING: RoutingDestination = 'digital_test'
+
+/** Human-readable labels for each routing destination. */
+export const ROUTING_LABELS: Record<RoutingDestination, string> = {
+  digital_test: 'Digital Test',
+  animation: 'Animation',
+  marketing: 'Marketing',
+  development: 'Development',
+  production: 'Production',
+}
 
 /**
  * Status after a (re)submit. A `draft` auto-advances to `submitted`; any other
