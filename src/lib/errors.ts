@@ -6,6 +6,7 @@ export type AppErrorCode =
   | 'AI_TIMEOUT'
   | 'AI_BAD_JSON'
   | 'AI_RATE_LIMIT'
+  | 'AI_UNAVAILABLE'
   | 'NETWORK_OFFLINE'
   | 'STORAGE_UNAVAILABLE'
   | 'STORAGE_QUOTA'
@@ -24,6 +25,7 @@ const RETRYABLE: Record<AppErrorCode, boolean> = {
   AI_TIMEOUT: true,
   AI_BAD_JSON: true,
   AI_RATE_LIMIT: true,
+  AI_UNAVAILABLE: true,
   NETWORK_OFFLINE: true,
   STORAGE_UNAVAILABLE: false,
   STORAGE_QUOTA: false,
@@ -36,6 +38,7 @@ const DEFAULT_MESSAGE: Record<AppErrorCode, string> = {
   AI_TIMEOUT: 'The review timed out. Try again.',
   AI_BAD_JSON: "Couldn't read the model's response. Try again.",
   AI_RATE_LIMIT: 'Rate limited by the model. Wait a moment and retry.',
+  AI_UNAVAILABLE: 'The model is temporarily unavailable. Wait a moment and retry.',
   NETWORK_OFFLINE: "Can't reach the network. Check your connection and retry.",
   STORAGE_UNAVAILABLE: 'Local storage is unavailable; working in memory for now.',
   STORAGE_QUOTA: 'Local storage is full.',
@@ -85,6 +88,16 @@ export function toAppError(e: unknown): AppError {
   }
   if (status === 429 || hay.includes('rate limit') || hay.includes('too many requests') || hay.includes('429')) {
     return appError('AI_RATE_LIMIT', message, e)
+  }
+  // 5xx and explicit "service unavailable / overloaded / high demand" responses are
+  // transient model-side failures — surface them as retryable, not a dead-end UNKNOWN.
+  if (
+    (typeof status === 'number' && status >= 500 && status <= 599) ||
+    hay.includes('unavailable') ||
+    hay.includes('overloaded') ||
+    hay.includes('high demand')
+  ) {
+    return appError('AI_UNAVAILABLE', message, e)
   }
   if (name === 'QuotaExceededError' || hay.includes('quota')) {
     return appError('STORAGE_QUOTA', message, e)
