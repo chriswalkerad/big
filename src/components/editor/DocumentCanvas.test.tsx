@@ -42,6 +42,20 @@ describe('DocumentCanvas', () => {
     expect(prose?.getAttribute('contenteditable')).toBe('false')
   })
 
+  it('renders an editable surface in edit mode', async () => {
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content={`<p>${SAMPLE_BODY}</p>`} />,
+    )
+
+    await waitFor(() => {
+      expect(container.querySelector('.ProseMirror')).toBeTruthy()
+    })
+
+    const prose = container.querySelector<HTMLElement>('.ProseMirror')
+    expect(prose?.getAttribute('contenteditable')).toBe('true')
+  })
+
   it('exposes setSignalHighlights via ref and renders squiggles', async () => {
     const ref = createRef<DocumentCanvasHandle>()
     const { container } = render(
