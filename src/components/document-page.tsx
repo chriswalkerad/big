@@ -458,15 +458,24 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
         />
       ) : null}
 
-      {/* Body */}
-      <div ref={editorContainerRef} className="min-h-[16rem]">
-        <DocumentCanvas
-          ref={canvasRef}
-          mode={mode}
-          content={initialContent}
-          onChange={isRead ? undefined : handleBodyChange}
-          onHighlightClick={handleHighlightClick}
-        />
+      {/* Body — a "paper on a desk": the gray desk frames a white paper sheet with a
+          soft shadow, rounded corners and document padding, so the writing surface
+          stands out. The desk/paper backgrounds are theme-aware tokens (.document-desk
+          / .document-paper, defined in editor.css): white-on-gray in light, elevated-
+          surface-on-darker in dark. Applied to edit and read alike. */}
+      <div
+        ref={editorContainerRef}
+        className="document-desk -mx-4 rounded-card p-4 sm:-mx-6 sm:p-8"
+      >
+        <div className="document-paper mx-auto max-w-3xl rounded-card border border-border p-6 shadow-lg sm:p-8">
+          <DocumentCanvas
+            ref={canvasRef}
+            mode={mode}
+            content={initialContent}
+            onChange={isRead ? undefined : handleBodyChange}
+            onHighlightClick={handleHighlightClick}
+          />
+        </div>
       </div>
 
       {/* Results drawer */}
