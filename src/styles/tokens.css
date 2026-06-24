@@ -14,20 +14,34 @@
  */
 
 :root {
-  /* Neutrals — light */
+  /* Neutrals — light.
+     The text tiers are tuned for WCAG 2.1 AA: every tier clears 4.5:1 against
+     bg/surface/panel so even low-emphasis copy (meta lines, placeholders) is
+     legible. `--text-secondary` (#5e5e66) and `--text-tertiary` (#6b6b73) were
+     darkened from zinc-500/400 (which measured 4.40 and 2.33 on panel) while
+     keeping the three-tier zinc hierarchy visually distinct. */
   --bg: #ffffff;
   --surface: #fafafa;
   --panel: #f4f4f5;
   --border: #e4e4e7;
   --text-primary: #18181b;
-  --text-secondary: #71717a;
-  --text-tertiary: #a1a1aa;
+  --text-secondary: #5e5e66;
+  --text-tertiary: #6b6b73;
   --accent: #18181b;
 
-  /* Functional / chromatic — light (highlights + signal bars only) */
+  /* Functional / chromatic — light.
+     `--risk/--minor/--pass` are the GRAPHICAL values (squiggle underlines and
+     signal fill bars), tuned for the ≥3:1 non-text threshold. They are too light
+     for body TEXT at AA, so `--*-text` give AA-passing (≥4.5:1) variants used
+     wherever the severity color labels text (error copy, drift, verdict, issue
+     quotes). Dark mode's chromatic values already clear 4.5:1, so the text
+     variants there equal the graphical ones. */
   --risk: #dc2626;
   --minor: #d97706;
   --pass: #16a34a;
+  --risk-text: #b91c1c;
+  --minor-text: #b45309;
+  --pass-text: #15803d;
 
   /* Type scale — UI (13px base, 4px baseline grid).
      Each entry: font-size / line-height / font-weight (+ tracking where noted). */
@@ -91,18 +105,26 @@
 }
 
 .dark {
-  /* Neutrals — dark */
+  /* Neutrals — dark.
+     `--text-tertiary` was lightened from zinc-500 (#71717a, 3.52 on panel) to
+     #85858d so low-emphasis text clears 4.5:1 on bg/surface/panel while staying
+     a clearly lighter tier than `--text-secondary`. */
   --bg: #0a0a0a;
   --surface: #141414;
   --panel: #1c1c1f;
   --border: #262626;
   --text-primary: #fafafa;
   --text-secondary: #a1a1aa;
-  --text-tertiary: #71717a;
+  --text-tertiary: #85858d;
   --accent: #fafafa;
 
-  /* Functional / chromatic — dark (highlights + signal bars only) */
+  /* Functional / chromatic — dark. The bright variants already clear 4.5:1 as
+     text on every dark surface, so the `--*-text` variants equal the graphical
+     ones (kept for token parity with light). */
   --risk: #f87171;
   --minor: #fbbf24;
   --pass: #4ade80;
+  --risk-text: #f87171;
+  --minor-text: #fbbf24;
+  --pass-text: #4ade80;
 }

@@ -10,6 +10,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -30,6 +31,7 @@ import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
 import { SignalForm } from "@/components/signal-form";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 /** What, if anything, the editor panel is currently doing. */
 type EditorState =
@@ -355,6 +357,11 @@ function Overlay({
   onDismiss: () => void;
   labelledBy: string;
 }) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Move focus into the dialog, trap Tab within it, and restore focus on close.
+  useFocusTrap(dialogRef, true);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onDismiss();
@@ -376,7 +383,12 @@ function Overlay({
         onClick={onDismiss}
         className="absolute inset-0 size-full cursor-default bg-text-primary/30 backdrop-blur-sm"
       />
-      <div className="relative w-full max-w-lg rounded-card border border-border bg-bg p-6 shadow-lg">
+      {/* Trap focus within the panel (not the backdrop button) so Tab cycles the
+          form controls and focus returns to the trigger on close. */}
+      <div
+        ref={dialogRef}
+        className="relative w-full max-w-lg rounded-card border border-border bg-bg p-6 shadow-lg"
+      >
         {children}
       </div>
     </div>

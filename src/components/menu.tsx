@@ -33,7 +33,26 @@ export function Menu({
 }: MenuProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement | null>(null)
+  const triggerRef = useRef<HTMLButtonElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
   const panelId = useId()
+
+  // The enabled, focusable items inside the open panel (buttons or links acting as
+  // menuitems). aria-disabled items are skipped so roving focus lands on actionable rows.
+  const getItems = (): HTMLElement[] => {
+    const panel = panelRef.current
+    if (!panel) return []
+    return Array.from(
+      panel.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+    ).filter((el) => el.getAttribute('aria-disabled') !== 'true' && !el.hasAttribute('disabled'))
+  }
+
+  // On open, move focus to the first item so the menu is operable from the keyboard.
+  useEffect(() => {
+    if (!open) return
+    const items = getItems()
+    items[0]?.focus()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -41,7 +60,11 @@ export function Menu({
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false)
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setOpen(false)
+      if (e.key === 'Escape') {
+        setOpen(false)
+        // Escape returns focus to the trigger (WCAG 2.1.2 / menu pattern).
+        triggerRef.current?.focus()
+      }
     }
     document.addEventListener('mousedown', onDocClick)
     document.addEventListener('keydown', onKey)
@@ -53,9 +76,35 @@ export function Menu({
 
   const close = () => setOpen(false)
 
+  // Arrow-key roving focus across menu items, plus Home/End. Activation (Enter/Space)
+  // is handled natively by the underlying button/link element.
+  function onPanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+    const items = getItems()
+    if (items.length === 0) return
+    const currentIndex = items.indexOf(document.activeElement as HTMLElement)
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      items[(currentIndex + 1 + items.length) % items.length || 0]?.focus()
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      const next = currentIndex <= 0 ? items.length - 1 : currentIndex - 1
+      items[next]?.focus()
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      items[0]?.focus()
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      items[items.length - 1]?.focus()
+    } else if (e.key === 'Tab') {
+      // Tabbing out closes the menu (no trap) and lets focus continue naturally.
+      setOpen(false)
+    }
+  }
+
   return (
     <div ref={rootRef} className="relative inline-flex">
       <button
+        ref={triggerRef}
         type="button"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -63,6 +112,13 @@ export function Menu({
         aria-label={ariaLabel}
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
+        onKeyDown={(e) => {
+          // Down/Up open the menu and focus the first item (native menu-button pattern).
+          if (!open && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+            e.preventDefault()
+            setOpen(true)
+          }
+        }}
         className={triggerClassName}
       >
         {label}
@@ -70,7 +126,10 @@ export function Menu({
       {open ? (
         <div
           id={panelId}
+          ref={panelRef}
           role="menu"
+          aria-label={ariaLabel}
+          onKeyDown={onPanelKeyDown}
           className={cn(
             'absolute top-full z-50 mt-1.5 min-w-44 overflow-hidden rounded-card border border-border bg-surface p-1 shadow-lg',
             align === 'right' ? 'right-0' : 'left-0',

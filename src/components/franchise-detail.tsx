@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Project } from '@/types'
 import { cn } from '@/lib/utils'
+import { useFocusTrap } from '@/lib/use-focus-trap'
 
 interface FranchiseDetailProps {
   project: Project
@@ -17,6 +18,11 @@ interface FranchiseDetailProps {
  * and tags. Live prompting against the franchise is explicitly out of scope.
  */
 export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps) {
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Move focus into the dialog, trap Tab, restore focus to the trigger on close.
+  useFocusTrap(dialogRef, open)
+
   // Close on Escape while open.
   useEffect(() => {
     if (!open) return
@@ -38,6 +44,7 @@ export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps
         className="absolute inset-0 bg-bg/60 backdrop-blur-sm"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label={`Franchise detail: ${project.name}`}

@@ -32,9 +32,11 @@ export function AppShell({ children, className }: AppShellProps) {
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
             )}
           >
+            {/* Decorative: the adjacent "Creative Review" text already names the
+                link, so an alt here would just duplicate the accessible name. */}
             <img
               src="/big-shot-icon.png"
-              alt="Big Shot Pictures"
+              alt=""
               width={28}
               height={28}
               className="size-7 rounded-[6px]"
@@ -58,7 +60,14 @@ export function AppShell({ children, className }: AppShellProps) {
           </nav>
         </div>
       </header>
-      <main className={cn("mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6", className)}>
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={cn(
+          "mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 focus:outline-none",
+          className,
+        )}
+      >
         {children}
       </main>
     </div>

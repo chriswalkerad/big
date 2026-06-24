@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { RoutingDestination } from '@/types'
 import { cn } from '@/lib/utils'
+import { useFocusTrap } from '@/lib/use-focus-trap'
 import { DEFAULT_ROUTING, ROUTING_LABELS, ROUTING_ORDER } from '@/lib/doc-page'
 
 interface DestinationPickerProps {
@@ -31,6 +32,10 @@ function DestinationPickerBody({
   onConfirm,
 }: Omit<DestinationPickerProps, 'open'>) {
   const [selected, setSelected] = useState<RoutingDestination>(current ?? DEFAULT_ROUTING)
+  const dialogRef = useRef<HTMLDivElement>(null)
+
+  // Move focus into the dialog, trap Tab, restore focus to the trigger on close.
+  useFocusTrap(dialogRef, true)
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -49,6 +54,7 @@ function DestinationPickerBody({
         className="absolute inset-0 bg-bg/60 backdrop-blur-sm"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-label="Choose a destination"

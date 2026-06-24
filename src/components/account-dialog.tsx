@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 
 export interface AccountDialogProps {
   /** Whether the dialog is shown. */
@@ -27,14 +28,12 @@ export function AccountDialog({ open, onClose }: AccountDialogProps) {
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
-  // Remember what was focused before opening so we can restore it on close.
-  const previouslyFocused = useRef<HTMLElement | null>(null);
+
+  // Move focus into the dialog, trap Tab within it, and restore focus on close.
+  useFocusTrap(panelRef, open);
 
   useEffect(() => {
     if (!open) return;
-
-    previouslyFocused.current = document.activeElement as HTMLElement | null;
-    panelRef.current?.focus();
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
@@ -46,8 +45,6 @@ export function AccountDialog({ open, onClose }: AccountDialogProps) {
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      // Restore focus to the trigger that opened the dialog.
-      previouslyFocused.current?.focus();
     };
   }, [open, onClose]);
 
