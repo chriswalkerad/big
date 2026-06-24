@@ -1,3 +1,6 @@
+"use client";
+
+import { motion, useReducedMotion } from "motion/react";
 import type { SubmissionStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -28,6 +31,7 @@ interface StatusChipProps {
  * color outside highlights/bars, so statuses are distinguished by label, not hue.
  */
 export function StatusChip({ status, className }: StatusChipProps) {
+  const reduceMotion = useReducedMotion();
   return (
     <span
       data-status={status}
@@ -37,7 +41,15 @@ export function StatusChip({ status, className }: StatusChipProps) {
       )}
     >
       <span className="size-1.5 rounded-pill bg-text-tertiary" aria-hidden="true" />
-      {STATUS_LABELS[status]}
+      {/* A subtle pop on status change; the key re-mounts the label per status. */}
+      <motion.span
+        key={status}
+        initial={reduceMotion ? false : { scale: 0.9, opacity: 0.4 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 520, damping: 26 }}
+      >
+        {STATUS_LABELS[status]}
+      </motion.span>
     </span>
   );
 }
