@@ -23,11 +23,11 @@ export function DriftIndicator({ onResubmit, onUnsubmit, busy, className }: Drif
     <div
       role="status"
       className={cn(
-        'flex flex-wrap items-center gap-2 rounded-card border border-minor/40 bg-panel px-3 py-2',
+        'flex flex-wrap items-center gap-2 rounded-card border border-minor bg-panel px-3 py-2',
         className,
       )}
     >
-      <span className="inline-flex items-center gap-1.5 text-label-sm text-minor">
+      <span className="inline-flex items-center gap-1.5 text-label-sm text-minor-text">
         <History className="size-3.5" aria-hidden="true" />
         Edited since submit
       </span>

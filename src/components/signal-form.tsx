@@ -25,7 +25,7 @@ export interface SignalFormProps {
 }
 
 const fieldLabelClass = "text-label-sm font-medium text-text-primary";
-const fieldErrorClass = "text-label-xs text-risk";
+const fieldErrorClass = "text-label-xs text-risk-text";
 
 const controlClass = cn(
   "w-full rounded-control border border-border bg-bg px-3 py-2 text-body text-text-primary",
@@ -87,13 +87,15 @@ export function SignalForm({
           type="text"
           value={values.name}
           onChange={(e) => set("name", e.target.value)}
+          required
+          aria-required="true"
           aria-invalid={visible.name ? true : undefined}
           aria-describedby={visible.name ? `${nameId}-error` : undefined}
           className={controlClass}
           placeholder="Clarity"
         />
         {visible.name ? (
-          <p id={`${nameId}-error`} className={fieldErrorClass}>
+          <p id={`${nameId}-error`} role="alert" className={fieldErrorClass}>
             {visible.name}
           </p>
         ) : null}
@@ -108,13 +110,15 @@ export function SignalForm({
           value={values.prompt}
           onChange={(e) => set("prompt", e.target.value)}
           rows={5}
+          required
+          aria-required="true"
           aria-invalid={visible.prompt ? true : undefined}
           aria-describedby={visible.prompt ? `${promptId}-error` : undefined}
           className={cn(controlClass, "resize-y")}
           placeholder="Judge whether the concept reads clearly on a first pass…"
         />
         {visible.prompt ? (
-          <p id={`${promptId}-error`} className={fieldErrorClass}>
+          <p id={`${promptId}-error`} role="alert" className={fieldErrorClass}>
             {visible.prompt}
           </p>
         ) : null}
@@ -134,12 +138,14 @@ export function SignalForm({
             step={1}
             value={values.threshold}
             onChange={(e) => set("threshold", e.target.value)}
+            required
+            aria-required="true"
             aria-invalid={visible.threshold ? true : undefined}
             aria-describedby={visible.threshold ? `${thresholdId}-error` : undefined}
             className={controlClass}
           />
           {visible.threshold ? (
-            <p id={`${thresholdId}-error`} className={fieldErrorClass}>
+            <p id={`${thresholdId}-error`} role="alert" className={fieldErrorClass}>
               {visible.threshold}
             </p>
           ) : null}
@@ -167,7 +173,7 @@ export function SignalForm({
             ))}
           </select>
           {visible.mode ? (
-            <p id={`${modeId}-error`} className={fieldErrorClass}>
+            <p id={`${modeId}-error`} role="alert" className={fieldErrorClass}>
               {visible.mode}
             </p>
           ) : null}

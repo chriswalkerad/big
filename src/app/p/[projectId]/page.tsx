@@ -142,6 +142,14 @@ export function LibraryView({ projectId }: { projectId: string }) {
         </div>
       </header>
 
+      {/* Announce the filtered result count to assistive tech as the user types or
+          changes the status filter (search results are an async-feeling update). */}
+      <p aria-live="polite" className="sr-only">
+        {isFiltering
+          ? `${filtered.length} ${filtered.length === 1 ? "document" : "documents"} match your search and filter.`
+          : `${filtered.length} ${filtered.length === 1 ? "document" : "documents"}.`}
+      </p>
+
       {filtered.length === 0 ? (
         <EmptyState
           title="No matching documents"

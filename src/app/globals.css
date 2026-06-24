@@ -27,10 +27,15 @@
   --color-text-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
 
-  /* Colors — functional / chromatic */
+  /* Colors — functional / chromatic.
+     `*` are the graphical values (bars/squiggles, ≥3:1); `*-text` are the
+     AA text-contrast variants (≥4.5:1) for `text-risk-text` etc. */
   --color-risk: var(--risk);
   --color-minor: var(--minor);
   --color-pass: var(--pass);
+  --color-risk-text: var(--risk-text);
+  --color-minor-text: var(--minor-text);
+  --color-pass-text: var(--pass-text);
 
   /* Font family — Inter (via next/font) with the spec's fallback stack. */
   --font-sans: var(--font-inter), -apple-system, "SF Pro Display", system-ui,
