@@ -99,3 +99,19 @@ body {
   /* Tabular figures for numeric UI (signal scores, version numbers). */
   font-variant-numeric: tabular-nums;
 }
+
+/* Bidirectional focus: when a flagged phrase is clicked in the results drawer, the
+   matching squiggle gets a transient emphasis pulse so the eye lands on it. The
+   squiggle itself (.signal-highlight) is owned by the editor layer; we only add a
+   short-lived focus accent here. */
+.signal-highlight--focus {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  border-radius: 2px;
+  transition: background 150ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .signal-highlight--focus {
+    transition: none;
+  }
+}
