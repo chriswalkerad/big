@@ -77,6 +77,34 @@ describe('DocumentCanvas', () => {
     })
   })
 
+  it('replaces the body via setContent and fires onChange', async () => {
+    const onChange = vi.fn()
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas
+        ref={ref}
+        mode="edit"
+        content={`<p>${SAMPLE_BODY}</p>`}
+        onChange={onChange}
+      />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+
+    ref.current!.setContent('<p>new text</p>')
+
+    // The rendered editor reflects the replaced content...
+    await waitFor(() => {
+      const prose = container.querySelector<HTMLElement>('.ProseMirror')
+      expect(prose?.textContent).toContain('new text')
+      expect(prose?.textContent).not.toContain('drinks soda')
+    })
+
+    // ...and onChange fired with the new serialized HTML so the parent stays in sync.
+    expect(onChange).toHaveBeenCalled()
+    expect(onChange.mock.calls.at(-1)?.[0]).toContain('new text')
+  })
+
   it('fires onHighlightClick with the data-signal-id on mousedown', async () => {
     const onHighlightClick = vi.fn()
     const ref = createRef<DocumentCanvasHandle>()

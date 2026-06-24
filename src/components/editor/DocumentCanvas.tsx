@@ -20,11 +20,18 @@ import './editor.css'
 export type DocumentCanvasMode = 'edit' | 'read'
 
 /**
- * Imperative handle a parent uses to drive the transient review overlay.
- * Calling `setSignalHighlights` rebuilds the decoration set; passing `[]` clears it.
+ * Imperative handle a parent uses to drive the transient review overlay and to
+ * replace the document body programmatically.
+ *
+ * - `setSignalHighlights` rebuilds the decoration set; passing `[]` clears it.
+ * - `setContent` REPLACES the whole document with new HTML (e.g. an "Apply AI
+ *   edit"). It emits Tiptap's update event, so the parent's `onChange` fires with
+ *   the new serialized HTML and the parent's body state stays in sync. Replacing
+ *   the document also clears the signal-highlight overlay (any doc change does).
  */
 export interface DocumentCanvasHandle {
   setSignalHighlights: (issues: readonly SignalHighlightIssue[]) => void
+  setContent: (html: string) => void
 }
 
 export interface DocumentCanvasProps {
@@ -107,6 +114,13 @@ function DocumentCanvasInner(
     (): DocumentCanvasHandle => ({
       setSignalHighlights: (issues) => {
         editor?.commands.setSignalHighlights(issues)
+      },
+      setContent: (html) => {
+        // Replace the whole document. `emitUpdate: true` (Tiptap's default, set
+        // explicitly here as a contract) makes ProseMirror NOT mark the
+        // transaction `preventUpdate`, so `onUpdate` fires and the parent's
+        // `onChange` receives the new serialized HTML — keeping body state in sync.
+        editor?.commands.setContent(html, { emitUpdate: true })
       },
     }),
     [editor],
