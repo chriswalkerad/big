@@ -107,6 +107,58 @@ describe('DocumentPage edit mode — submit flow', () => {
   })
 })
 
+describe('DocumentPage version drift (edit mode)', () => {
+  // Seed a doc whose live body already differs from its snapshot, so the drift
+  // indicator renders on load without needing to type into the editor.
+  function seedDrifted() {
+    return seedDoc({
+      status: 'submitted',
+      title: 'Drifted',
+      body: 'edited working body',
+      submittedSnapshot: { body: 'original snapshot body', review: REVIEW, submittedAt: 'T1' },
+    })
+  }
+
+  it('shows the drift indicator when the body differs from the snapshot', async () => {
+    seedDrifted()
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    expect(await screen.findByText(/edited since submit/i)).toBeInTheDocument()
+    // Editing did NOT auto-unsubmit: status is still submitted.
+    expect(createStorageRepository().getDocument('doc-test')?.status).toBe('submitted')
+  })
+
+  it('Resubmit replaces the snapshot with the current body', async () => {
+    seedDrifted()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
+    )
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /resubmit/i }))
+
+    await waitFor(() => {
+      const saved = createStorageRepository().getDocument('doc-test')
+      expect(saved?.submittedSnapshot?.body).toBe('edited working body')
+      expect(saved?.status).toBe('submitted')
+    })
+    // No longer drifted → indicator gone.
+    await waitFor(() => {
+      expect(screen.queryByText(/edited since submit/i)).not.toBeInTheDocument()
+    })
+  })
+
+  it('Unsubmit clears the snapshot and returns to draft', async () => {
+    seedDrifted()
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /unsubmit/i }))
+
+    await waitFor(() => {
+      const saved = createStorageRepository().getDocument('doc-test')
+      expect(saved?.submittedSnapshot).toBeUndefined()
+      expect(saved?.status).toBe('draft')
+    })
+  })
+})
+
 describe('DocumentPage read mode — reviewer actions', () => {
   it('opens the drawer with the snapshot verdict and offers reviewer status', async () => {
     seedDoc({
@@ -139,6 +191,30 @@ describe('DocumentPage read mode — reviewer actions', () => {
 
     await waitFor(() => {
       expect(createStorageRepository().getDocument('doc-test')?.status).toBe('changes_requested')
+    })
+  })
+
+  it('approving opens the destination picker and saves routing', async () => {
+    seedDoc({
+      status: 'submitted',
+      title: 'A Concept',
+      submittedSnapshot: { body: 'snapshot body', review: REVIEW, submittedAt: 'T1' },
+    })
+
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="read" />)
+    fireEvent.click(await screen.findByRole('button', { name: /change review status/i }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: /^approved$/i }))
+
+    // The destination picker opens with the default (Digital Test) preselected.
+    const dialog = await screen.findByRole('dialog', { name: /choose a destination/i })
+    expect(dialog).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Animation'))
+    fireEvent.click(screen.getByRole('button', { name: /^approve$/i }))
+
+    await waitFor(() => {
+      const saved = createStorageRepository().getDocument('doc-test')
+      expect(saved?.status).toBe('approved')
+      expect(saved?.routing).toBe('animation')
     })
   })
 })
