@@ -41,7 +41,7 @@ export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps
         type="button"
         aria-label="Close franchise detail"
         onClick={onClose}
-        className="absolute inset-0 bg-bg/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-text-primary/20 backdrop-blur-sm"
       />
       <div
         ref={dialogRef}

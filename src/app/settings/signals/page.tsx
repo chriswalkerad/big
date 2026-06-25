@@ -25,11 +25,13 @@ import {
   signalToForm,
   toSignalDef,
 } from "@/lib/signal-form";
-import { AppBreadcrumb } from "@/components/app-breadcrumb";
+import { Breadcrumb } from "@/components/breadcrumb";
+import { Button } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
 import { SignalForm } from "@/components/signal-form";
+import { TopBar } from "@/components/top-bar";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
@@ -38,18 +40,6 @@ type EditorState =
   | { kind: "closed" }
   | { kind: "create" }
   | { kind: "edit"; signal: SignalDef };
-
-const primaryButtonClass = cn(
-  "inline-flex h-9 items-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg",
-  "transition-opacity hover:opacity-90",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-);
-
-const iconButtonClass = cn(
-  "inline-flex size-8 items-center justify-center rounded-control border border-border bg-surface text-text-secondary",
-  "transition-colors hover:bg-panel hover:text-text-primary",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-);
 
 /** Sort signals by name for a stable, predictable list. */
 function sortSignals(list: readonly SignalDef[]): SignalDef[] {
@@ -139,107 +129,119 @@ export default function SignalsAdminPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3">
-        <AppBreadcrumb
-          segments={[{ label: "Settings · Signals", current: true }]}
-        />
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-col gap-1">
+    // Break out of the AppShell `<main>` padding so the slim TopBar sits flush to
+    // the top and spans the content column edge-to-edge; the page re-applies its
+    // own measure + padding below.
+    <div className="-mx-4 -my-6 sm:-mx-6">
+      <TopBar
+        breadcrumb={
+          <Breadcrumb
+            segments={[
+              { label: "Home", href: "/" },
+              { label: "Settings · Signals", current: true },
+            ]}
+          />
+        }
+        actions={
+          <Button variant="ink" onClick={openCreate}>
+            <Plus className="size-4" aria-hidden="true" />
+            New Signal
+          </Button>
+        }
+      />
+
+      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
+        <div className="flex flex-col gap-8">
+          <header className="flex flex-col gap-1.5">
             <h1 className="text-heading text-text-primary">Signals</h1>
             <p className="text-body text-text-secondary">
               Define what every review checks. This set is the single source the
               review reads at submit time.
             </p>
-          </div>
-          <button type="button" onClick={openCreate} className={primaryButtonClass}>
-            <Plus className="size-4" aria-hidden="true" />
-            New Signal
-          </button>
-        </div>
-      </div>
+          </header>
 
-      {error ? (
-        <ErrorState
-          error={error}
-          onRetry={
-            error.retryable
-              ? () => {
-                  setError(null);
-                  try {
-                    refresh();
-                  } catch (e) {
-                    setError(toAppError(e));
-                  }
-                }
-              : undefined
-          }
-        />
-      ) : null}
+          {error ? (
+            <ErrorState
+              error={error}
+              onRetry={
+                error.retryable
+                  ? () => {
+                      setError(null);
+                      try {
+                        refresh();
+                      } catch (e) {
+                        setError(toAppError(e));
+                      }
+                    }
+                  : undefined
+              }
+            />
+          ) : null}
 
-      {!mounted ? (
-        <LoadingState rows={6} label="Loading signals…" />
-      ) : signals.length === 0 ? (
-        <EmptyState
-          title="No signals yet"
-          description="Add a signal to start reviewing documents against it."
-          action={
-            <button type="button" onClick={openCreate} className={primaryButtonClass}>
-              <Plus className="size-4" aria-hidden="true" />
-              New Signal
-            </button>
-          }
-        />
-      ) : (
-        <ul className="flex flex-col gap-2" aria-label="Signals">
-          {signals.map((signal) => (
-            <li key={signal.id}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 rounded-card border border-border bg-surface px-4 py-3",
-                  "transition-colors hover:bg-panel",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => openEdit(signal)}
-                  className={cn(
-                    "flex min-w-0 flex-1 items-center gap-3 text-left",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-control",
-                  )}
-                  aria-label={`Open ${signal.name}`}
+          {!mounted ? (
+            <LoadingState rows={6} label="Loading signals…" />
+          ) : signals.length === 0 ? (
+            <EmptyState
+              title="No signals yet"
+              description="Add a signal to start reviewing documents against it."
+              action={
+                <Button variant="ink" onClick={openCreate}>
+                  <Plus className="size-4" aria-hidden="true" />
+                  New Signal
+                </Button>
+              }
+            />
+          ) : (
+            <ul
+              className="flex flex-col border-t border-border"
+              aria-label="Signals"
+            >
+              {signals.map((signal) => (
+                <li
+                  key={signal.id}
+                  className="group flex items-center gap-3 border-b border-border py-3 transition-colors hover:bg-panel/60"
                 >
-                  <span className="min-w-0 flex-1 truncate text-body-emphasis text-text-primary">
-                    {signal.name}
-                  </span>
-                  <ModeChip mode={signal.mode} />
-                  <span className="shrink-0 text-label-sm text-text-secondary tabular-nums">
-                    threshold {signal.threshold}
-                  </span>
-                </button>
-                <div className="flex shrink-0 items-center gap-1.5">
                   <button
                     type="button"
                     onClick={() => openEdit(signal)}
-                    className={iconButtonClass}
-                    aria-label={`Edit ${signal.name}`}
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center gap-3 rounded-control text-left",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                    )}
+                    aria-label={`Open ${signal.name}`}
                   >
-                    <Pencil className="size-4" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate text-body-emphasis text-text-primary">
+                      {signal.name}
+                    </span>
+                    <ModeChip mode={signal.mode} />
+                    <span className="shrink-0 text-label-sm text-text-tertiary tabular-nums">
+                      threshold {signal.threshold}
+                    </span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setPendingDelete(signal)}
-                    className={iconButtonClass}
-                    aria-label={`Delete ${signal.name}`}
-                  >
-                    <Trash2 className="size-4" aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      onClick={() => openEdit(signal)}
+                      aria-label={`Edit ${signal.name}`}
+                      className="px-1.5"
+                    >
+                      <Pencil className="size-4" aria-hidden="true" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => setPendingDelete(signal)}
+                      aria-label={`Delete ${signal.name}`}
+                      className="px-1.5"
+                    >
+                      <Trash2 className="size-4" aria-hidden="true" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
 
       {editor.kind !== "closed" ? (
         <FormPanel
@@ -319,29 +321,19 @@ function ConfirmDelete({
         run after this will no longer check it. This cannot be undone.
       </p>
       <div className="mt-5 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className={cn(
-            "inline-flex h-9 items-center rounded-control border border-border bg-surface px-3 text-label-sm text-text-secondary",
-            "transition-colors hover:bg-panel hover:text-text-primary",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-          )}
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button
+          variant="ink"
           onClick={onConfirm}
           className={cn(
-            "inline-flex h-9 items-center gap-1.5 rounded-control bg-risk px-3 text-label-sm font-medium text-bg",
-            "transition-opacity hover:opacity-90",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-risk focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+            "border-risk bg-risk text-bg",
+            "hover:border-risk hover:bg-risk/90",
+            "focus-visible:ring-risk",
           )}
         >
           <Trash2 className="size-4" aria-hidden="true" />
           Delete
-        </button>
+        </Button>
       </div>
     </Overlay>
   );
@@ -381,13 +373,13 @@ function Overlay({
         type="button"
         aria-label="Dismiss"
         onClick={onDismiss}
-        className="absolute inset-0 size-full cursor-default bg-text-primary/30 backdrop-blur-sm"
+        className="absolute inset-0 size-full cursor-default bg-text-primary/20 backdrop-blur-sm"
       />
       {/* Trap focus within the panel (not the backdrop button) so Tab cycles the
           form controls and focus returns to the trigger on close. */}
       <div
         ref={dialogRef}
-        className="relative w-full max-w-lg rounded-card border border-border bg-bg p-6 shadow-lg"
+        className="relative w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-lg"
       >
         {children}
       </div>

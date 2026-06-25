@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useRef } from "react";
 import { X } from "lucide-react";
+import { Button } from "@/components/button";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
@@ -58,7 +59,7 @@ export function AccountDialog({ open, onClose }: AccountDialogProps) {
     >
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-text-primary/40 backdrop-blur-[1px]"
+        className="absolute inset-0 bg-text-primary/20 backdrop-blur-[1px]"
       />
       <div
         ref={panelRef}
@@ -95,17 +96,9 @@ export function AccountDialog({ open, onClose }: AccountDialogProps) {
           for this build — there is only one seeded project right now.
         </p>
         <div className="mt-5 flex justify-end">
-          <button
-            type="button"
-            onClick={onClose}
-            className={cn(
-              "inline-flex items-center justify-center rounded-control px-3 py-1.5",
-              "bg-accent text-label-sm text-bg transition-opacity hover:opacity-90",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-surface",
-            )}
-          >
+          <Button variant="ink" onClick={onClose}>
             Got it
-          </button>
+          </Button>
         </div>
       </div>
     </div>
