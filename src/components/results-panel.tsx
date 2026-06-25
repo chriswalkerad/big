@@ -1,6 +1,6 @@
 'use client'
 
-import { forwardRef, useEffect, useRef, useState, type Ref } from 'react'
+import { forwardRef, useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { Check, HelpCircle, Loader2, Sparkles } from 'lucide-react'
 import type { AppError } from '@/lib/errors'
@@ -88,8 +88,11 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
   },
   ref,
 ) {
-  const defs = signalDefMap(signals)
-  const inlineIds = inlineSignalIdSet(signals)
+  // `signals` is loaded once and stable during editing, but DocumentPage re-renders this
+  // panel on every keystroke and squiggle-focus change. Memoizing keeps the lookup
+  // Map/Set from being rebuilt on each of those renders.
+  const defs = useMemo(() => signalDefMap(signals), [signals])
+  const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
 
   // The methodology panel ("How is this calculated?") replaces the score view in the
   // body while open. It's only meaningful for a settled review, so loading/error/no
