@@ -221,13 +221,38 @@ describe('MockProvider applyEdit', () => {
     expect(safer).not.toBe(clearer)
   })
 
-  it('trims hedging filler from the body', () => {
-    const text = 'This is basically just a really cool idea, you know, sort of about a kid.'
+  it('selects the "Tighten" verb for simplify-themed instructions', () => {
+    const text = 'A short caper about a precocious kid at a grand hotel.'
+    // `simplify`/`simple`/`simpler` must all route to "Tighten", not the default verb.
+    for (const instruction of ['Simplify this concept.', 'Make it simple.', 'Make it simpler.']) {
+      const out = applyEditSync(applyInputFor(text, instruction))
+      expect(out.startsWith('Tighten')).toBe(true)
+    }
+  })
+
+  it('trims standalone intensifier filler from the body', () => {
+    const text = 'This is basically a really cool idea about a kid.'
     const out = applyEditSync(applyInputFor(text))
+    // The standalone intensifier is gone, but real content survives intact.
     expect(out.toLowerCase()).not.toContain('basically')
-    expect(out.toLowerCase()).not.toContain('you know')
-    // Still preserves the substantive content.
+    expect(out.toLowerCase()).toContain('really cool idea')
     expect(out.toLowerCase()).toContain('kid')
+  })
+
+  it('trims sentence-initial hedging and re-capitalises the sentence', () => {
+    const text = 'Just run for the door. Really, you should hurry.'
+    const out = applyEditSync(applyInputFor(text))
+    expect(out).toContain('Run for the door.')
+    expect(out).toContain('You should hurry.')
+  })
+
+  it('never deletes "I think" / "you know" from the middle of the author\'s prose', () => {
+    // These are real content here (dialogue / mid-clause), so they must be preserved.
+    const text =
+      'In the script she says, "I think we should run," and he reminds them, "you know the rules."'
+    const out = applyEditSync(applyInputFor(text))
+    expect(out).toContain('"I think we should run,"')
+    expect(out).toContain('"you know the rules."')
   })
 
   it('still returns a non-empty rewrite for filler-only / minimal text', () => {

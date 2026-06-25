@@ -499,11 +499,58 @@ export class MockProvider implements ReviewProvider {
 // (text, instruction) in → byte-identical text out. It is never a pure echo: the
 // opening line is always added, so the returned text differs from the input.
 
-/** Hedging filler the demo trims to show a concrete, deterministic change. */
-const FILLER_PATTERNS: RegExp[] = [
-  /\b(?:basically|literally|really|just|kind of|sort of|a whole vibe|you know|honestly|i think|maybe|somehow|or something|stuff like that)\b/gi,
-  /\b(?:very|quite|pretty|totally|actually)\s+/gi,
+// Trimming filler is deliberately conservative: it must NEVER delete words from the
+// middle of the author's prose or dialogue, where words like "just", "really",
+// "I think", or "you know" carry real meaning (e.g. '"I think we should run"' or
+// '"you know the rules"'). So we only ever remove hedging that *opens* the text or a
+// sentence, plus a tiny set of standalone intensifiers that are filler in any position.
+
+/**
+ * Standalone intensifiers that add no meaning wherever they appear — safe to drop
+ * anywhere because removing them never changes the substance of a clause.
+ */
+const STANDALONE_FILLER = /\b(?:basically|literally)\b/gi
+
+/**
+ * Leading hedging that only counts as filler when it *opens* the text or a sentence.
+ * Matched at the start of the string or right after sentence punctuation / a newline,
+ * so mid-sentence occurrences (and dialogue) are left untouched.
+ */
+const LEADING_HEDGES = [
+  'really',
+  'just',
+  'honestly',
+  'maybe',
+  'somehow',
+  'i think',
+  'you know',
+  'kind of',
+  'sort of',
+  'of course',
+  'well',
+  'so',
 ]
+const LEADING_HEDGE_PATTERN = new RegExp(
+  // Group 1: the sentence boundary we keep (start of string, or sentence punctuation /
+  // newline plus any opening quote and whitespace). Group 2: the first letter of the
+  // word now exposed at sentence start, which we re-capitalise.
+  `(^|[.!?]["')\\]]?\\s+|\\n[ \\t]*)(?:${LEADING_HEDGES.join('|')})\\b,?[ \\t]+([a-z])`,
+  'gi',
+)
+
+/**
+ * Trim hedging filler conservatively: drop standalone intensifiers anywhere, then drop
+ * leading hedges only where they open the text or a sentence. Re-capitalises the first
+ * letter of any sentence whose opener was removed so the prose still reads cleanly.
+ * Mid-sentence "just" / "really" / "I think" / "you know" are left untouched.
+ */
+function trimFiller(text: string): string {
+  const withoutStandalone = text.replace(STANDALONE_FILLER, '')
+  return withoutStandalone.replace(
+    LEADING_HEDGE_PATTERN,
+    (_match, boundary: string, firstLetter: string) => `${boundary}${firstLetter.toUpperCase()}`,
+  )
+}
 
 /** Collapse the whitespace left behind after trimming filler words. */
 function tidyWhitespace(text: string): string {
@@ -528,7 +575,9 @@ function tidyWhitespace(text: string): string {
 function clarifyingVerb(instruction: string): string {
   const i = instruction.toLowerCase()
   if (/\b(safe|family|brand|remove|replace)\b/.test(i)) return 'Refocus'
-  if (/\b(clear|clarity|concise|tighten|simpl)\b/.test(i)) return 'Tighten'
+  // `simpl\w*` (not `simpl\b`) so simplify/simple/simpler match — a trailing `\b`
+  // after `simpl` can never match because a letter always follows it.
+  if (/\b(?:clear|clarity|concise|tighten|simpl\w*)\b/.test(i)) return 'Tighten'
   if (/\b(hook|open|grab|attention)\b/.test(i)) return 'Sharpen'
   if (/\b(character|protagonist|hero|lead)\b/.test(i)) return 'Ground'
   if (/\b(complete|detail|expand|flesh)\b/.test(i)) return 'Anchor'
@@ -542,9 +591,7 @@ function clarifyingVerb(instruction: string): string {
  */
 export function applyEditSync(input: ApplyInput): string {
   const { text, instruction } = input
-  const body = tidyWhitespace(
-    FILLER_PATTERNS.reduce((acc, pattern) => acc.replace(pattern, ''), text),
-  )
+  const body = tidyWhitespace(trimFiller(text))
   const subject = suggestTitle(body || text)
   const verb = clarifyingVerb(instruction)
   // One concrete clarifying line that names the subject and the asked-for direction.
