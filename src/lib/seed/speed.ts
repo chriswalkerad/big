@@ -5,6 +5,7 @@
 // See specs/bsp-seed-data-spec.md — do not paraphrase the bodies.
 
 import type { Document, Project, ReviewResult } from '@/types'
+import { personById } from '@/lib/people'
 
 export const speedProject: Project = {
   id: 'proj-speed-anime',
@@ -13,6 +14,7 @@ export const speedProject: Project = {
   franchiseContext:
     'An anime-style series starring an animated version of IShowSpeed (Darren Jason Watkins Jr., 21, Ohio). Written by Matt Owens (One Piece live-action co-showrunner for Netflix Seasons 1-2). Harmony Korine attached as producer. IShowSpeed has 52M+ YouTube subscribers, won Streamer of the Year 2024 and 2025. Known for viral IRL streams, sports, gaming, music, and global travel. The series sits at the intersection of creator economy, anime genre, and global youth culture. Plot details under wraps; animated Speed character is confirmed. Big Shot is taking the package to buyers — no platform confirmed yet. Tone: high-energy, globally resonant, anime aesthetics, creator-authentic.',
   tags: ['anime', 'creator-economy', 'teens', 'global', 'YouTube-first', 'IShowSpeed', 'action'],
+  owner: personById('person-ben-beale'),
 }
 
 const DOC1_BODY =
@@ -144,7 +146,7 @@ export const speedDocuments: Document[] = [
     status: 'approved',
     routing: 'development',
     createdBy: 'Casey Morgan',
-    reviewer: 'Theo Park',
+    reviewer: personById('person-ben-beale'),
     submittedSnapshot: { body: DOC1_BODY, review: DOC1_REVIEW, submittedAt: '2026-06-12T10:30:00.000Z' },
     createdAt: '2026-06-11T09:00:00.000Z',
     updatedAt: '2026-06-14T15:20:00.000Z',
@@ -158,7 +160,7 @@ export const speedDocuments: Document[] = [
     subtypeSource: 'auto',
     status: 'in_review',
     createdBy: 'Sam Rivera',
-    reviewer: 'Riley Okafor',
+    reviewer: personById('person-omar-gatica'),
     submittedSnapshot: { body: DOC2_BODY, review: DOC2_REVIEW, submittedAt: '2026-06-17T13:45:00.000Z' },
     createdAt: '2026-06-16T11:15:00.000Z',
     updatedAt: '2026-06-18T09:50:00.000Z',
@@ -172,7 +174,7 @@ export const speedDocuments: Document[] = [
     subtypeSource: 'auto',
     status: 'changes_requested',
     createdBy: 'Jordan Kim',
-    reviewer: 'Theo Park',
+    reviewer: personById('person-rory-larochelle'),
     submittedSnapshot: { body: DOC3_BODY, review: DOC3_REVIEW, submittedAt: '2026-06-19T14:00:00.000Z' },
     createdAt: '2026-06-19T08:30:00.000Z',
     updatedAt: '2026-06-20T16:10:00.000Z',
@@ -198,6 +200,7 @@ export const speedDocuments: Document[] = [
     subtypeSource: 'user',
     status: 'submitted',
     createdBy: 'Dana Walsh',
+    reviewer: personById('person-kathleen-keefe'),
     submittedSnapshot: { body: DOC5_BODY, review: DOC5_REVIEW, submittedAt: '2026-06-22T12:30:00.000Z' },
     createdAt: '2026-06-22T11:45:00.000Z',
     updatedAt: '2026-06-22T12:30:00.000Z',

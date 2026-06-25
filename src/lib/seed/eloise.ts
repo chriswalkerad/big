@@ -5,6 +5,7 @@
 // anchors. Do not paraphrase the bodies — see specs/bsp-seed-data-spec.md.
 
 import type { Document, Project, ReviewResult } from '@/types'
+import { personById } from '@/lib/people'
 
 export const eloiseProject: Project = {
   id: 'proj-eloise',
@@ -13,6 +14,7 @@ export const eloiseProject: Project = {
   franchiseContext:
     "Eloise is a precocious, mischievous six-year-old who lives at New York's legendary Plaza Hotel with her Nanny, her dog Weenie, and her turtle Skipperdee. Big Shot acquired rights to Kay Thompson's 1955 children's book series (illustrated by Hilary Knight, 15M+ copies sold) and is reimagining it digital-first: YouTube shorts and series to build audience and fan love before expanding to theatrical (Sony first-look), streaming, gaming, and consumer products. Partnering with Adley McBride (A for Adley) on the animated series. Voice is playful, witty, warm, and upscale-Manhattan whimsical. Everything must be family-safe for ages 6-12.",
   tags: ['family', 'comedy', 'character-driven', 'YouTube-first', 'ages 6-12', 'Eloise', 'Plaza Hotel'],
+  owner: personById('person-maya-kambe'),
 }
 
 const DOC1_BODY =
@@ -191,7 +193,7 @@ export const eloiseDocuments: Document[] = [
     status: 'approved',
     routing: 'digital_test',
     createdBy: 'Maya Chen',
-    reviewer: 'Theo Park',
+    reviewer: personById('person-maya-kambe'),
     submittedSnapshot: { body: DOC1_BODY, review: DOC1_REVIEW, submittedAt: '2026-06-16T11:00:00.000Z' },
     createdAt: '2026-06-15T09:00:00.000Z',
     updatedAt: '2026-06-18T14:30:00.000Z',
@@ -205,6 +207,7 @@ export const eloiseDocuments: Document[] = [
     subtypeSource: 'auto',
     status: 'submitted',
     createdBy: 'Devon Brooks',
+    reviewer: personById('person-luigi-lucarelli'),
     submittedSnapshot: { body: DOC2_BODY, review: DOC2_REVIEW, submittedAt: '2026-06-19T16:45:00.000Z' },
     createdAt: '2026-06-19T16:00:00.000Z',
     updatedAt: '2026-06-19T16:45:00.000Z',
@@ -218,7 +221,7 @@ export const eloiseDocuments: Document[] = [
     subtypeSource: 'auto',
     status: 'changes_requested',
     createdBy: 'Priya Nair',
-    reviewer: 'Theo Park',
+    reviewer: personById('person-rory-larochelle'),
     submittedSnapshot: { body: DOC3_BODY, review: DOC3_REVIEW, submittedAt: '2026-06-20T10:15:00.000Z' },
     createdAt: '2026-06-20T09:30:00.000Z',
     updatedAt: '2026-06-21T13:00:00.000Z',
@@ -244,7 +247,7 @@ export const eloiseDocuments: Document[] = [
     subtypeSource: 'auto',
     status: 'in_review',
     createdBy: 'Jordan Kim',
-    reviewer: 'Riley Okafor',
+    reviewer: personById('person-maya-kambe'),
     submittedSnapshot: { body: DOC5_BODY, review: DOC5_REVIEW, submittedAt: '2026-06-21T15:20:00.000Z' },
     createdAt: '2026-06-21T10:00:00.000Z',
     updatedAt: '2026-06-22T17:45:00.000Z',
@@ -270,6 +273,7 @@ export const eloiseDocuments: Document[] = [
     subtypeSource: 'auto',
     status: 'submitted',
     createdBy: 'Alex Torres',
+    reviewer: personById('person-omar-gatica'),
     submittedSnapshot: { body: DOC7_BODY, review: DOC7_REVIEW, submittedAt: '2026-06-23T14:05:00.000Z' },
     createdAt: '2026-06-23T13:00:00.000Z',
     updatedAt: '2026-06-23T14:05:00.000Z',
@@ -284,7 +288,7 @@ export const eloiseDocuments: Document[] = [
     status: 'approved',
     routing: 'digital_test',
     createdBy: 'Devon Brooks',
-    reviewer: 'Riley Okafor',
+    reviewer: personById('person-ben-beale'),
     submittedSnapshot: { body: DOC8_BODY, review: DOC8_REVIEW, submittedAt: '2026-06-24T10:30:00.000Z' },
     createdAt: '2026-06-24T09:00:00.000Z',
     updatedAt: '2026-06-24T12:15:00.000Z',

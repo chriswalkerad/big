@@ -27,12 +27,21 @@ export type SignalMode = 'inline' | 'doc'
 
 export type Severity = 'risk' | 'minor'
 
+/** A member of the creative department (project owner or document reviewer). */
+export interface Person {
+  id: string
+  name: string
+  role: string
+}
+
 export interface Project {
   id: string
   name: string
   audience: string
   franchiseContext: string
   tags: string[]
+  /** The person who created the project. */
+  owner: Person
 }
 
 export interface SignalDef {
@@ -99,7 +108,8 @@ export interface Document {
   status: SubmissionStatus
   routing?: RoutingDestination
   createdBy: string
-  reviewer?: string
+  /** The reviewer chosen at submission. Drafts have none. */
+  reviewer?: Person
   submittedSnapshot?: SubmittedSnapshot
   createdAt: string
   updatedAt: string

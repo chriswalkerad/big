@@ -11,6 +11,7 @@ const PROJECT: Project = {
   audience: 'Kids 6-12 and their families',
   franchiseContext: 'Playful, witty, upscale-Manhattan whimsical.',
   tags: ['family', 'comedy'],
+  owner: { id: 'person-maya-kambe', name: 'Maya Kambe', role: 'Animation Development & Production Executive' },
 }
 
 describe('FranchiseDetail', () => {

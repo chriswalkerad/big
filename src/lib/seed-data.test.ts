@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { seedDocuments, seedProject, seedProjects, seedSignals } from './seed-data'
+import { PEOPLE } from './people'
 
 describe('seed projects', () => {
   it('seeds both announced franchises with exact ids', () => {
@@ -22,6 +23,51 @@ describe('seed projects', () => {
     expect(seedDocuments).toHaveLength(13)
     expect(seedDocuments.filter((d) => d.projectId === 'proj-eloise')).toHaveLength(8)
     expect(seedDocuments.filter((d) => d.projectId === 'proj-speed-anime')).toHaveLength(5)
+  })
+})
+
+describe('people roster', () => {
+  const ids = new Set(PEOPLE.map((p) => p.id))
+
+  it('has 10 members with stable kebab ids and a role each', () => {
+    expect(PEOPLE).toHaveLength(10)
+    for (const person of PEOPLE) {
+      expect(person.id).toMatch(/^person-[a-z]+-[a-z]+$/)
+      expect(person.name.length).toBeGreaterThan(0)
+      expect(person.role.length).toBeGreaterThan(0)
+    }
+  })
+
+  it('has unique ids', () => {
+    expect(ids.size).toBe(PEOPLE.length)
+  })
+})
+
+describe('seed owners and reviewers', () => {
+  const ids = new Set(PEOPLE.map((p) => p.id))
+
+  it('gives every project an owner drawn from the roster', () => {
+    for (const project of seedProjects) {
+      expect(project.owner).toBeDefined()
+      expect(ids.has(project.owner.id), `${project.id} owner`).toBe(true)
+    }
+  })
+
+  it('owns Eloise by Maya Kambe and Speed by Ben Beale', () => {
+    const byId = Object.fromEntries(seedProjects.map((p) => [p.id, p]))
+    expect(byId['proj-eloise'].owner.id).toBe('person-maya-kambe')
+    expect(byId['proj-speed-anime'].owner.id).toBe('person-ben-beale')
+  })
+
+  it('sets a roster reviewer on every submitted document and none on drafts', () => {
+    for (const doc of seedDocuments) {
+      if (doc.status === 'draft') {
+        expect(doc.reviewer, `${doc.id} draft`).toBeUndefined()
+      } else {
+        expect(doc.reviewer, `${doc.id} reviewer`).toBeDefined()
+        expect(ids.has(doc.reviewer!.id), `${doc.id} reviewer id`).toBe(true)
+      }
+    }
   })
 })
 

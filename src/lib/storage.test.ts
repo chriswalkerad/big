@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { StorageRepository } from './storage'
 import { SEED_VERSION, seedDocuments, seedProject, seedProjects, seedSignals } from '@/lib/seed-data'
 import type { AppError } from '@/lib/errors'
-import type { Document, Project, SignalDef } from '@/types'
+import { PEOPLE } from '@/lib/people'
+import type { Document, Person, Project, SignalDef } from '@/types'
 
 /** A controllable in-memory KeyValueStore for tests. */
 class FakeStore {
@@ -33,12 +34,15 @@ function quotaError(): Error {
   return e
 }
 
+const sampleOwner: Person = { id: 'person-test', name: 'Tester', role: 'QA' }
+
 const sampleProject: Project = {
   id: 'p1',
   name: 'Test Project',
   audience: 'everyone',
   franchiseContext: 'ctx',
   tags: ['a'],
+  owner: sampleOwner,
 }
 
 const sampleSignal: SignalDef = {
@@ -78,6 +82,12 @@ describe('StorageRepository CRUD', () => {
     repo.removeSignal('s1')
     expect(repo.getSignal('s1')).toBeNull()
     expect(repo.listSignals()).toEqual([])
+  })
+
+  it('exposes the people roster', () => {
+    const repo = new StorageRepository({ store, seed: false })
+    expect(repo.listPeople()).toEqual(PEOPLE)
+    expect(repo.listPeople()).toHaveLength(10)
   })
 
   it('uses namespaced bsp: keys', () => {
