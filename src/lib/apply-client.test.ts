@@ -9,6 +9,7 @@ const PROJECT: Project = {
   audience: 'Kids 6-12',
   franchiseContext: 'context',
   tags: [],
+  owner: { id: 'person-maya-kambe', name: 'Maya Kambe', role: 'Animation Development & Production Executive' },
 }
 
 function jsonResponse(body: unknown, status = 200): Response {

@@ -6,6 +6,7 @@
 import { z } from 'zod'
 import type {
   ApplyRequest,
+  Person,
   Project,
   ReviewRequest,
   ReviewResult,
@@ -28,12 +29,19 @@ export const severitySchema = z.enum(['risk', 'minor'])
 
 export const verdictLabelSchema = z.enum(['looks_ready', 'needs_work', 'not_ready'])
 
+export const personSchema: z.ZodType<Person> = z.object({
+  id: z.string(),
+  name: z.string(),
+  role: z.string(),
+})
+
 export const projectSchema: z.ZodType<Project> = z.object({
   id: z.string(),
   name: z.string(),
   audience: z.string(),
   franchiseContext: z.string(),
   tags: z.array(z.string()),
+  owner: personSchema,
 })
 
 export const signalDefSchema: z.ZodType<SignalDef> = z.object({

@@ -6,8 +6,9 @@
 // the app never crashes. Safe to construct on the client (and during SSR, where it
 // runs in-memory-only). See specs/bsp-backend-build-spec.md.
 
-import type { Document, Project, SignalDef } from '@/types'
+import type { Document, Person, Project, SignalDef } from '@/types'
 import { type AppError, appError, toAppError } from '@/lib/errors'
+import { PEOPLE } from '@/lib/people'
 import { SEED_VERSION, seedDocuments, seedProjects, seedSignals } from '@/lib/seed-data'
 
 const NS = 'bsp'
@@ -108,6 +109,13 @@ export class StorageRepository {
   }
   removeDocument(id: string): void {
     this.delete(KEY.doc(id))
+  }
+
+  // --- People ----------------------------------------------------------------
+
+  /** The creative-department roster (static — used to pick owners and reviewers). */
+  listPeople(): Person[] {
+    return PEOPLE
   }
 
   // --- Signal ----------------------------------------------------------------

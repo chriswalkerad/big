@@ -228,7 +228,7 @@ function DocumentRow({ projectId, doc }: { projectId: string; doc: Document }) {
         {doc.reviewer ? (
           <>
             <span aria-hidden="true">·</span>
-            <span>Reviewer: {doc.reviewer}</span>
+            <span>Reviewer: {doc.reviewer.name}</span>
           </>
         ) : null}
         <span aria-hidden="true">·</span>
