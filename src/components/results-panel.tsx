@@ -59,9 +59,10 @@ interface ResultsPanelProps {
 const FRANCHISE_SIGNAL_ID = 'franchise_fit'
 
 /**
- * The expandable review DETAIL panel. It is rendered inside the slide-in right-side
- * panel (desktop) / bottom sheet (mobile) owned by DocumentPage, and holds the full
- * review: verdict header (+ a `×` to collapse back to the minimal strip), the summary
+ * The expandable review DETAIL panel. It is rendered inside the INLINE side panel
+ * owned by DocumentPage (a right-side column on lg+, stacked beneath the writing
+ * column on mobile — never a modal), and holds the full review: verdict header (+ a
+ * `×` to collapse back to the minimal strip), the summary
  * + suggested prompt with Apply, the six signal rows, the "How is this calculated?"
  * methodology, and the sticky Confirm-submission footer for an unsubmitted preview.
  *

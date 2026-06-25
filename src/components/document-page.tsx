@@ -41,7 +41,6 @@ import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
 import { ResultsPanel, ReviewStrip } from '@/components/results-panel'
 import { FranchiseDetail } from '@/components/franchise-detail'
-import { SubmissionCelebration } from '@/components/celebration/submission-celebration'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
 import {
@@ -67,9 +66,13 @@ interface DocumentPageProps {
  *
  * Layout (Notion-minimal): a slim `<TopBar>` action line, then ONE continuous white
  * page — a centered column holding the title, meta, a slim review strip (minimal
- * default), and the borderless editor. The full review DETAIL lives in a panel that
- * slides in from the right (bottom sheet on mobile), opened on demand or auto-opened
- * when a review completes.
+ * default), and the borderless editor. The full review DETAIL lives in an INLINE
+ * side panel that is part of the primary content area: when open, the content area
+ * becomes a two-column layout (writing column + a ~380px detail panel beside it) and
+ * the writing column reflows to make room — it is never covered. No scrim, no modal,
+ * no focus trap; the editor stays fully interactive while the panel is open. The panel
+ * slides in (~270ms, reduced-motion-safe), opened on demand or auto-opened when a
+ * review completes. On mobile (<lg) the panel stacks below the writing column.
  */
 export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const isRead = mode === 'read'
@@ -109,8 +112,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [reviewError, setReviewError] = useState<AppError | null>(null)
   const [focusedSignalId, setFocusedSignalId] = useState<string | null>(null)
   const [franchiseOpen, setFranchiseOpen] = useState(false)
-  // The GREENLIGHT celebration plays the instant a submission is confirmed.
-  const [celebrating, setCelebrating] = useState(false)
   // The expandable review detail panel. Minimal by default (false) — the slim strip
   // is shown inline; the panel opens on demand ("View signals" / squiggle click) or
   // auto-opens when a review completes (see runReview).
@@ -170,8 +171,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
 
   // When the detail panel opens, move focus into it so keyboard/SR users land on the
-  // freshly revealed review (and Esc-to-close has a sensible focus origin). The panel
-  // region is focusable via tabIndex={-1} on the ResultsPanel section's ref node.
+  // freshly revealed review (and Esc-to-close has a sensible focus origin). This is a
+  // one-time focus MOVE, not a trap — the editor and the rest of the page stay fully
+  // reachable. The panel region is focusable via tabIndex={-1} on the ResultsPanel
+  // section's ref node.
   useEffect(() => {
     if (!panelOpen) return
     const node = resultsPanelRef.current
@@ -434,8 +437,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
     setPendingReview(null)
     setPendingBody(null)
-    // 🎬 The WOOOO moment — the studio just greenlit the submission.
-    setCelebrating(true)
   }, [doc, pendingReview, pendingBody, title, subtype, subtypeSource, status, commitDoc, inlineIds])
 
   // --- Unsubmit (manual only) ------------------------------------------------
@@ -590,11 +591,17 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
         }
       />
 
-      {/* The continuous white page — one centered reading column. */}
-      <div
-        ref={editorContainerRef}
-        className="document-page-column flex w-full flex-col gap-5 px-5 py-8 sm:px-6 sm:py-12"
-      >
+      {/* The content area. When the detail panel is open on lg+ it becomes a two-column
+          row (writing column + inline panel) and the writing column reflows to make
+          room; below lg the panel stacks beneath the writing column. No scrim — the
+          panel is part of the primary content, not an overlay. */}
+      <div className="document-content-area flex min-h-0 flex-1 flex-col lg:flex-row">
+
+        {/* The continuous white page — the centered reading column. */}
+        <div
+          ref={editorContainerRef}
+          className="document-page-column flex min-w-0 flex-1 flex-col gap-5 px-5 py-8 sm:px-6 sm:py-12"
+        >
         {/* Title — the largest text on the page; it reads first. Edit mode is a
             borderless large-text input; a clear placeholder signals it's editable. */}
         {isRead ? (
@@ -714,26 +721,22 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
 
         {/* A failed rewrite surfaces a typed error below the column (never silent). */}
         {applyError ? <ErrorState error={applyError} title="Rewrite failed" /> : null}
-      </div>
+        </div>
 
-      {/* The expandable review DETAIL panel — slides in from the right (bottom sheet on
-          mobile). Mounted whenever there is review content so it can animate in/out; a
-          scrim sits behind it while open. The ResultsPanel inside renders nothing until
-          there is content, so an empty mount is inert. */}
-      {hasReviewContent ? (
-        <>
-          {panelOpen ? (
-            <div
-              className="review-scrim review-scrim--open"
-              aria-hidden="true"
-              onClick={() => setPanelOpen(false)}
-            />
-          ) : null}
+        {/* The expandable review DETAIL panel — an INLINE side panel that is part of the
+            content area, NOT a modal overlay. On lg+ it sits to the right of the writing
+            column (which reflows to make room) and slides in from the right; below lg it
+            stacks beneath the writing column and slides up. No scrim, no inert, no focus
+            trap — the editor stays fully interactive alongside it. Mounted whenever there
+            is review content so it can animate in/out; the closed panel collapses to zero
+            width/height. The ResultsPanel inside renders nothing until there is content. */}
+        {hasReviewContent ? (
           <div
             className={cn('review-panel', panelOpen && 'review-panel--open')}
-            // Keep the closed panel out of the tab order / a11y tree (React 19 `inert`).
+            // A closed panel is collapsed and visually hidden; keep it out of the a11y
+            // tree until opened. NOT `inert`/`aria-modal` — when open the panel and the
+            // rest of the page (the editor) are both fully interactive.
             aria-hidden={panelOpen ? undefined : true}
-            inert={!panelOpen}
           >
             <ResultsPanel
               ref={resultsPanelRef}
@@ -752,16 +755,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               onClose={() => setPanelOpen(false)}
             />
           </div>
-        </>
-      ) : null}
+        ) : null}
+      </div>
 
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
-
-      <SubmissionCelebration
-        show={celebrating}
-        onDone={() => setCelebrating(false)}
-        title={title || 'Untitled'}
-      />
     </div>
   )
 }

@@ -132,39 +132,32 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Review detail panel (slide-in).
+   Content area + inline review detail panel.
 
-   The expandable review detail is a panel that slides in from the right on `lg+`
-   (a fixed full-height column flush to the viewport's right edge) and as a bottom
-   sheet / near-full overlay below `lg`. It is shown on demand ("View signals") or
-   auto-opened when a review completes. A backdrop scrim sits behind it.
+   The review detail is an INLINE side panel that is PART OF THE PRIMARY CONTENT
+   AREA — not a modal overlay. There is no scrim and no dimming; the writing column
+   is never covered.
 
-   Motion: ~270ms transform/opacity, composed with the global reduced-motion rule
-   in globals.css (which neutralizes long transitions). The panel mounts hidden and
-   animates open via the `--open` modifier toggled by React.
+   `.document-content-area` is the row that holds the writing column and the panel.
+   On lg+ it is a two-column flex row: when the panel opens the writing column
+   reflows (narrows / shifts left) to make room and the panel slides in from the
+   right beside it. Below lg the panel stacks beneath the writing column and slides
+   up. The closed panel collapses to zero size and is removed from layout/flow.
+
+   Motion: ~270ms transform + size, composed with the global reduced-motion rule in
+   globals.css. The panel animates open via the `--open` modifier toggled by React.
+   The editor stays fully interactive the whole time (no inert, no focus trap).
 --------------------------------------------------------------------------- */
 
-.review-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: 45;
-  background-color: color-mix(in oklab, var(--text-primary) 28%, transparent);
-  opacity: 0;
-  transition: opacity 270ms ease-out;
-}
-
-.review-scrim--open {
-  opacity: 1;
+.document-content-area {
+  width: 100%;
 }
 
 .review-panel {
-  position: fixed;
-  z-index: 50;
   display: flex;
   flex-direction: column;
   background-color: var(--surface);
   overflow: hidden;
-  transition: transform 270ms cubic-bezier(0.32, 0.72, 0, 1);
   will-change: transform;
 }
 
@@ -175,47 +168,58 @@
   overflow-y: auto;
 }
 
-/* --- Mobile (default): bottom sheet ------------------------------------- */
+/* --- Mobile (default): stacks beneath the writing column ----------------
+   The closed panel collapses to zero height (out of flow); open, it grows to a
+   capped height and slides up into place. */
 .review-panel {
-  left: 0;
-  right: 0;
-  bottom: 0;
-  max-height: 88vh;
+  flex: 0 0 auto;
+  width: 100%;
+  max-height: 0;
   border-top: 1px solid var(--border);
-  border-top-left-radius: var(--radius-card);
-  border-top-right-radius: var(--radius-card);
   box-shadow: 0 -10px 30px -16px color-mix(in oklab, var(--text-primary) 30%, transparent);
-  transform: translateY(100%);
+  transform: translateY(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    max-height 270ms cubic-bezier(0.32, 0.72, 0, 1),
+    transform 270ms cubic-bezier(0.32, 0.72, 0, 1),
+    opacity 200ms ease-out;
 }
 
 .review-panel--open {
+  max-height: 70vh;
   transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
 }
 
-/* --- Desktop (lg+): right-side slide-in column -------------------------- */
+/* --- Desktop (lg+): inline right-side column the writing column reflows around.
+   The closed panel has zero width (out of the row); open, it expands to its width
+   and slides in from the right. The flex row gives the freed space back to the
+   writing column, which narrows to make room — it is never covered. */
 @media (min-width: 1024px) {
   .review-panel {
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: auto;
-    width: var(--review-panel-width);
+    width: 0;
     max-height: none;
+    align-self: stretch;
     border-top: 0;
     border-left: 1px solid var(--border);
-    border-radius: 0;
     box-shadow: -10px 0 30px -16px color-mix(in oklab, var(--text-primary) 22%, transparent);
-    transform: translateX(100%);
+    transform: translateX(16px);
+    transition:
+      width 270ms cubic-bezier(0.32, 0.72, 0, 1),
+      transform 270ms cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 200ms ease-out;
   }
 
   .review-panel--open {
+    width: var(--review-panel-width);
     transform: translateX(0);
   }
 }
 
-/* Honor reduce-motion: snap open/closed with no slide (opacity/visibility only). */
+/* Honor reduce-motion: snap open/closed with no slide (size/opacity only). */
 @media (prefers-reduced-motion: reduce) {
-  .review-scrim,
   .review-panel {
     transition: none !important;
   }
