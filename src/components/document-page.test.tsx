@@ -128,6 +128,18 @@ describe('DocumentPage edit mode — submit flow', () => {
     expect(screen.queryByRole('button', { name: /copy suggested prompt/i })).not.toBeInTheDocument()
   })
 
+  it('hides the review section until a review is run (no verdict on a fresh draft)', async () => {
+    seedDoc()
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    // The drawer shows metadata + Run review, but NO verdict / flag count / empty
+    // placeholder / review region until a review exists.
+    await screen.findByRole('button', { name: /run review/i })
+    expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/need attention/i)).not.toBeInTheDocument()
+    expect(screen.queryByText('No review yet.')).not.toBeInTheDocument()
+  })
+
   it('renders a typed error in the panel when the review fails (retryable)', async () => {
     seedDoc()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
@@ -143,6 +155,116 @@ describe('DocumentPage edit mode — submit flow', () => {
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
     // A failed preview offers no confirm affordance.
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('DocumentPage apply (AI rewrite) — accept / discard', () => {
+  const REVIEW_WITH_PROMPT: ReviewResult = {
+    ...REVIEW,
+    summary: 'Tighten clarity and resubmit.',
+    suggestedPrompt: 'Revise the following concept: …',
+  }
+
+  // Route fetch by URL: /api/review returns the review (so Apply has a suggestedPrompt),
+  // /api/apply returns the rewritten text.
+  function mockReviewThenApply(rewritten: string) {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/apply')) {
+        return new Response(JSON.stringify({ ok: true, data: { text: rewritten } }), { status: 200 })
+      }
+      return new Response(JSON.stringify({ ok: true, data: REVIEW_WITH_PROMPT }), { status: 200 })
+    })
+  }
+
+  async function runReviewThenApply(rewritten = 'A crisp rewritten concept.') {
+    seedDoc()
+    mockReviewThenApply(rewritten)
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
+    const apply = await screen.findByRole('button', { name: /apply suggested prompt/i })
+    fireEvent.click(apply)
+  }
+
+  it('applying calls /api/apply and then shows an Accept / Discard decision bar', async () => {
+    await runReviewThenApply()
+
+    // After the rewrite lands, the author is asked to keep or discard it.
+    expect(await screen.findByRole('button', { name: /^accept$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^discard$/i })).toBeInTheDocument()
+
+    // /api/apply was actually hit.
+    const calls = (globalThis.fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls
+    const hitApply = calls.some((c) => String(c[0]).includes('/api/apply'))
+    expect(hitApply).toBe(true)
+  })
+
+  it('Accept keeps the rewrite and clears the decision bar', async () => {
+    await runReviewThenApply()
+    fireEvent.click(await screen.findByRole('button', { name: /^accept$/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^accept$/i })).not.toBeInTheDocument()
+    })
+    expect(screen.queryByRole('button', { name: /^discard$/i })).not.toBeInTheDocument()
+  })
+
+  it('Discard restores the pre-apply body and clears the decision bar', async () => {
+    await runReviewThenApply()
+    fireEvent.click(await screen.findByRole('button', { name: /^discard$/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^discard$/i })).not.toBeInTheDocument()
+    })
+    // The original seed text is back in the editor.
+    expect(screen.getByText(/Eloise has a vague plan\./)).toBeInTheDocument()
+  })
+
+  it('Accept on a submitted doc clears the stale snapshot and commits the rewrite body', async () => {
+    // A submitted doc: its snapshot was reviewed against the OLD body. Rewriting then
+    // accepting must drop that snapshot and persist the rewritten text as the new body.
+    seedDoc({
+      status: 'submitted',
+      title: 'A Concept',
+      submittedSnapshot: { body: 'Eloise has a vague plan.', review: REVIEW, submittedAt: 'T1' },
+    })
+    mockReviewThenApply('A crisp rewritten concept.')
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    // A submitted doc surfaces its saved review on open; run a fresh review to get a
+    // suggested prompt, then apply + accept.
+    fireEvent.click(await screen.findByRole('button', { name: /run review|resubmit/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /apply suggested prompt/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /^accept$/i }))
+
+    await waitFor(() => {
+      const saved = createStorageRepository().getDocument('doc-test')
+      expect(saved?.submittedSnapshot).toBeUndefined()
+      expect(saved?.status).toBe('draft')
+      expect(saved?.body).toBe('A crisp rewritten concept.')
+    })
+  })
+
+  it('surfaces a typed error and shows no decision bar when the rewrite fails', async () => {
+    seedDoc()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString()
+      if (url.includes('/api/apply')) {
+        return new Response(
+          JSON.stringify({ ok: false, error: { code: 'AI_RATE_LIMIT', message: 'rate limited', retryable: true } }),
+          { status: 429 },
+        )
+      }
+      return new Response(JSON.stringify({ ok: true, data: REVIEW_WITH_PROMPT }), { status: 200 })
+    })
+
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
+    fireEvent.click(await screen.findByRole('button', { name: /apply suggested prompt/i }))
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveAttribute('data-error-code', 'AI_RATE_LIMIT')
+    })
+    expect(screen.queryByRole('button', { name: /^accept$/i })).not.toBeInTheDocument()
   })
 })
 

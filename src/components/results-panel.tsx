@@ -56,14 +56,20 @@ interface ResultsPanelProps {
 const FRANCHISE_SIGNAL_ID = 'franchise_fit'
 
 /**
- * Inline review-results panel. Rendered in the document page's right column (desktop)
- * or stacked below the editor (mobile), so feedback sits beside the author's text
- * instead of covering it behind a bottom sheet. The header shows the overall verdict +
- * flag count (computed on submit, never live); the body lists every signal as a
- * SignalRow. Handles its own loading and error states.
+ * Inline review-results SECTION of the document drawer. Rendered inside the single
+ * right-side drawer (below the metadata block) so feedback sits beside the author's
+ * text instead of covering it behind a bottom sheet. The header shows the overall
+ * verdict + flag count (computed on submit, never live); the body lists every signal
+ * as a SignalRow. Handles its own loading and error states.
  *
- * The forwarded ref points at the panel's scroll region so the page can
- * `scrollIntoView` it when a review appears (the Run-review auto-scroll).
+ * It owns NO card chrome (no border/background/scroll of its own): the surrounding
+ * drawer provides the surface and is the single scroll container. When there is
+ * nothing to show — no review, not loading, no error — the section renders NOTHING
+ * (no verdict, no flag count, no empty placeholder); the drawer then shows only the
+ * metadata + "Run review" affordance until a review exists.
+ *
+ * The forwarded ref points at the section so the page can `scrollIntoView` it when a
+ * review appears (the Run-review auto-scroll).
  */
 export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function ResultsPanel(
   {
@@ -93,6 +99,12 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
   // The confirm bar shows only for a settled preview review (not loading/error) that
   // has a confirm handler — i.e. a review-then-confirm preview awaiting commit.
   const showConfirm = Boolean(pending && onConfirm && review && !loading && !error)
+
+  // Hide the entire review section until there is something to show: a review (live
+  // preview OR submitted snapshot), an in-flight run, or an error. With none of these
+  // the drawer shows only metadata + Run review — no verdict, no "0 of N", no empty
+  // placeholder. (Spec: hide-review-until-there-is-a-review.)
+  const hasContent = Boolean(review || loading || error)
 
   // The methodology toggle only applies when settled results are showing.
   const canExplain = Boolean(review && !loading && !error)
@@ -125,14 +137,15 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
     }
   }, [focusedSignalId])
 
+  // Nothing to show yet → render nothing. The drawer keeps its metadata + Run review.
+  if (!hasContent) return null
+
   return (
     <section
       ref={ref}
       role="region"
       aria-label="Review results"
-      className={cn(
-        'flex w-full min-h-0 flex-col overflow-hidden rounded-card border border-border bg-surface',
-      )}
+      className={cn('flex w-full min-w-0 flex-col')}
     >
       <PanelHeader
         review={review}
@@ -144,7 +157,7 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
         explainToggleRef={explainToggleRef}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div className="px-4 py-3">
         {loading ? (
           <LoadingState rows={6} label="Running review…" />
         ) : error ? (
@@ -191,13 +204,13 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
               })}
             </motion.div>
           </div>
-        ) : (
-          <EmptyResults />
-        )}
+        ) : null}
       </div>
 
       {showConfirm ? (
-        <footer className="flex flex-col gap-2 border-t border-border px-4 py-3">
+        // Sticky to the bottom of the drawer's scroll region so "Confirm submission"
+        // is always reachable while the body scrolls past it.
+        <footer className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-surface px-4 py-3">
           <p className="text-label-sm text-text-secondary">
             Review preview — not submitted yet. Edit to revise, or confirm to submit.
           </p>
@@ -228,19 +241,6 @@ const LIST_VARIANTS = {
 const ROW_VARIANTS = {
   hidden: { opacity: 0, y: 6 },
   shown: { opacity: 1, y: 0, transition: { duration: 0.22, ease: 'easeOut' as const } },
-}
-
-/** Placeholder shown in the right panel before any review has been run. */
-function EmptyResults() {
-  return (
-    <div className="flex flex-col items-center gap-2 px-2 py-10 text-center">
-      <Sparkles className="size-5 text-text-tertiary" aria-hidden="true" />
-      <p className="text-label-sm text-text-secondary">No review yet.</p>
-      <p className="text-label-xs text-text-tertiary">
-        Run a review to see the verdict and signal feedback here.
-      </p>
-    </div>
-  )
 }
 
 /**

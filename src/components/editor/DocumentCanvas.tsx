@@ -37,6 +37,13 @@ export interface DocumentCanvasHandle {
 export interface DocumentCanvasProps {
   /** `edit` → editable author view; `read` → read-only reviewer view. */
   mode: DocumentCanvasMode
+  /**
+   * Optional hard override of editability, independent of `mode`. Used to LOCK the
+   * editor while an AI rewrite is in flight (the "Rewriting…" overlay): pass `false`
+   * to make the surface non-editable even in edit mode. When omitted, editability
+   * follows `mode` (`edit` → editable).
+   */
+  editable?: boolean
   /** Fired when a highlighted phrase is clicked; receives the `data-signal-id`. */
   onHighlightClick?: (signalId: string) => void
   /** Initial / controlled body. `content` and `value` are aliases. */
@@ -55,8 +62,10 @@ function DocumentCanvasInner(
   props: DocumentCanvasProps,
   ref: Ref<DocumentCanvasHandle>,
 ): React.ReactElement {
-  const { mode, onHighlightClick, content, value, onChange, className } = props
+  const { mode, editable, onHighlightClick, content, value, onChange, className } = props
   const initialContent = content ?? value ?? ''
+  // Effective editability: an explicit `editable` override wins; otherwise follow mode.
+  const isEditable = editable ?? mode === 'edit'
 
   // Read `data-signal-id` off the clicked element via handleDOMEvents (NOT a React
   // onClick) so clicks land on the ProseMirror decoration DOM, per spec rule 5.
@@ -85,7 +94,7 @@ function DocumentCanvasInner(
       SignalHighlight,
     ],
     content: initialContent,
-    editable: mode === 'edit',
+    editable: isEditable,
     // Edit mode: place the caret at the top of the sheet on load so the author can
     // start typing immediately without clicking in. Read mode never grabs focus.
     autofocus: mode === 'edit' ? 'start' : false,
@@ -104,10 +113,11 @@ function DocumentCanvasInner(
     },
   })
 
-  // Keep `editable` in sync if the parent flips mode without remounting.
+  // Keep `editable` in sync if the parent flips mode or the override without remounting
+  // (e.g. locking the editor while an AI rewrite runs).
   useEffect(() => {
-    editor?.setEditable(mode === 'edit')
-  }, [editor, mode])
+    editor?.setEditable(isEditable)
+  }, [editor, isEditable])
 
   useImperativeHandle(
     ref,
