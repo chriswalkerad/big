@@ -214,21 +214,18 @@
   --drawer-gap: 24px;
   --page-gutter: 1.5rem;
   --app-header-height: 3.5rem; /* matches the h-14 app header */
-  /* The drawer starts below the header + the content's top padding so its top lines up
-     with the breadcrumb / editor, and never under the sticky breadcrumb. */
-  --drawer-top: 5rem;
 }
 
 @media (min-width: 1024px) {
   /* Break the doc page OUT of the app-shell's centered max-w-5xl so it uses the full
-     viewport: a page-sized editor on the left AND a wider drawer pinned to the right
-     edge of the viewport. The right padding reserves the fixed drawer's column so the
-     editor + breadcrumb never slide under it; the left keeps a matching gutter. */
+     viewport: a page-sized editor on the left AND a full-height drawer ANCHORED flush to
+     the viewport's right edge. The right padding reserves the drawer's column (+ a gap)
+     so the editor + breadcrumb never slide under it; the left keeps a gutter. */
   .document-page {
     margin-left: calc(50% - 50vw);
     margin-right: calc(50% - 50vw);
     padding-left: var(--page-gutter);
-    padding-right: calc(var(--drawer-width) + var(--drawer-gap) + var(--page-gutter));
+    padding-right: calc(var(--drawer-width) + var(--drawer-gap));
   }
 
   .document-main-col {
@@ -236,19 +233,24 @@
     margin-right: 0;
   }
 
-  .document-drawer {
+  /* A full-height side panel flush to the right edge — flush top (below the header),
+     right and bottom — reading as a frame that slides in from the side, not a floating
+     card. The mobile card border/rounding is overridden here (higher specificity than
+     the Tailwind utilities on the element) with a single left border + soft left shadow. */
+  .document-page .document-drawer {
     position: fixed;
-    top: var(--drawer-top);
-    bottom: var(--page-gutter);
+    top: var(--app-header-height);
+    right: 0;
+    bottom: 0;
     width: var(--drawer-width);
-    /* Pinned to the viewport's RIGHT edge (not the centered column) so it no longer
-       floats mid-canvas. */
-    right: var(--page-gutter);
-    /* Below the sticky breadcrumb (z-30) and header (z-40) so it never paints over chrome. */
     z-index: 20;
     display: flex;
     flex-direction: column;
     overflow: hidden; /* the inner body owns the scroll */
+    border: 0;
+    border-left: 1px solid var(--border);
+    border-radius: 0;
+    box-shadow: -10px 0 30px -16px color-mix(in oklab, var(--text-primary) 22%, transparent);
   }
 
   /* The inner scroll region: fills the fixed drawer and scrolls its own content. */
