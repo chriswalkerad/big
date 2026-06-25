@@ -26,7 +26,7 @@ interface SubmissionCelebrationProps {
  * "YOU'RE A BIG SHOT NOW!". Auto-dismisses after a beat; click or Escape skips it.
  * Honors prefers-reduced-motion (a calm static card) and announces via aria-live.
  */
-export function SubmissionCelebration({ show, onDone, title, scrim = true }: SubmissionCelebrationProps & { scrim?: boolean }) {
+export function SubmissionCelebration({ show, onDone, title }: SubmissionCelebrationProps) {
   const reduce = useReducedMotion()
 
   // Auto-dismiss after the sequence; Escape skips.
@@ -59,7 +59,7 @@ export function SubmissionCelebration({ show, onDone, title, scrim = true }: Sub
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0.2 : 0.28 }}
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 px-6 text-center"
-          style={{ background: scrim ? SCRIM : 'transparent' }}
+          style={{ background: SCRIM }}
         >
           {/* Screen-reader announcement — the WOOO is inclusive. */}
           <p className="sr-only" role="status" aria-live="assertive">
