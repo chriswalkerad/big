@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import { Button } from "@/components/button";
 import { cn } from "@/lib/utils";
 import {
   SIGNAL_MODES,
@@ -181,27 +182,12 @@ export function SignalForm({
       </div>
 
       <div className="mt-2 flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className={cn(
-            "inline-flex h-9 items-center rounded-control border border-border bg-surface px-3 text-label-sm text-text-secondary",
-            "transition-colors hover:bg-panel hover:text-text-primary",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
-          )}
-        >
+        <Button type="button" onClick={onCancel}>
           Cancel
-        </button>
-        <button
-          type="submit"
-          className={cn(
-            "inline-flex h-9 items-center rounded-control bg-accent px-3 text-label-sm font-medium text-bg",
-            "transition-opacity hover:opacity-90",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
-          )}
-        >
+        </Button>
+        <Button type="submit" variant="ink">
           {mode === "create" ? "Create signal" : "Save changes"}
-        </button>
+        </Button>
       </div>
     </form>
   );

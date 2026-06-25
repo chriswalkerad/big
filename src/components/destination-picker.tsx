@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import type { RoutingDestination } from '@/types'
+import { Button } from '@/components/button'
 import { cn } from '@/lib/utils'
 import { useFocusTrap } from '@/lib/use-focus-trap'
 import { DEFAULT_ROUTING, ROUTING_LABELS, ROUTING_ORDER } from '@/lib/doc-page'
@@ -51,7 +52,7 @@ function DestinationPickerBody({
         type="button"
         aria-label="Cancel"
         onClick={onClose}
-        className="absolute inset-0 bg-bg/60 backdrop-blur-sm"
+        className="absolute inset-0 bg-text-primary/20 backdrop-blur-sm"
       />
       <div
         ref={dialogRef}
@@ -96,20 +97,12 @@ function DestinationPickerBody({
         </fieldset>
 
         <div className="flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-8 items-center rounded-control border border-border bg-surface px-3 text-label-sm text-text-secondary transition-colors hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
+          <Button type="button" onClick={onClose}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => onConfirm(selected)}
-            className="inline-flex h-8 items-center rounded-control bg-accent px-3 text-label-sm font-medium text-bg transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-          >
+          </Button>
+          <Button type="button" variant="ink" onClick={() => onConfirm(selected)}>
             Approve
-          </button>
+          </Button>
         </div>
       </div>
     </div>
