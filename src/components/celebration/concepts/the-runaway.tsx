@@ -28,7 +28,7 @@ interface TheRunawayProps {
  * dismisses after a beat; click or Escape skips it. Honors prefers-reduced-
  * motion (a calm static card) and announces via aria-live.
  */
-export function TheRunaway({ show, onDone, title }: TheRunawayProps) {
+export function TheRunaway({ show, onDone, title, scrim = true }: TheRunawayProps & { scrim?: boolean }) {
   const reduce = useReducedMotion()
 
   // Auto-dismiss after the sequence; Escape skips.
@@ -61,7 +61,7 @@ export function TheRunaway({ show, onDone, title }: TheRunawayProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0.2 : 0.28 }}
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center overflow-hidden px-6 text-center"
-          style={{ background: SCRIM }}
+          style={{ background: scrim ? SCRIM : 'transparent' }}
         >
           {/* Screen-reader announcement — the WOOO is inclusive. */}
           <p className="sr-only" role="status" aria-live="assertive">

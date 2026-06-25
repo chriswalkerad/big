@@ -28,7 +28,7 @@ interface NowShowingProps {
  * auto-dismisses after a beat; click or Escape skips it. Honors
  * prefers-reduced-motion (a calm static marquee) and announces via aria-live.
  */
-export function NowShowing({ show, onDone, title }: NowShowingProps) {
+export function NowShowing({ show, onDone, title, scrim = true }: NowShowingProps & { scrim?: boolean }) {
   const reduce = useReducedMotion()
 
   // Auto-dismiss after the sequence; Escape skips.
@@ -63,7 +63,7 @@ export function NowShowing({ show, onDone, title }: NowShowingProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0.2 : 0.28 }}
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-7 overflow-hidden px-6 text-center"
-          style={{ background: SCRIM }}
+          style={{ background: scrim ? SCRIM : 'transparent' }}
         >
           {/* Screen-reader announcement — the marquee is inclusive. */}
           <p className="sr-only" role="status" aria-live="assertive">

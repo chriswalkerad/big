@@ -10,7 +10,7 @@ import { ThePremiere } from '@/components/celebration/concepts/the-premiere'
 import { cn } from '@/lib/utils'
 
 /** The uniform shape every celebration overlay implements. */
-type CelebrationOverlay = ComponentType<{ show: boolean; onDone: () => void; title?: string }>
+type CelebrationOverlay = ComponentType<{ show: boolean; onDone: () => void; title?: string; scrim?: boolean }>
 
 interface Concept {
   key: string
@@ -99,6 +99,7 @@ export default function CelebrationGallery() {
           show={playing === c.key}
           onDone={() => setPlaying(null)}
           title={title || 'Untitled'}
+          scrim={false}
         />
       ))}
     </div>

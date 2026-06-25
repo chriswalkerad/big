@@ -29,7 +29,7 @@ interface StarIsBornProps {
  * skips it. Honors prefers-reduced-motion (a calm static star) and announces via
  * aria-live.
  */
-export function StarIsBorn({ show, onDone, title }: StarIsBornProps) {
+export function StarIsBorn({ show, onDone, title, scrim = true }: StarIsBornProps & { scrim?: boolean }) {
   const reduce = useReducedMotion()
 
   // Auto-dismiss after the sequence; Escape skips.
@@ -64,7 +64,7 @@ export function StarIsBorn({ show, onDone, title }: StarIsBornProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0.2 : 0.3 }}
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-7 px-6 text-center"
-          style={{ background: SCRIM }}
+          style={{ background: scrim ? SCRIM : 'transparent' }}
         >
           {/* Screen-reader announcement — the spotlight is inclusive. */}
           <p className="sr-only" role="status" aria-live="assertive">

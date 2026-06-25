@@ -29,7 +29,7 @@ interface RollCameraProps {
  * click or Escape skips it. Honors prefers-reduced-motion (a calm static slate)
  * and announces via aria-live.
  */
-export function RollCamera({ show, onDone, title }: RollCameraProps) {
+export function RollCamera({ show, onDone, title, scrim = true }: RollCameraProps & { scrim?: boolean }) {
   const reduce = useReducedMotion()
 
   // Auto-dismiss after the sequence; Escape skips.
@@ -64,7 +64,7 @@ export function RollCamera({ show, onDone, title }: RollCameraProps) {
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0.2 : 0.24 }}
           className="fixed inset-0 z-[70] flex flex-col items-center justify-center gap-6 px-6 text-center"
-          style={{ background: SCRIM }}
+          style={{ background: scrim ? SCRIM : 'transparent' }}
         >
           {/* Screen-reader announcement — the clack is inclusive. */}
           <p className="sr-only" role="status" aria-live="assertive">
