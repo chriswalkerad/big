@@ -666,6 +666,46 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           <div className="document-drawer-scroll flex flex-col">
             {/* Metadata + controls. */}
             <div className="flex flex-col gap-3 p-4">
+              {/* Title — at the TOP of the panel: it's the document's name, so it reads
+                  first. Edit mode is a borderless large-text input; a clear placeholder
+                  signals it's editable. The subtype sits just under it. */}
+              <div className="flex flex-col gap-2">
+                {isRead ? (
+                  <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
+                ) : (
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    onBlur={() => persist({ title })}
+                    placeholder="Untitled — add a title"
+                    aria-label="Title"
+                    className={cn(
+                      'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
+                      'focus:outline-none',
+                    )}
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  {isRead ? (
+                    <SubtypeChip subtype={subtype} />
+                  ) : (
+                    <SubtypeSelect
+                      value={subtype}
+                      onChange={(next) => {
+                        if (doc) {
+                          commitDoc(
+                            applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next),
+                          )
+                        }
+                      }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              <div className="border-t border-border" />
+
               <ContextChip
                 name={project.name}
                 audience={audienceShort}
@@ -707,41 +747,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
                   {reviewLoading ? 'Reviewing…' : 'Run review'}
                 </button>
               ) : null}
-
-              <div className="flex flex-col gap-2 border-t border-border pt-3">
-                {isRead ? (
-                  <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
-                ) : (
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onBlur={() => persist({ title })}
-                    placeholder="Untitled"
-                    aria-label="Title"
-                    className={cn(
-                      'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
-                      'focus:outline-none',
-                    )}
-                  />
-                )}
-                <div className="flex items-center gap-2">
-                  {isRead ? (
-                    <SubtypeChip subtype={subtype} />
-                  ) : (
-                    <SubtypeSelect
-                      value={subtype}
-                      onChange={(next) => {
-                        if (doc) {
-                          commitDoc(
-                            applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next),
-                          )
-                        }
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
 
               {/* Drift indicator (edit mode). */}
               {drift ? (
