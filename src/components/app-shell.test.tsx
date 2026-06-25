@@ -1,54 +1,42 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { ThemeProvider } from "./theme-provider";
 import { AppShell } from "./app-shell";
 
-// AppShell renders ThemeToggle, which reads window.matchMedia via next-themes;
-// jsdom omits it, so stub a deterministic (light) preference.
-beforeEach(() => {
-  window.localStorage.clear();
-  document.documentElement.className = "";
-  vi.stubGlobal(
-    "matchMedia",
-    vi.fn().mockImplementation((query: string) => ({
-      matches: false,
-      media: query,
-      onchange: null,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-      addListener: vi.fn(),
-      removeListener: vi.fn(),
-      dispatchEvent: vi.fn(),
-    })),
-  );
-});
-
-function renderShell() {
-  return render(
-    <ThemeProvider>
-      <AppShell>
-        <p>Page content</p>
-      </AppShell>
-    </ThemeProvider>,
-  );
-}
+// AppShell is now a route-agnostic frame: the outer page surface plus a
+// centered <main>. The header (Settings link + theme toggle) moved to the
+// per-page <TopBar>, so the shell itself renders no chrome.
 
 describe("AppShell", () => {
-  it("renders the Settings link pointing at the signal admin", () => {
-    renderShell();
-    const link = screen.getByRole("link", { name: /settings/i });
-    expect(link).toHaveAttribute("href", "/settings/signals");
+  it("renders its children inside the main content container", () => {
+    render(
+      <AppShell>
+        <p>Page content</p>
+      </AppShell>,
+    );
+    const main = screen.getByRole("main");
+    expect(main).toHaveAttribute("id", "main-content");
+    expect(main).toContainElement(screen.getByText("Page content"));
   });
 
-  it("renders the theme toggle", async () => {
-    renderShell();
+  it("owns no header chrome (no Settings link, no theme toggle)", () => {
+    render(
+      <AppShell>
+        <p>Page content</p>
+      </AppShell>,
+    );
+    expect(screen.queryByRole("link", { name: /settings/i })).toBeNull();
     expect(
-      await screen.findByRole("button", { name: /switch to (light|dark) theme/i }),
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: /switch to (light|dark) theme/i }),
+    ).toBeNull();
+    expect(screen.queryByRole("banner")).toBeNull();
   });
 
-  it("renders its children inside the content container", () => {
-    renderShell();
-    expect(screen.getByText("Page content")).toBeInTheDocument();
+  it("applies a className override to the main container", () => {
+    render(
+      <AppShell className="max-w-7xl">
+        <p>Wide</p>
+      </AppShell>,
+    );
+    expect(screen.getByRole("main").className).toContain("max-w-7xl");
   });
 });

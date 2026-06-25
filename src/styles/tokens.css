@@ -5,59 +5,71 @@
  * Components must reference these CSS variables (directly or via the
  * token-backed Tailwind utilities wired up in globals.css), never raw hex.
  *
- * Palette: neutral zinc-like grayscale. The only chromatic colors are the
- * functional severity colors (risk/minor/pass), used solely in highlight
- * squiggles and signal fill bars.
+ * Palette: a clean, minimal, Notion-style neutral system — all-white light
+ * pages with a Notion-dark twin. Warm near-black ink on white, hairline
+ * borders, flat surfaces with only the faintest tint for elevation. The only
+ * chromatic colors are the brand `--accent` (used sparingly) and the functional
+ * severity colors (risk/minor/pass), used in highlight squiggles and signal
+ * fill bars.
  *
  * Light values live in :root, dark values in .dark (next-themes "class"
  * strategy toggles `.dark` on the <html> element).
  */
 
 :root {
-  /* Neutrals — light.
-     The text tiers are tuned for WCAG 2.1 AA: every tier clears 4.5:1 against
-     bg/surface/panel so even low-emphasis copy (meta lines, placeholders) is
-     legible. `--text-secondary` (#5e5e66) and `--text-tertiary` (#6b6b73) were
-     darkened from zinc-500/400 (which measured 4.40 and 2.33 on panel) while
-     keeping the three-tier zinc hierarchy visually distinct. */
+  /* Neutrals — light (Notion-style all-white).
+     Pages are WHITE. Surfaces are white with the faintest off-white tint so
+     subtle elevation reads without heavy cards. The text tiers are tuned for
+     WCAG 2.1 AA: primary/secondary clear 4.5:1 against bg/surface/panel for
+     body and meta copy; `--text-tertiary` is a decorative/non-text tier
+     (icons, dividers, separators) and is NOT used for body text. */
   --bg: #ffffff;
-  --surface: #fafafa;
-  --panel: #f4f4f5;
-  /* Outer app canvas: a subtle gray (just below `--panel`) for the page frame,
-     so white `--bg` "paper" surfaces lift off it. Tuned to keep AA contrast —
-     `--text-tertiary` still clears 4.5:1 here (4.68:1). */
-  --app-canvas: #f1f1f3;
-  --border: #e4e4e7;
-  --text-primary: #18181b;
-  --text-secondary: #5e5e66;
-  --text-tertiary: #6b6b73;
-  --accent: #18181b;
+  --surface: #ffffff;
+  --panel: #fafafa;
+  /* Outer app canvas: a hair off-white so white "paper" surfaces sit calmly on
+     the page frame without a visible gray band. */
+  --app-canvas: #fcfcfc;
+  /* Hairline border — a soft warm light gray. */
+  --border: #ededec;
+  /* Warm near-black ink (Notion's text color). */
+  --text-primary: #37352f;
+  /* Calm muted grays. `--text-secondary` (#6b6a64) clears 4.5:1 on white/panel
+     for meta copy; `--text-tertiary` (#91908b) is decoration/non-text only. */
+  --text-secondary: #6b6a64;
+  --text-tertiary: #91908b;
+  /* Brand yellow — used sparingly (focus rings, small accents). */
+  --accent: #facc15;
 
-  /* Functional / chromatic — light.
+  /* Functional / chromatic — light (muted/calm).
      `--risk/--minor/--pass` are the GRAPHICAL values (squiggle underlines and
      signal fill bars), tuned for the ≥3:1 non-text threshold. They are too light
      for body TEXT at AA, so `--*-text` give AA-passing (≥4.5:1) variants used
      wherever the severity color labels text (error copy, drift, verdict, issue
      quotes). Dark mode's chromatic values already clear 4.5:1, so the text
      variants there equal the graphical ones. */
-  --risk: #dc2626;
-  --minor: #d97706;
-  --pass: #16a34a;
-  --risk-text: #b91c1c;
-  --minor-text: #b45309;
-  --pass-text: #15803d;
+  --risk: #e0563f;
+  --minor: #c47f15;
+  --pass: #4a9d6e;
+  --risk-text: #b3402c;
+  --minor-text: #9a6712;
+  --pass-text: #2f7a52;
 
-  /* Type scale — UI (13px base, 4px baseline grid).
-     Each entry: font-size / line-height / font-weight (+ tracking where noted). */
+  /* Type scale — UI.
+     Notion-style: quiet small labels, calm body, large airy titles. Each entry:
+     font-size / line-height / font-weight (+ tracking where noted).
+
+     EYEBROW / SECTION header (e.g. "REVIEW"): 11px UPPERCASE, tracking .06em,
+     tertiary — `label-xs`. Small labels / meta-on-control: 12px — `label-sm`. */
   --font-size-label-xs: 11px;
   --line-height-label-xs: 16px;
-  --font-weight-label-xs: 500;
-  --letter-spacing-label-xs: 0.05em;
+  --font-weight-label-xs: 600;
+  --letter-spacing-label-xs: 0.06em;
 
   --font-size-label-sm: 12px;
   --line-height-label-sm: 16px;
   --font-weight-label-sm: 500;
 
+  /* Body / meta — 13px muted secondary copy. */
   --font-size-body: 13px;
   --line-height-body: 20px;
   --font-weight-body: 400;
@@ -66,29 +78,32 @@
   --line-height-body-emphasis: 20px;
   --font-weight-body-emphasis: 500;
 
+  /* Title — quiet section title. */
   --font-size-title: 16px;
   --line-height-title: 24px;
   --font-weight-title: 600;
 
-  --font-size-heading: 20px;
-  --line-height-heading: 28px;
+  --font-size-heading: 22px;
+  --line-height-heading: 30px;
   --font-weight-heading: 600;
-  --letter-spacing-heading: -0.01em;
+  --letter-spacing-heading: -0.015em;
 
-  --font-size-display: 28px;
-  --line-height-display: 36px;
-  --font-weight-display: 600;
-  --letter-spacing-display: -0.01em;
+  /* Display — large, airy page title (Notion-style): ~34px / 700 / -0.02em. */
+  --font-size-display: 34px;
+  --line-height-display: 42px;
+  --font-weight-display: 700;
+  --letter-spacing-display: -0.02em;
 
-  /* Type scale — document content */
-  --font-size-doc-body: 15px;
-  --line-height-doc-body: 24px;
+  /* Type scale — document content.
+     Document body: ~16px with generous 1.75 rhythm, calm and readable. */
+  --font-size-doc-body: 16px;
+  --line-height-doc-body: 28px;
   --font-weight-doc-body: 400;
 
-  --font-size-doc-title: 24px;
-  --line-height-doc-title: 32px;
-  --font-weight-doc-title: 600;
-  --letter-spacing-doc-title: -0.01em;
+  --font-size-doc-title: 34px;
+  --line-height-doc-title: 42px;
+  --font-weight-doc-title: 700;
+  --letter-spacing-doc-title: -0.02em;
 
   /* Document measure */
   --measure-doc: 70ch;
@@ -103,35 +118,49 @@
   --space-12: 48px;
 
   /* Radius */
-  --radius-control: 6px;
+  --radius-control: 7px;
   --radius-card: 8px;
   --radius-pill: 9999px;
+
+  /* Inverse ink: a surface filled with primary ink and its readable label.
+     Used by the charcoal/INK primary button. In light mode this is the warm
+     near-black on white; the label is the page bg. */
+  --ink: var(--text-primary);
+  --ink-foreground: #ffffff;
+  --ink-hover: #4a4843;
 }
 
 .dark {
-  /* Neutrals — dark.
-     `--text-tertiary` was lightened from zinc-500 (#71717a, 3.52 on panel) to
-     #85858d so low-emphasis text clears 4.5:1 on bg/surface/panel while staying
-     a clearly lighter tier than `--text-secondary`. */
-  --bg: #0a0a0a;
-  --surface: #141414;
-  --panel: #1c1c1f;
-  /* Dark mode already reads as a dark canvas, so the app frame keeps the base
-     `--bg` value (surfaces lift via `--surface`/`--panel`, not a lighter frame). */
-  --app-canvas: #0a0a0a;
-  --border: #262626;
-  --text-primary: #fafafa;
-  --text-secondary: #a1a1aa;
-  --text-tertiary: #85858d;
-  --accent: #fafafa;
+  /* Neutrals — dark (Notion-dark twin).
+     Page ~#191919; surfaces lift slightly; light text on hairline borders.
+     `--text-tertiary` (#7f7f78) is decoration/non-text; `--text-secondary`
+     (#9b9b95) clears 4.5:1 on every dark surface for meta copy. */
+  --bg: #191919;
+  --surface: #202020;
+  --panel: #262625;
+  /* The app frame matches the page bg; surfaces lift via `--surface`/`--panel`. */
+  --app-canvas: #191919;
+  --border: #333230;
+  --text-primary: #ededeb;
+  --text-secondary: #9b9b95;
+  --text-tertiary: #7f7f78;
+  /* Brand yellow stays as the sparing accent in dark too. */
+  --accent: #facc15;
+
+  /* Inverse ink — dark: the primary button is a near-white surface with dark
+     label (Notion-dark style), so it reads as the strong action against the
+     dark page. */
+  --ink: #ededeb;
+  --ink-foreground: #191919;
+  --ink-hover: #ffffff;
 
   /* Functional / chromatic — dark. The bright variants already clear 4.5:1 as
      text on every dark surface, so the `--*-text` variants equal the graphical
      ones (kept for token parity with light). */
-  --risk: #f87171;
-  --minor: #fbbf24;
-  --pass: #4ade80;
-  --risk-text: #f87171;
-  --minor-text: #fbbf24;
-  --pass-text: #4ade80;
+  --risk: #f0917e;
+  --minor: #e6b35a;
+  --pass: #6fc295;
+  --risk-text: #f0917e;
+  --minor-text: #e6b35a;
+  --pass-text: #6fc295;
 }

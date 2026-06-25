@@ -28,6 +28,11 @@
   --color-text-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
 
+  /* Inverse ink — the charcoal/near-white primary button surface + its label. */
+  --color-ink: var(--ink);
+  --color-ink-foreground: var(--ink-foreground);
+  --color-ink-hover: var(--ink-hover);
+
   /* Colors — functional / chromatic.
      `*` are the graphical values (bars/squiggles, ≥3:1); `*-text` are the
      AA text-contrast variants (≥4.5:1) for `text-risk-text` etc. */
