@@ -271,7 +271,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   //   4. on failure: surface a typed error and leave the body untouched.
   const handleApplyPrompt = useCallback(async () => {
     const instruction = displayReview?.suggestedPrompt
-    if (!instruction || !project || applying) return
+    if (!instruction || !project || applying || awaitingDecision) return
     // Capture the CURRENT body (via the ref, which always reflects the latest editor
     // text) so Discard can restore it verbatim even if onChange churns meanwhile.
     const before = bodyRef.current
@@ -279,7 +279,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setApplyError(null)
     setApplying(true)
 
-    const result = await requestApply({ text: htmlToText(before), instruction, project })
+    // `before` is already PLAIN text (body state is plain text), so send it as-is —
+    // re-running htmlToText here would double-decode entity-like substrings.
+    const result = await requestApply({ text: before, instruction, project })
 
     if (!result.ok) {
       setApplyError(result.error)
@@ -288,14 +290,24 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       return
     }
 
-    // Replace the document with the rewrite (emits onChange → body state syncs), then
-    // await the author's Accept / Discard decision. Mark the replacement programmatic
-    // so its onChange doesn't immediately dismiss the decision we're about to set.
+    // Replace the document with the rewrite, then await the author's Accept / Discard
+    // decision. Reset the `programmatic` flag IMMEDIATELY after setContent (which
+    // dispatches its onChange synchronously) so it can never stick when the rewrite
+    // equals the current text and Tiptap suppresses the update — a stuck flag would
+    // swallow the author's next keystroke. The review PREVIEW was computed against the
+    // pre-rewrite text, so drop it: confirm is gated on a pending preview, and the
+    // author re-runs review on the rewrite (or after Discard).
+    const next = result.data.text
     programmaticContentRef.current = true
-    canvasRef.current?.setContent(textToHtml(result.data.text))
+    canvasRef.current?.setContent(textToHtml(next))
+    programmaticContentRef.current = false
+    bodyRef.current = next
+    setBody(next)
+    setPendingReview(null)
+    setPendingBody(null)
     setApplying(false)
     setAwaitingDecision(true)
-  }, [displayReview, project, applying])
+  }, [displayReview, project, applying, awaitingDecision])
 
   // Accept the rewrite: keep the new body (already live in the editor + body state),
   // drop the now-stale review preview + squiggles (the reviewed text changed). If the
@@ -313,20 +325,33 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       // applyUnsubmit clears the snapshot + routing and returns to draft; pair it with
       // the rewritten body so we don't revert to the old persisted text.
       commitDoc({ ...applyUnsubmit(doc), body: bodyRef.current })
+    } else if (doc) {
+      // Draft (no snapshot): persist the accepted rewrite so a reload/navigate keeps it.
+      persist({ body: bodyRef.current })
     }
-  }, [doc, snapshot, commitDoc])
+  }, [doc, snapshot, commitDoc, persist])
 
   // Discard the rewrite: restore the captured pre-apply body verbatim and exit the
   // decision state. The restore re-emits onChange so body state matches the editor.
   const discardRewrite = useCallback(() => {
-    if (preApplyBody !== null) {
+    const restore = preApplyBody
+    if (restore !== null) {
       programmaticContentRef.current = true
-      canvasRef.current?.setContent(textToHtml(preApplyBody))
+      canvasRef.current?.setContent(textToHtml(restore))
+      programmaticContentRef.current = false
+      bodyRef.current = restore
+      setBody(restore)
     }
     setAwaitingDecision(false)
     setPreApplyBody(null)
     setApplyError(null)
-  }, [preApplyBody])
+    // The rewrite's preview was dropped on Apply, so the review now showing is the
+    // submitted snapshot's (or none). Re-render the inline squiggles to match the
+    // restored body — Apply's setContent had cleared them.
+    canvasRef.current?.setSignalHighlights(
+      snapshot?.review ? toHighlightIssues(snapshot.review.signals, inlineIds) : [],
+    )
+  }, [preApplyBody, snapshot, inlineIds])
 
   // --- Run review auto-scroll ------------------------------------------------
   // Bring the right-side results panel into view when a review run begins / lands, so
@@ -349,7 +374,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const runReview = useCallback(async () => {
     const current = doc
     if (!repoRef.current || !current || !project) return
-    const text = htmlToText(body)
+    // `body` is already PLAIN text — send it as-is (htmlToText here would double-decode).
+    const text = body
+    // Ensure the (mobile-collapsible) drawer is open so the result is actually visible.
+    setDrawerOpen(true)
     setReviewError(null)
     setReviewLoading(true)
     setFocusedSignalId(null)
@@ -477,12 +505,14 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     function onKey(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault()
-        if (!reviewLoading) void runReview()
+        // Don't kick off a review while one is running, while an AI rewrite is in flight,
+        // or while an Accept/Discard decision is pending (the body is mid-change).
+        if (!reviewLoading && !applying && !awaitingDecision) void runReview()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isRead, reviewLoading, runReview])
+  }, [isRead, reviewLoading, applying, awaitingDecision, runReview])
 
   // --- Render guards ---------------------------------------------------------
   if (!loaded) {
@@ -507,7 +537,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       {/* Sticky breadcrumb — sits just under the h-14 app header over the app-canvas bg,
           so page navigation stays put while the editor and drawer scroll. The breadcrumb
           component itself is restyled by a sibling agent; we only own this sticky bar. */}
-      <div className="sticky top-14 z-30 -mx-4 bg-app-canvas px-4 py-2 sm:-mx-6 sm:px-6">
+      <div className="sticky top-14 z-30 bg-app-canvas py-2">
         <AppBreadcrumb
           segments={[
             { label: project.name, href: `/p/${projectId}` },
@@ -530,7 +560,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           ref={editorContainerRef}
           className="document-main-col document-desk order-1 rounded-card p-4 sm:p-6"
         >
-          <div className="document-paper document-paper--pages relative mx-auto max-w-3xl rounded-card border border-border p-6 shadow-lg sm:p-8">
+          <div className="document-paper document-paper--pages relative mx-auto rounded-card border border-border p-6 shadow-lg sm:p-8">
             <DocumentCanvas
               ref={canvasRef}
               mode={mode}

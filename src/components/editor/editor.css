@@ -8,6 +8,7 @@
  * are split, so squiggles and selection are unaffected. */
 :root {
   --page-height: 1056px; /* ~11in at 96dpi — one Letter sheet */
+  --page-width: 816px; /* ~8.5in at 96dpi — one Letter sheet width */
   --page-gap: 28px;
 }
 
@@ -143,6 +144,10 @@
 
 .document-paper {
   position: relative;
+  /* The sheet is exactly one page wide (pairs with --page-height) and never wider; it
+     shrinks to fit a narrower column rather than overflow. */
+  width: var(--page-width);
+  max-width: 100%;
 }
 
 .document-paper--pages::after {
@@ -205,25 +210,42 @@
 --------------------------------------------------------------------------- */
 
 .document-page {
-  --drawer-width: 380px;
+  --drawer-width: 440px;
   --drawer-gap: 24px;
+  --page-gutter: 1.5rem;
   --app-header-height: 3.5rem; /* matches the h-14 app header */
+  /* The drawer starts below the header + the content's top padding so its top lines up
+     with the breadcrumb / editor, and never under the sticky breadcrumb. */
+  --drawer-top: 5rem;
 }
 
 @media (min-width: 1024px) {
+  /* Break the doc page OUT of the app-shell's centered max-w-5xl so it uses the full
+     viewport: a page-sized editor on the left AND a wider drawer pinned to the right
+     edge of the viewport. The right padding reserves the fixed drawer's column so the
+     editor + breadcrumb never slide under it; the left keeps a matching gutter. */
+  .document-page {
+    margin-left: calc(50% - 50vw);
+    margin-right: calc(50% - 50vw);
+    padding-left: var(--page-gutter);
+    padding-right: calc(var(--drawer-width) + var(--drawer-gap) + var(--page-gutter));
+  }
+
   .document-main-col {
-    /* Reserve space so the editor never slides under the fixed drawer. */
-    margin-right: calc(var(--drawer-width) + var(--drawer-gap));
+    /* The page padding already reserves the drawer column. */
+    margin-right: 0;
   }
 
   .document-drawer {
     position: fixed;
-    top: var(--app-header-height);
-    bottom: 0;
+    top: var(--drawer-top);
+    bottom: var(--page-gutter);
     width: var(--drawer-width);
-    /* Hug the right edge of the centered max-w-5xl (64rem) content area + its gutter,
-       clamping to the page gutter on narrower-than-max viewports. */
-    right: max(1.5rem, calc(50vw - 32rem + 1.5rem));
+    /* Pinned to the viewport's RIGHT edge (not the centered column) so it no longer
+       floats mid-canvas. */
+    right: var(--page-gutter);
+    /* Below the sticky breadcrumb (z-30) and header (z-40) so it never paints over chrome. */
+    z-index: 20;
     display: flex;
     flex-direction: column;
     overflow: hidden; /* the inner body owns the scroll */
