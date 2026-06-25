@@ -62,7 +62,7 @@ describe("SignalForm", () => {
     const onSubmit = vi.fn();
     render(
       <Harness
-        initial={{ name: "T", prompt: "p", threshold: "15", mode: "doc" }}
+        initial={{ name: "T", prompt: "p", threshold: "150", mode: "doc" }}
         mode="edit"
         onSubmit={onSubmit}
       />,
@@ -71,6 +71,6 @@ describe("SignalForm", () => {
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByText(/between 0 and 10/i)).toBeInTheDocument();
+    expect(screen.getByText(/between 0 and 100/i)).toBeInTheDocument();
   });
 });

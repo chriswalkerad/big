@@ -25,12 +25,12 @@ const DOC1_REVIEW: ReviewResult = {
   suggestedTitle: 'Speed — Origin Episode Concept',
   themes: ['fish-out-of-water', 'underdog', 'creator culture'],
   signals: [
-    { signalId: 'clarity', score: 9, rationale: 'Reads cleanly on a first pass; the premise, stakes, and format are immediately clear.', issues: [] },
-    { signalId: 'completeness', score: 9, rationale: 'Premise, audience (teens 13-24), format (22-minute anime pilot), and lead are all present.', issues: [] },
-    { signalId: 'brand_safety', score: 8, rationale: 'High-energy and competitive, but well within safe bounds for the teen audience.', issues: [] },
-    { signalId: 'hook_strength', score: 10, rationale: 'Pulled into the anime he grew up watching, with a 24-hour clock — an instant, scroll-stopping hook.', issues: [] },
-    { signalId: 'character', score: 10, rationale: 'Speed is unmistakably himself: Chaos Drive turns his signature unhinged energy into an ownable superpower.', issues: [] },
-    { signalId: 'franchise_fit', score: 9, rationale: 'Creator-authentic, anime-native, and globally resonant — squarely in the Speed world.', issues: [] },
+    { signalId: 'clarity', score: 90, rationale: 'Reads cleanly on a first pass; the premise, stakes, and format are immediately clear.', issues: [] },
+    { signalId: 'completeness', score: 90, rationale: 'Premise, audience (teens 13-24), format (22-minute anime pilot), and lead are all present.', issues: [] },
+    { signalId: 'brand_safety', score: 80, rationale: 'High-energy and competitive, but well within safe bounds for the teen audience.', issues: [] },
+    { signalId: 'hook_strength', score: 100, rationale: 'Pulled into the anime he grew up watching, with a 24-hour clock — an instant, scroll-stopping hook.', issues: [] },
+    { signalId: 'character', score: 100, rationale: 'Speed is unmistakably himself: Chaos Drive turns his signature unhinged energy into an ownable superpower.', issues: [] },
+    { signalId: 'franchise_fit', score: 90, rationale: 'Creator-authentic, anime-native, and globally resonant — squarely in the Speed world.', issues: [] },
   ],
   verdict: { label: 'looks_ready', flagCount: 0 },
   summary:
@@ -49,7 +49,7 @@ const DOC2_REVIEW: ReviewResult = {
   signals: [
     {
       signalId: 'clarity',
-      score: 7,
+      score: 70,
       rationale: 'The factions and rules read clearly, with one vague mechanic flagged below.',
       issues: [
         {
@@ -59,11 +59,11 @@ const DOC2_REVIEW: ReviewResult = {
         },
       ],
     },
-    { signalId: 'completeness', score: 6, rationale: 'World bible lacks a clear format recommendation for how this would be introduced on screen.', issues: [] },
-    { signalId: 'brand_safety', score: 9, rationale: 'Nothing unsafe or off-brand for the teen audience.', issues: [] },
-    { signalId: 'hook_strength', score: 7, rationale: 'Floating courts and a sky that tracks the standings give the world a strong, visual pull.', issues: [] },
-    { signalId: 'character', score: 5, rationale: "No character development in this world-building doc — that's expected, but note it.", issues: [] },
-    { signalId: 'franchise_fit', score: 8, rationale: 'Sport-as-combat factions and live-chat kanji fit the creator-meets-anime tone well.', issues: [] },
+    { signalId: 'completeness', score: 60, rationale: 'World bible lacks a clear format recommendation for how this would be introduced on screen.', issues: [] },
+    { signalId: 'brand_safety', score: 90, rationale: 'Nothing unsafe or off-brand for the teen audience.', issues: [] },
+    { signalId: 'hook_strength', score: 70, rationale: 'Floating courts and a sky that tracks the standings give the world a strong, visual pull.', issues: [] },
+    { signalId: 'character', score: 50, rationale: "No character development in this world-building doc — that's expected, but note it.", issues: [] },
+    { signalId: 'franchise_fit', score: 80, rationale: 'Sport-as-combat factions and live-chat kanji fit the creator-meets-anime tone well.', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 2 },
   summary:
@@ -80,11 +80,11 @@ const DOC3_REVIEW: ReviewResult = {
   suggestedTitle: 'Speed vs The Shadow Stream — Arc Concept',
   themes: ['dark arc', 'undercover', 'streaming violence'],
   signals: [
-    { signalId: 'clarity', score: 8, rationale: 'The arc and its beats are easy to follow.', issues: [] },
-    { signalId: 'completeness', score: 8, rationale: 'Premise, lead, stakes, and intended rating are all stated.', issues: [] },
+    { signalId: 'clarity', score: 80, rationale: 'The arc and its beats are easy to follow.', issues: [] },
+    { signalId: 'completeness', score: 80, rationale: 'Premise, lead, stakes, and intended rating are all stated.', issues: [] },
     {
       signalId: 'brand_safety',
-      score: 1,
+      score: 10,
       rationale: 'Fatal, graphic violence and a 17+ framing are unsafe and off-brand for the target audience.',
       issues: [
         { quote: 'fights to the death', message: 'Fatal violence is off-limits for the target demographic', severity: 'risk' },
@@ -100,9 +100,9 @@ const DOC3_REVIEW: ReviewResult = {
         },
       ],
     },
-    { signalId: 'hook_strength', score: 7, rationale: 'An undercover infiltration of a dark streaming network is a strong hook — but in the wrong register.', issues: [] },
-    { signalId: 'character', score: 7, rationale: 'Speed still reads as himself: reckless, brave, and willing to go all in.', issues: [] },
-    { signalId: 'franchise_fit', score: 3, rationale: 'Dark-web violence and a 17+ rating would prevent the Sony theatrical path and the YouTube launch strategy entirely. Needs a full tone revision.', issues: [] },
+    { signalId: 'hook_strength', score: 70, rationale: 'An undercover infiltration of a dark streaming network is a strong hook — but in the wrong register.', issues: [] },
+    { signalId: 'character', score: 70, rationale: 'Speed still reads as himself: reckless, brave, and willing to go all in.', issues: [] },
+    { signalId: 'franchise_fit', score: 30, rationale: 'Dark-web violence and a 17+ rating would prevent the Sony theatrical path and the YouTube launch strategy entirely. Needs a full tone revision.', issues: [] },
   ],
   verdict: { label: 'not_ready', flagCount: 2 },
   summary:
@@ -121,12 +121,12 @@ const DOC5_REVIEW: ReviewResult = {
   suggestedTitle: 'Speed Anime — YouTube Launch Strategy Brief',
   themes: ['launch strategy', 'live event', 'creator economy'],
   signals: [
-    { signalId: 'clarity', score: 8, rationale: 'The launch sequence and tactics read clearly on a first pass.', issues: [] },
-    { signalId: 'completeness', score: 8, rationale: 'Announcement, format, timing, and pre-launch teaser are all specified for the digital window.', issues: [] },
-    { signalId: 'brand_safety', score: 10, rationale: 'Fully safe and on-brand for a YouTube launch.', issues: [] },
-    { signalId: 'hook_strength', score: 9, rationale: 'A live reveal to 52M subscribers, treated as an event, is a powerful, scroll-stopping hook.', issues: [] },
-    { signalId: 'character', score: 7, rationale: "Leans on Speed's real persona and voice, which carries the brief.", issues: [] },
-    { signalId: 'franchise_fit', score: 9, rationale: 'Creator-native, live-first, and globally resonant — exactly the Speed launch playbook.', issues: [] },
+    { signalId: 'clarity', score: 80, rationale: 'The launch sequence and tactics read clearly on a first pass.', issues: [] },
+    { signalId: 'completeness', score: 80, rationale: 'Announcement, format, timing, and pre-launch teaser are all specified for the digital window.', issues: [] },
+    { signalId: 'brand_safety', score: 100, rationale: 'Fully safe and on-brand for a YouTube launch.', issues: [] },
+    { signalId: 'hook_strength', score: 90, rationale: 'A live reveal to 52M subscribers, treated as an event, is a powerful, scroll-stopping hook.', issues: [] },
+    { signalId: 'character', score: 70, rationale: "Leans on Speed's real persona and voice, which carries the brief.", issues: [] },
+    { signalId: 'franchise_fit', score: 90, rationale: 'Creator-native, live-first, and globally resonant — exactly the Speed launch playbook.', issues: [] },
   ],
   verdict: { label: 'looks_ready', flagCount: 0 },
   summary:

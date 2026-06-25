@@ -60,7 +60,8 @@ export const signalIssueSchema: z.ZodType<SignalIssue> = z.object({
 
 export const signalResultSchema: z.ZodType<SignalResult> = z.object({
   signalId: z.string(),
-  score: z.number(),
+  // Signals score on a 0–100 scale.
+  score: z.number().min(0).max(100),
   rationale: z.string(),
   issues: z.array(signalIssueSchema),
 })

@@ -46,15 +46,15 @@ export function formatFlagCount(flagCount: number, totalSignals: number): string
 export type BarTone = 'pass' | 'minor' | 'risk'
 
 /**
- * A signal's fill color relative to its OWN threshold:
+ * A signal's fill color relative to its OWN threshold (scores are 0–100):
  *   - green  (`pass`)  when score >= threshold
- *   - amber  (`minor`) when 1-2 below threshold
- *   - red    (`risk`)  when 3+ below threshold
+ *   - amber  (`minor`) when up to 20 below threshold
+ *   - red    (`risk`)  when more than 20 below threshold
  */
 export function barTone(score: number, threshold: number): BarTone {
   if (score >= threshold) return 'pass'
   const gap = threshold - score
-  if (gap <= 2) return 'minor'
+  if (gap <= 20) return 'minor'
   return 'risk'
 }
 
@@ -65,8 +65,8 @@ export const BAR_TONE_BG: Record<BarTone, string> = {
   risk: 'bg-risk',
 }
 
-/** Proportional fill width (0-100%) for a score out of ten, clamped. */
-export function barFillPercent(score: number, max = 10): number {
+/** Proportional fill width (0-100%) for a score out of 100, clamped. */
+export function barFillPercent(score: number, max = 100): number {
   if (max <= 0) return 0
   const pct = (score / max) * 100
   return Math.max(0, Math.min(100, pct))

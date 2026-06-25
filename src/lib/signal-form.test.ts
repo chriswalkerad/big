@@ -42,14 +42,14 @@ describe("validateSignalForm", () => {
     expect(validateSignalForm({ ...valid, threshold: "abc" }).threshold).toBeDefined();
   });
 
-  it("rejects a threshold outside 0–10", () => {
+  it("rejects a threshold outside 0–100", () => {
     expect(validateSignalForm({ ...valid, threshold: "-1" }).threshold).toBeDefined();
-    expect(validateSignalForm({ ...valid, threshold: "11" }).threshold).toBeDefined();
+    expect(validateSignalForm({ ...valid, threshold: "101" }).threshold).toBeDefined();
   });
 
-  it("accepts the boundary thresholds 0 and 10", () => {
+  it("accepts the boundary thresholds 0 and 100", () => {
     expect(validateSignalForm({ ...valid, threshold: "0" }).threshold).toBeUndefined();
-    expect(validateSignalForm({ ...valid, threshold: "10" }).threshold).toBeUndefined();
+    expect(validateSignalForm({ ...valid, threshold: "100" }).threshold).toBeUndefined();
   });
 
   it("rejects an unknown mode", () => {

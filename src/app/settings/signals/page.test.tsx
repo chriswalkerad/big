@@ -44,7 +44,7 @@ describe("SignalsAdminPage", () => {
     await user.type(within(dialog).getByLabelText("Name"), "Originality");
     await user.type(within(dialog).getByLabelText("Prompt"), "Judge how fresh it is.");
     await user.clear(within(dialog).getByLabelText(/Threshold/));
-    await user.type(within(dialog).getByLabelText(/Threshold/), "8");
+    await user.type(within(dialog).getByLabelText(/Threshold/), "80");
     await user.click(within(dialog).getByRole("button", { name: "Create signal" }));
 
     await waitFor(() => {
@@ -52,7 +52,7 @@ describe("SignalsAdminPage", () => {
         .listSignals()
         .find((s) => s.name === "Originality");
       expect(saved).toBeDefined();
-      expect(saved?.threshold).toBe(8);
+      expect(saved?.threshold).toBe(80);
       expect(saved?.id).toBe("originality");
     });
     // And it appears in the list.

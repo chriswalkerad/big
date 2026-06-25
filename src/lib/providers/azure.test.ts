@@ -24,7 +24,7 @@ const validResult: ReviewResult = {
   detectedSubtype: 'story_premise',
   suggestedTitle: 'Midnight Room Service',
   themes: ['mischief'],
-  signals: [{ signalId: 'clarity', score: 8, rationale: 'Clear.', issues: [] }],
+  signals: [{ signalId: 'clarity', score: 80, rationale: 'Clear.', issues: [] }],
   verdict: { label: 'needs_work', flagCount: 1 },
 }
 

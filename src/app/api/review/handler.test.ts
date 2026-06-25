@@ -77,7 +77,7 @@ describe('handleReview', () => {
       detectedSubtype: 'story_premise',
       suggestedTitle: 'Title',
       themes: ['friendship'],
-      signals: [{ signalId: 'clarity', score: 8, rationale: 'clear', issues: [] }],
+      signals: [{ signalId: 'clarity', score: 80, rationale: 'clear', issues: [] }],
       verdict: { label: 'looks_ready', flagCount: 0 },
     }
     const provider: ReviewProvider = {

@@ -2,11 +2,11 @@ import { cn } from '@/lib/utils'
 import { BAR_TONE_BG, barFillPercent, barTone } from '@/lib/doc-page'
 
 interface SignalBarProps {
-  /** Signal score, 0-10. */
+  /** Signal score, 0-100. */
   score: number
   /** The signal's own pass threshold (drives the fill color). */
   threshold: number
-  /** Max score (default 10). */
+  /** Max score (default 100). */
   max?: number
   className?: string
 }
@@ -16,7 +16,7 @@ interface SignalBarProps {
  * relative to the signal's OWN threshold (see `barTone`). The track is neutral; only
  * the fill carries the functional severity color, per the design-tokens spec.
  */
-export function SignalBar({ score, threshold, max = 10, className }: SignalBarProps) {
+export function SignalBar({ score, threshold, max = 100, className }: SignalBarProps) {
   const tone = barTone(score, threshold)
   const width = barFillPercent(score, max)
 
