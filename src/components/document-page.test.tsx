@@ -156,6 +156,20 @@ describe('DocumentPage edit mode — submit flow', () => {
     const region = await screen.findByRole('region', { name: 'Review results' })
     expect(within(region).getByText('Needs work')).toBeInTheDocument()
 
+    // The panel is an INLINE side panel, not a modal: it is NOT a dialog, carries no
+    // aria-modal, and the editor stays fully interactive alongside it (its container is
+    // not inert / aria-hidden). The writing column reflows around the panel; it is never
+    // covered by a scrim.
+    expect(screen.queryByRole('dialog', { name: /review results/i })).not.toBeInTheDocument()
+    expect(region.closest('[inert]')).toBeNull()
+    expect(region.closest('[aria-modal="true"]')).toBeNull()
+    const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+    expect(editor).not.toBeNull()
+    expect(editor?.closest('[inert]')).toBeNull()
+    expect(editor?.closest('[aria-hidden="true"]')).toBeNull()
+    // No backdrop scrim is rendered.
+    expect(document.querySelector('.review-scrim')).toBeNull()
+
     // The × collapses back to the minimal strip → the detail region leaves the a11y
     // tree, while the slim strip keeps the verdict visible.
     fireEvent.click(within(region).getByRole('button', { name: /close review details/i }))
