@@ -1,3 +1,16 @@
+/* Document page geometry tokens.
+ *
+ * `--page-height` is the visual height of one "page sheet" (~US Letter at the document
+ * type scale); `--page-gap` is the desk-colored gutter drawn between stacked sheets.
+ * Both are layout values (not colors), so they live with the editor layer rather than
+ * the color-token file. Content stays a SINGLE Tiptap document — these only drive the
+ * page-break ILLUSION (a repeating background + a divider per page boundary); no nodes
+ * are split, so squiggles and selection are unaffected. */
+:root {
+  --page-height: 1056px; /* ~11in at 96dpi — one Letter sheet */
+  --page-gap: 28px;
+}
+
 /* "Paper on a desk" surfaces.
  *
  * The neutral token scale flips elevation between themes: in light, `bg` (#fff) is the
@@ -37,14 +50,14 @@
 .document-canvas {
   display: flex;
   flex-direction: column;
-  min-height: 70vh;
+  min-height: var(--page-height);
 }
 
 .document-canvas-prose {
   flex: 1 1 auto;
   /* Fill the sheet so the whole paper is a click target and the caret sits at the
      top on an empty document, like a fresh page. */
-  min-height: 70vh;
+  min-height: var(--page-height);
   max-width: var(--measure-doc);
   font-size: var(--font-size-doc-body);
   line-height: var(--line-height-doc-body);
@@ -114,4 +127,112 @@
 
 .signal-highlight[data-severity='minor']:hover {
   background-color: color-mix(in oklab, var(--minor) 12%, transparent);
+}
+
+/* ---------------------------------------------------------------------------
+   Page sheets (visual pagination).
+
+   The paper renders as STACKED page sheets: every `--page-height` down the sheet a
+   faint measured divider + a soft shadow mark a page boundary, so content that runs
+   past one page visually breaks onto a new page below. This is a pure overlay on a
+   `::after` pseudo-element of `.document-paper`: it never touches the editor DOM, so
+   the document stays one Tiptap doc — no node reflow, and squiggles + selection are
+   unaffected. The repeat is keyed to the page geometry tokens and uses only neutral
+   color tokens (mixed for subtlety). The pseudo-element is non-interactive.
+--------------------------------------------------------------------------- */
+
+.document-paper {
+  position: relative;
+}
+
+.document-paper--pages::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  /* A 1px divider line at the bottom of each page sheet, repeated every page. The
+     first boundary sits one page down; the gradient paints transparent up to the
+     boundary, then a hairline of bordered + shadowed tone, then transparent again. */
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent calc(var(--page-height) - 2px),
+    color-mix(in oklab, var(--border) 70%, transparent) calc(var(--page-height) - 2px),
+    color-mix(in oklab, var(--border) 70%, transparent) calc(var(--page-height) - 1px),
+    /* a soft "gutter" band reading as the gap to the next sheet */
+    color-mix(in oklab, var(--text-primary) 6%, transparent) calc(var(--page-height) - 1px),
+    color-mix(in oklab, var(--text-primary) 6%, transparent) var(--page-height),
+    transparent var(--page-height),
+    transparent calc(var(--page-height) + var(--page-gap))
+  );
+  background-size: 100% calc(var(--page-height) + var(--page-gap));
+}
+
+/* ---------------------------------------------------------------------------
+   Apply ("Rewriting…") overlay.
+
+   While an AI rewrite is in flight the paper is dimmed by a scrim with a centered
+   spinner + label, and the editor is made non-editable by the page. The scrim is a
+   neutral token wash so it adapts to light/dark; it sits above the prose but its label
+   text uses the primary text token for legibility.
+--------------------------------------------------------------------------- */
+
+.document-apply-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  border-radius: inherit;
+  background-color: color-mix(in oklab, var(--bg) 64%, transparent);
+  backdrop-filter: blur(1px);
+}
+
+/* ---------------------------------------------------------------------------
+   Document drawer (right-side metadata + review).
+
+   On large screens the drawer is FIXED to the right of the centered content column,
+   spanning from just below the sticky h-14 header to the viewport bottom; its body
+   scrolls internally (the page/window does not scroll it). The editor column reserves
+   right margin equal to the drawer width + gap so nothing overlaps. Below `lg` the
+   drawer returns to normal flow and stacks below the editor (no overlap, togglable).
+   Widths/offsets are layout values (rem / viewport units); colors stay on tokens via
+   the Tailwind classes applied in the JSX.
+--------------------------------------------------------------------------- */
+
+.document-page {
+  --drawer-width: 380px;
+  --drawer-gap: 24px;
+  --app-header-height: 3.5rem; /* matches the h-14 app header */
+}
+
+@media (min-width: 1024px) {
+  .document-main-col {
+    /* Reserve space so the editor never slides under the fixed drawer. */
+    margin-right: calc(var(--drawer-width) + var(--drawer-gap));
+  }
+
+  .document-drawer {
+    position: fixed;
+    top: var(--app-header-height);
+    bottom: 0;
+    width: var(--drawer-width);
+    /* Hug the right edge of the centered max-w-5xl (64rem) content area + its gutter,
+       clamping to the page gutter on narrower-than-max viewports. */
+    right: max(1.5rem, calc(50vw - 32rem + 1.5rem));
+    display: flex;
+    flex-direction: column;
+    overflow: hidden; /* the inner body owns the scroll */
+  }
+
+  /* The inner scroll region: fills the fixed drawer and scrolls its own content. */
+  .document-drawer-scroll {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+  }
 }

@@ -74,10 +74,14 @@ describe('ResultsPanel body', () => {
     expect(meters).toHaveLength(6)
   })
 
-  it('shows an empty placeholder when there is no review yet', () => {
-    renderPanel({ review: null })
-    expect(screen.getByText('No review yet.')).toBeInTheDocument()
+  it('renders NOTHING when there is no review, run, or error (hide-until-review)', () => {
+    const { container } = renderPanel({ review: null })
+    // No verdict, no "0 of N", no empty placeholder — the whole review section is hidden
+    // until a review exists. The drawer above it still shows metadata + Run review.
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
     expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    expect(screen.queryByText('No review yet.')).not.toBeInTheDocument()
   })
 
   it('lists flagged phrases only for inline signals', () => {
@@ -248,6 +252,20 @@ describe('ResultsPanel score explanation', () => {
   })
 })
 
+describe('ResultsPanel hide-until-review', () => {
+  it('still renders the region while a review is running (loading)', () => {
+    renderPanel({ loading: true, review: null })
+    expect(screen.getByRole('region', { name: 'Review results' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Running review…')).toBeInTheDocument()
+  })
+
+  it('still renders the region on error', () => {
+    renderPanel({ error: appError('AI_RATE_LIMIT'), review: null })
+    expect(screen.getByRole('region', { name: 'Review results' })).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+})
+
 describe('ResultsPanel confirm submission (review-then-confirm)', () => {
   it('shows a Confirm submission button for a pending preview and fires onConfirm', () => {
     const onConfirm = vi.fn()
@@ -256,6 +274,17 @@ describe('ResultsPanel confirm submission (review-then-confirm)', () => {
     expect(confirm).toBeInTheDocument()
     fireEvent.click(confirm)
     expect(onConfirm).toHaveBeenCalled()
+  })
+
+  it('pins the confirm footer to the bottom of the drawer scroll (sticky)', () => {
+    renderPanel({ pending: true, onConfirm: () => {} })
+    const footer = screen
+      .getByRole('button', { name: /confirm submission/i })
+      .closest('footer')
+    expect(footer).not.toBeNull()
+    // Sticky to the bottom so it stays reachable while the drawer body scrolls.
+    expect(footer).toHaveClass('sticky')
+    expect(footer).toHaveClass('bottom-0')
   })
 
   it('hides Confirm submission for an already-submitted snapshot (not pending)', () => {
