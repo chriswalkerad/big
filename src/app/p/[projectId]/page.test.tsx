@@ -37,6 +37,15 @@ describe("LibraryPage", () => {
     expect(newLink).toHaveAttribute("href", "/p/proj-eloise/d/new");
   });
 
+  it("renders the project name as the page title", async () => {
+    renderLibrary();
+    const title = await screen.findByRole("heading", {
+      level: 1,
+      name: "Eloise at The Plaza",
+    });
+    expect(title).toBeInTheDocument();
+  });
+
   it("filters by a full-text query over body and shows an empty state for no match", async () => {
     renderLibrary();
     const search = await screen.findByRole("searchbox", { name: /search documents/i });

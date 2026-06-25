@@ -51,6 +51,18 @@ const variants: Record<ButtonVariant, string> = {
   ),
 };
 
+/**
+ * The full class string for a button variant (base + variant). Use this to give
+ * a non-`<button>` element (e.g. a Next `<Link>` that must keep its link role &
+ * navigation) the exact compact button look without re-implementing the styles.
+ */
+export function buttonClass(
+  variant: ButtonVariant = "default",
+  className?: string,
+): string {
+  return cn(base, variants[variant], className);
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   function Button(
     { variant = "default", type = "button", className, children, ...props },
@@ -60,7 +72,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         ref={ref}
         type={type}
-        className={cn(base, variants[variant], className)}
+        className={buttonClass(variant, className)}
         {...props}
       >
         {children}
