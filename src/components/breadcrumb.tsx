@@ -40,10 +40,12 @@ export interface BreadcrumbProps {
 }
 
 /** Shared text styling for an interactive (link/button) segment.
- *  De-emphasised: `text-label-sm` (12px) in the muted `text-text-tertiary` tier
- *  so the trail recedes; it brightens to `text-text-primary` on hover. */
+ *  De-emphasised: `text-label-sm` (12px) but `font-normal` to drop the scale's
+ *  baked-in 500 weight, in the muted `text-text-tertiary` tier so the whole
+ *  trail recedes vs the page heading. Clears AA on the gray app canvas
+ *  (#6b6b73 on #f1f1f3 = 4.68:1); brightens to `text-text-primary` on hover. */
 const interactiveSegmentClass = cn(
-  "rounded-control text-label-sm text-text-tertiary transition-colors",
+  "rounded-control text-label-sm font-normal text-text-tertiary transition-colors",
   "hover:text-text-primary",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
 );
@@ -70,7 +72,7 @@ export function Breadcrumb({ segments, ariaLabel = "Breadcrumb", className }: Br
               </li>
               {!isLast ? (
                 <li aria-hidden="true" className="flex shrink-0 items-center">
-                  <ChevronRight className="size-3.5 text-text-tertiary" />
+                  <ChevronRight className="size-3 text-text-tertiary" />
                 </li>
               ) : null}
             </Fragment>
@@ -84,8 +86,11 @@ export function Breadcrumb({ segments, ariaLabel = "Breadcrumb", className }: Br
 function BreadcrumbItem({ segment }: { segment: BreadcrumbSegment }) {
   const { label, content, href, onClick, current } = segment;
 
-  // The active segment is emphasised and announced as the current page.
-  const currentClass = "truncate text-label-sm text-text-primary";
+  // The active (current) segment is announced as the current page but stays
+  // de-emphasised: `font-normal` (no scale weight) in the muted secondary tier,
+  // so the whole breadcrumb recedes vs the page heading rather than competing
+  // with it. `text-text-secondary` still clears AA (5.7:1 on the app canvas).
+  const currentClass = "truncate text-label-sm font-normal text-text-secondary";
   const ariaCurrent = current ? ("page" as const) : undefined;
 
   // A caller-supplied node owns its own markup (and accessibility); render it as-is.
@@ -128,10 +133,12 @@ function BreadcrumbItem({ segment }: { segment: BreadcrumbSegment }) {
     <span
       aria-current={ariaCurrent}
       className={cn(
-        "block truncate text-label-sm",
-        // De-emphasised trail: non-current segments recede in the muted tertiary
-        // tier; the active segment stays emphasised in the primary tier.
-        current ? "text-text-primary" : "text-text-tertiary",
+        "block truncate text-label-sm font-normal",
+        // De-emphasised trail: `font-normal` drops the scale's 500 weight on
+        // every segment, and all segments stay muted — non-current in the
+        // tertiary tier, the current one in the secondary tier — so the trail
+        // recedes vs the page heading.
+        current ? "text-text-secondary" : "text-text-tertiary",
       )}
     >
       {label}
