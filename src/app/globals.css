@@ -43,9 +43,11 @@
   --color-minor-text: var(--minor-text);
   --color-pass-text: var(--pass-text);
 
-  /* Font family — Inter (via next/font) with the spec's fallback stack. */
-  --font-sans: var(--font-inter), -apple-system, "SF Pro Display", system-ui,
-    "Segoe UI", Roboto, sans-serif;
+  /* Font family — SYSTEM-FIRST (San Francisco on macOS, Segoe UI on Windows) to match
+     the approved mockup's clean native rendering; Inter (via next/font) stays as a
+     cross-platform fallback so non-Apple/Windows still get a close, consistent face. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    system-ui, Roboto, var(--font-inter), Helvetica, Arial, sans-serif;
 
   /* Type scale — UI. Tailwind pairs text-<name> with its line-height. */
   --text-label-xs: var(--font-size-label-xs);

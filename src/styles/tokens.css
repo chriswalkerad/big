@@ -88,9 +88,9 @@
   --font-weight-heading: 600;
   --letter-spacing-heading: -0.015em;
 
-  /* Display — large, airy page title (Notion-style): ~34px / 700 / -0.02em. */
-  --font-size-display: 34px;
-  --line-height-display: 42px;
+  /* Display — large, airy page title (matches the mockup): 36px / 700 / -0.02em. */
+  --font-size-display: 36px;
+  --line-height-display: 44px;
   --font-weight-display: 700;
   --letter-spacing-display: -0.02em;
 
@@ -100,8 +100,8 @@
   --line-height-doc-body: 28px;
   --font-weight-doc-body: 400;
 
-  --font-size-doc-title: 34px;
-  --line-height-doc-title: 42px;
+  --font-size-doc-title: 36px;
+  --line-height-doc-title: 44px;
   --font-weight-doc-title: 700;
   --letter-spacing-doc-title: -0.02em;
 
