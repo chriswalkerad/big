@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, within } from '@testing-library/react'
 import type { ReviewResult, SignalDef } from '@/types'
 import { appError } from '@/lib/errors'
-import { ResultsPanel } from './results-panel'
+import { ResultsPanel, ReviewStrip } from './results-panel'
 
 afterEach(cleanup)
 
@@ -299,5 +299,71 @@ describe('ResultsPanel confirm submission (review-then-confirm)', () => {
     cleanup()
     renderPanel({ pending: true, error: appError('AI_RATE_LIMIT'), review: null, onConfirm })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('ResultsPanel detail panel (collapse)', () => {
+  it('renders a close (×) affordance that fires onClose', () => {
+    const onClose = vi.fn()
+    renderPanel({ onClose })
+    const close = screen.getByRole('button', { name: /close review details/i })
+    fireEvent.click(close)
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('omits the close affordance when no onClose handler is provided', () => {
+    renderPanel()
+    expect(screen.queryByRole('button', { name: /close review details/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('ReviewStrip (minimal default)', () => {
+  const REVIEW_WITH_SUMMARY: ReviewResult = {
+    ...REVIEW,
+    summary: 'Tighten Character Distinctiveness and resubmit.',
+    suggestedPrompt: 'Revise the following concept:\n\n[paste your text here]',
+  }
+
+  it('renders NOTHING until a review exists / is running / errored', () => {
+    const { container } = render(<ReviewStrip review={null} onView={() => {}} />)
+    expect(container).toBeEmptyDOMElement()
+    expect(screen.queryByRole('region', { name: 'Review summary' })).not.toBeInTheDocument()
+  })
+
+  it('shows the verdict label, the flag count, and the summary', () => {
+    render(<ReviewStrip review={REVIEW_WITH_SUMMARY} onView={() => {}} />)
+    const strip = screen.getByRole('region', { name: 'Review summary' })
+    expect(within(strip).getByText('Needs work')).toBeInTheDocument()
+    expect(within(strip).getByText('3 of 6 need attention')).toBeInTheDocument()
+    expect(
+      within(strip).getByText('Tighten Character Distinctiveness and resubmit.'),
+    ).toBeInTheDocument()
+  })
+
+  it('fires onView from the "View N signals" toggle (N = signal count)', () => {
+    const onView = vi.fn()
+    render(<ReviewStrip review={REVIEW_WITH_SUMMARY} onView={onView} />)
+    fireEvent.click(screen.getByRole('button', { name: /view 6 signals/i }))
+    expect(onView).toHaveBeenCalledTimes(1)
+  })
+
+  it('shows an "Apply fix" affordance only when a suggested prompt + handler exist', () => {
+    const onApplyPrompt = vi.fn()
+    render(<ReviewStrip review={REVIEW_WITH_SUMMARY} onView={() => {}} onApplyPrompt={onApplyPrompt} />)
+    const apply = screen.getByRole('button', { name: /apply suggested fix/i })
+    fireEvent.click(apply)
+    expect(onApplyPrompt).toHaveBeenCalledTimes(1)
+  })
+
+  it('omits "Apply fix" when there is no suggested prompt', () => {
+    render(<ReviewStrip review={REVIEW} onView={() => {}} onApplyPrompt={() => {}} />)
+    expect(screen.queryByRole('button', { name: /apply suggested fix/i })).not.toBeInTheDocument()
+  })
+
+  it('shows a reviewing state while loading and a failed state on error', () => {
+    const { rerender } = render(<ReviewStrip loading review={null} onView={() => {}} />)
+    expect(screen.getByText('Reviewing…')).toBeInTheDocument()
+    rerender(<ReviewStrip error={appError('AI_RATE_LIMIT')} review={null} onView={() => {}} />)
+    expect(screen.getByText('Review failed')).toBeInTheDocument()
   })
 })

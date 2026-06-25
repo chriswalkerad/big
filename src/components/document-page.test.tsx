@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, cleanup, fireEvent, waitFor, within } from '@testing-library/react'
 import type { Document, ReviewResult } from '@/types'
 import { createStorageRepository } from '@/lib/storage'
 import { DocumentPage } from './document-page'
@@ -75,11 +75,14 @@ describe('DocumentPage edit mode — submit flow', () => {
     const runReview = await screen.findByRole('button', { name: /run review/i })
     fireEvent.click(runReview)
 
-    // Verdict header appears in the drawer (the preview).
+    // Running a review auto-opens the detail panel, where the verdict header appears
+    // (the preview). The verdict label + count also echo in the minimal strip, so scope
+    // these assertions to the review-results region.
+    const region = await screen.findByRole('region', { name: 'Review results' })
     await waitFor(() => {
-      expect(screen.getByText('Needs work')).toBeInTheDocument()
+      expect(within(region).getByText('Needs work')).toBeInTheDocument()
     })
-    expect(screen.getByText('1 of 6 need attention')).toBeInTheDocument()
+    expect(within(region).getByText('1 of 6 need attention')).toBeInTheDocument()
 
     // The preview did NOT submit: still draft, no snapshot, title/subtype untouched.
     const previewed = createStorageRepository().getDocument('doc-test')
@@ -132,12 +135,39 @@ describe('DocumentPage edit mode — submit flow', () => {
     seedDoc()
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
 
-    // The drawer shows metadata + Run review, but NO verdict / flag count / empty
-    // placeholder / review region until a review exists.
+    // The page shows the title/meta + Run review, but NO verdict / flag count / empty
+    // placeholder / review strip / review region until a review exists.
     await screen.findByRole('button', { name: /run review/i })
     expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Review summary' })).not.toBeInTheDocument()
     expect(screen.queryByText(/need attention/i)).not.toBeInTheDocument()
     expect(screen.queryByText('No review yet.')).not.toBeInTheDocument()
+  })
+
+  it('auto-opens the detail panel on Run review; the × collapses to the minimal strip', async () => {
+    seedDoc()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
+    )
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
+
+    // The detail panel auto-opens (its region is in the accessible tree, not inert).
+    const region = await screen.findByRole('region', { name: 'Review results' })
+    expect(within(region).getByText('Needs work')).toBeInTheDocument()
+
+    // The × collapses back to the minimal strip → the detail region leaves the a11y
+    // tree, while the slim strip keeps the verdict visible.
+    fireEvent.click(within(region).getByRole('button', { name: /close review details/i }))
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
+    })
+    const strip = screen.getByRole('region', { name: 'Review summary' })
+    expect(within(strip).getByText('Needs work')).toBeInTheDocument()
+
+    // "View N signals" on the strip re-opens the detail panel.
+    fireEvent.click(within(strip).getByRole('button', { name: /view \d+ signals/i }))
+    expect(await screen.findByRole('region', { name: 'Review results' })).toBeInTheDocument()
   })
 
   it('renders a typed error in the panel when the review fails (retryable)', async () => {
@@ -294,7 +324,9 @@ describe('DocumentPage version drift (edit mode)', () => {
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
     )
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
-    fireEvent.click(await screen.findByRole('button', { name: /resubmit/i }))
+    // A drifted (submitted) doc surfaces "Resubmit" both in the top action line and in
+    // the drift indicator; either runs the review preview. Click the first.
+    fireEvent.click((await screen.findAllByRole('button', { name: /resubmit/i }))[0])
 
     // Resubmit runs a preview — the snapshot is unchanged until confirmed.
     await waitFor(() => {
@@ -340,16 +372,21 @@ describe('DocumentPage read mode — reviewer actions', () => {
 
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="read" />)
 
-    await waitFor(() => {
-      expect(screen.getByText('Needs work')).toBeInTheDocument()
-    })
-    // The review lives in an inline region, not a dismissable bottom-sheet dialog.
-    expect(screen.getByRole('region', { name: 'Review results' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /dismiss results/i })).not.toBeInTheDocument()
-    // Reviewer status control is present.
+    // The minimal default: the snapshot verdict shows in the slim review strip.
+    const strip = await screen.findByRole('region', { name: 'Review summary' })
+    expect(within(strip).getByText('Needs work')).toBeInTheDocument()
+
+    // Reviewer status control is present in the top action line.
     expect(screen.getByRole('button', { name: /change review status/i })).toBeInTheDocument()
     // A copy-link affordance exists.
     expect(screen.getByRole('button', { name: /copy link/i })).toBeInTheDocument()
+
+    // Opening the detail panel reveals the full review region (not a dismissable
+    // bottom-sheet dialog), with the verdict header and signal rows.
+    fireEvent.click(within(strip).getByRole('button', { name: /view \d+ signals/i }))
+    const region = await screen.findByRole('region', { name: 'Review results' })
+    expect(within(region).getByText('Needs work')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /dismiss results/i })).not.toBeInTheDocument()
   })
 
   it('changes the reviewer status and persists it', async () => {

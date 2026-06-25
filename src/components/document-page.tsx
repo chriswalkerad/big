@@ -30,6 +30,8 @@ import {
 } from '@/lib/doc-page'
 import { cn } from '@/lib/utils'
 import { AppBreadcrumb } from '@/components/app-breadcrumb'
+import { Button } from '@/components/button'
+import { TopBar } from '@/components/top-bar'
 import { ContextChip } from '@/components/context-chip'
 import { StatusChip } from '@/components/status-chip'
 import { SubtypeChip } from '@/components/subtype-chip'
@@ -37,7 +39,7 @@ import { SubtypeSelect } from '@/components/subtype-select'
 import { ReviewerStatusControl } from '@/components/reviewer-status-control'
 import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
-import { ResultsPanel } from '@/components/results-panel'
+import { ResultsPanel, ReviewStrip } from '@/components/results-panel'
 import { FranchiseDetail } from '@/components/franchise-detail'
 import { SubmissionCelebration } from '@/components/celebration/submission-celebration'
 import { LoadingState } from '@/components/loading-state'
@@ -62,6 +64,12 @@ interface DocumentPageProps {
  *               read-only, with reviewer status actions and a copy-link.
  * Loads the doc/signals/project from StorageRepository on mount and persists every
  * mutation through it.
+ *
+ * Layout (Notion-minimal): a slim `<TopBar>` action line, then ONE continuous white
+ * page — a centered column holding the title, meta, a slim review strip (minimal
+ * default), and the borderless editor. The full review DETAIL lives in a panel that
+ * slides in from the right (bottom sheet on mobile), opened on demand or auto-opened
+ * when a review completes.
  */
 export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const isRead = mode === 'read'
@@ -76,8 +84,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // editor transactions (focus/selection churn) so they don't clear preview/decision
   // state. Kept as a ref so it tracks the latest value without re-render churn.
   const bodyRef = useRef('')
-  // The inline results panel (right column). Held so Run review can scroll the freshly
-  // revealed feedback into view while the editor + author text stay visible.
+  // The review detail panel (slide-in). Held so Run review can move focus into the
+  // freshly revealed feedback.
   const resultsPanelRef = useRef<HTMLElement | null>(null)
 
   const [loaded, setLoaded] = useState(false)
@@ -103,10 +111,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [franchiseOpen, setFranchiseOpen] = useState(false)
   // The GREENLIGHT celebration plays the instant a submission is confirmed.
   const [celebrating, setCelebrating] = useState(false)
-  // On narrow screens the drawer is collapsible (it stacks below the editor). Open by
-  // default so its metadata + review are visible; the toggle only exists below `lg`,
-  // where the fixed-drawer layout does not apply.
-  const [drawerOpen, setDrawerOpen] = useState(true)
+  // The expandable review detail panel. Minimal by default (false) — the slim strip
+  // is shown inline; the panel opens on demand ("View signals" / squiggle click) or
+  // auto-opens when a review completes (see runReview).
+  const [panelOpen, setPanelOpen] = useState(false)
 
   // Review-then-confirm preview: a freshly run review held for the author to read
   // BEFORE the doc is submitted. `pendingReview` is the result; `pendingBody` is the
@@ -160,6 +168,17 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
+
+  // When the detail panel opens, move focus into it so keyboard/SR users land on the
+  // freshly revealed review (and Esc-to-close has a sensible focus origin). The panel
+  // region is focusable via tabIndex={-1} on the ResultsPanel section's ref node.
+  useEffect(() => {
+    if (!panelOpen) return
+    const node = resultsPanelRef.current
+    if (node && typeof node.focus === 'function') {
+      node.focus({ preventScroll: true })
+    }
+  }, [panelOpen])
 
   // After load, render the existing snapshot's inline squiggles onto the canvas. This
   // is a DOM/external sync (no React state), and the editor handle initializes
@@ -215,8 +234,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [])
 
   // --- Read mode: render the snapshot, not the live body ---------------------
-  // The results panel reflects, in priority order: a pending preview review (edit mode,
-  // not yet confirmed), otherwise the submitted snapshot's review (computed on submit,
+  // The results reflect, in priority order: a pending preview review (edit mode, not
+  // yet confirmed), otherwise the submitted snapshot's review (computed on submit,
   // never live). Edits don't touch the snapshot; they clear the preview.
   const displayReview: ReviewResult | null =
     (!isRead && pendingReview) || snapshot?.review || null
@@ -233,9 +252,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   )
 
   // --- Bidirectional focus ---------------------------------------------------
-  // Squiggle click → focus the matching panel row (the row scrolls itself into view).
+  // Squiggle click → open the detail panel (if closed) and focus the matching row.
   const handleHighlightClick = useCallback((signalId: string) => {
     setFocusedSignalId(signalId)
+    setPanelOpen(true)
   }, [])
 
   // Panel phrase click → scroll to + emphasise the squiggle in the canvas.
@@ -262,8 +282,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [])
 
   // --- Apply prompt (AI rewrite) ---------------------------------------------
-  // The "Apply" button in the review summary hands the review's suggested prompt to an
-  // AI rewrite of the current body (POST /api/apply). The flow:
+  // The "Apply" affordance hands the review's suggested prompt to an AI rewrite of the
+  // current body (POST /api/apply). The flow:
   //   1. capture the CURRENT body as `preApplyBody` (so Discard can restore it),
   //   2. flip `applying` → editor overlay (dim scrim + "Rewriting…") + non-editable,
   //   3. on success: replace the canvas with the rewritten text and enter
@@ -353,42 +373,28 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     )
   }, [preApplyBody, snapshot, inlineIds])
 
-  // --- Run review auto-scroll ------------------------------------------------
-  // Bring the right-side results panel into view when a review run begins / lands, so
-  // feedback no longer hides behind a bottom sheet — the editor + the author's text
-  // stay visible while they read. On desktop the panel is sticky beside the editor, so
-  // this matters most on narrow screens where the panel sits below the editor.
-  const scrollResultsIntoView = useCallback(() => {
-    const el = resultsPanelRef.current
-    if (el && typeof el.scrollIntoView === 'function') {
-      el.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
-    }
-  }, [])
-
   // --- Review preview (step 1 of review-then-confirm) ------------------------
-  // The edit-mode primary action (button / Resubmit / Cmd+Enter) runs the AI review of
-  // the current body and shows it in the right panel with inline squiggles, but DOES NOT
-  // submit: no snapshot, no status change, no prefill. The result is held as a pending
-  // preview for the author to read; they may edit (which clears the preview) and re-run,
-  // or confirm to commit. The submit transition itself lives in `confirmSubmission`.
+  // The edit-mode primary action (Run review / Resubmit / Cmd+Enter) runs the AI review
+  // of the current body and shows it with inline squiggles, but DOES NOT submit: no
+  // snapshot, no status change, no prefill. The result is held as a pending preview for
+  // the author to read; they may edit (which clears the preview) and re-run, or confirm
+  // to commit. The submit transition itself lives in `confirmSubmission`.
   const runReview = useCallback(async () => {
     const current = doc
     if (!repoRef.current || !current || !project) return
     // `body` is already PLAIN text — send it as-is (htmlToText here would double-decode).
     const text = body
-    // Ensure the (mobile-collapsible) drawer is open so the result is actually visible.
-    setDrawerOpen(true)
     setReviewError(null)
     setReviewLoading(true)
     setFocusedSignalId(null)
-    // Reveal the panel's loading state immediately (next frame, after it mounts/paints).
-    requestAnimationFrame(scrollResultsIntoView)
+    // Auto-open the detail panel so the run's loading state — then the result — is
+    // visible the moment it lands.
+    setPanelOpen(true)
 
     const result = await requestReview({ text, project, signals })
     if (!result.ok) {
       setReviewError(result.error)
       setReviewLoading(false)
-      requestAnimationFrame(scrollResultsIntoView)
       return
     }
 
@@ -397,12 +403,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     // Hold the preview (result + exact reviewed body); nothing is committed yet.
     setPendingReview(review)
     setPendingBody(text)
-    // Keep the feedback in view now that the verdict + rows have rendered.
-    requestAnimationFrame(scrollResultsIntoView)
 
     // Render inline squiggles for the previewed body.
     canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
-  }, [body, doc, project, signals, inlineIds, scrollResultsIntoView])
+  }, [body, doc, project, signals, inlineIds])
 
   // --- Confirm submission (step 2 of review-then-confirm) --------------------
   // Commit the pending preview: build the working doc from live fields with the exact
@@ -441,6 +445,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setFocusedSignalId(null)
     setPendingReview(null)
     setPendingBody(null)
+    setPanelOpen(false)
     canvasRef.current?.setSignalHighlights([])
     commitDoc(applyUnsubmit(current))
   }, [doc, commitDoc])
@@ -499,10 +504,14 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setApplyError((prev) => (prev ? null : prev))
   }, [])
 
-  // --- Keyboard: Cmd/Ctrl+Enter = Submit (edit mode) -------------------------
+  // --- Keyboard: Cmd/Ctrl+Enter = Run review; Esc = close panel --------------
   useEffect(() => {
-    if (isRead) return
     function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape' && panelOpen) {
+        setPanelOpen(false)
+        return
+      }
+      if (isRead) return
       if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
         e.preventDefault()
         // Don't kick off a review while one is running, while an AI rewrite is in flight,
@@ -512,7 +521,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [isRead, reviewLoading, applying, awaitingDecision, runReview])
+  }, [isRead, reviewLoading, applying, awaitingDecision, runReview, panelOpen])
 
   // --- Render guards ---------------------------------------------------------
   if (!loaded) {
@@ -532,241 +541,200 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const reviewUrl = `/p/${projectId}/d/${docId}/review`
   const audienceShort = shortAudience(project.audience)
 
+  // There is review content to surface (a settled review, an in-flight run, or an
+  // error) → the slim strip renders, and the detail panel may be opened.
+  const hasReviewContent = Boolean(displayReview || reviewLoading || reviewError)
+
   return (
-    <div className="document-page flex flex-col gap-4">
-      {/* Sticky breadcrumb — sits just under the h-14 app header over the app-canvas bg,
-          so page navigation stays put while the editor and drawer scroll. The breadcrumb
-          component itself is restyled by a sibling agent; we only own this sticky bar. */}
-      <div className="sticky top-14 z-30 bg-app-canvas py-2">
-        <AppBreadcrumb
-          segments={[
-            { label: project.name, href: `/p/${projectId}` },
-            { label: title || 'Untitled', current: true },
-          ]}
-          className="min-w-0"
-        />
-      </div>
-
-      {/* On `lg+` the metadata + review live in a single FIXED drawer pinned to the right
-          of the content column; the editor column (`.document-main-col`) reserves right
-          margin so nothing overlaps. Below `lg` the drawer returns to normal flow and
-          stacks below the editor (collapsible). */}
-      <div className="flex flex-col gap-4">
-        {/* LEFT — the writing surface. A "paper on a desk": the gray desk frames a white
-            paper sheet, now rendered as stacked page sheets (editor.css) so long content
-            visually breaks across pages. The desk/paper backgrounds are theme-aware
-            tokens (.document-desk / .document-paper). Applied to edit and read alike. */}
-        <div
-          ref={editorContainerRef}
-          className="document-main-col document-desk order-1 rounded-card p-4 sm:p-6"
-        >
-          <div className="document-paper document-paper--pages relative mx-auto rounded-card border border-border p-6 shadow-lg sm:p-8">
-            <DocumentCanvas
-              ref={canvasRef}
-              mode={mode}
-              // Lock the surface while an AI rewrite is in flight.
-              editable={isRead ? false : !applying}
-              content={initialContent}
-              onChange={isRead ? undefined : handleBodyChange}
-              onHighlightClick={handleHighlightClick}
-            />
-
-            {/* AI-rewrite in-flight scrim: dims the paper with a spinner + "Rewriting…".
-                The editor is also made non-editable while `applying` (see DocumentCanvas
-                `editable`). */}
-            {applying ? (
-              <div
-                className="document-apply-overlay"
-                role="status"
-                aria-live="polite"
-                aria-label="Rewriting"
+    // Break OUT of the app shell's centered max-w-5xl so the page is a continuous
+    // full-bleed white surface with its own slim TopBar action line.
+    <div className="mx-[calc(50%-50vw)] -my-6 flex min-h-[calc(100vh-46px)] flex-col bg-bg">
+      <TopBar
+        breadcrumb={
+          <AppBreadcrumb
+            segments={[
+              { label: project.name, href: `/p/${projectId}` },
+              { label: title || 'Untitled', current: true },
+            ]}
+            className="min-w-0"
+          />
+        }
+        actions={
+          <>
+            {!isRead ? (
+              <Button
+                variant="ink"
+                onClick={() => void runReview()}
+                disabled={reviewLoading}
+                aria-busy={reviewLoading ? true : undefined}
               >
-                <Loader2 className="size-6 animate-spin text-text-secondary" aria-hidden="true" />
-                <span className="text-label-sm font-medium text-text-primary">Rewriting…</span>
-              </div>
-            ) : null}
-
-            {/* Accept / Discard the AI rewrite. Shown after a successful Apply until the
-                author decides (or edits). Accept keeps the rewrite; Discard restores the
-                exact pre-apply body. */}
-            {awaitingDecision ? (
-              <div
-                role="group"
-                aria-label="Review the rewrite"
-                className={cn(
-                  'absolute inset-x-3 bottom-3 z-10 flex flex-wrap items-center justify-between gap-2',
-                  'rounded-card border border-border bg-surface px-3 py-2 shadow-lg',
+                {reviewLoading ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="size-3.5 text-accent" aria-hidden="true" />
                 )}
-              >
-                <span className="text-label-sm text-text-secondary">
-                  Rewrite applied — keep it?
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={discardRewrite}
-                    className={cn(
-                      'inline-flex h-8 items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-label-sm text-text-secondary',
-                      'transition-colors hover:bg-panel hover:text-text-primary',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-                    )}
-                  >
-                    <X className="size-3.5" aria-hidden="true" />
-                    Discard
-                  </button>
-                  <button
-                    type="button"
-                    onClick={acceptRewrite}
-                    className={cn(
-                      'inline-flex h-8 items-center gap-1.5 rounded-control bg-accent px-2.5 text-label-sm font-medium text-bg',
-                      'transition-[transform,opacity] hover:opacity-90 active:scale-[0.98]',
-                      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-                    )}
-                  >
-                    <Check className="size-3.5" aria-hidden="true" />
-                    Accept
-                  </button>
-                </div>
-              </div>
-            ) : null}
-          </div>
+                {reviewLoading ? 'Reviewing…' : status === 'draft' ? 'Run review' : 'Resubmit'}
+              </Button>
+            ) : (
+              <>
+                <ReviewerStatusControl
+                  status={status}
+                  routing={routing}
+                  onStatusChange={handleReviewerStatus}
+                  onApprove={handleApprove}
+                />
+                <CopyLinkButton url={reviewUrl} />
+              </>
+            )}
+          </>
+        }
+      />
 
-          {/* A failed rewrite surfaces a typed error below the paper (never silent). */}
-          {applyError ? (
-            <div className="mx-auto mt-3 max-w-3xl">
-              <ErrorState error={applyError} title="Rewrite failed" />
+      {/* The continuous white page — one centered reading column. */}
+      <div
+        ref={editorContainerRef}
+        className="document-page-column flex w-full flex-col gap-5 px-5 py-8 sm:px-6 sm:py-12"
+      >
+        {/* Title — the largest text on the page; it reads first. Edit mode is a
+            borderless large-text input; a clear placeholder signals it's editable. */}
+        {isRead ? (
+          <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
+        ) : (
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => persist({ title })}
+            placeholder="Untitled — add a title"
+            aria-label="Title"
+            className={cn(
+              'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
+              'focus:outline-none',
+            )}
+          />
+        )}
+
+        {/* Subtype + a calm meta line (project · audience · status). */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
+          {isRead ? (
+            <SubtypeChip subtype={subtype} />
+          ) : (
+            <SubtypeSelect
+              value={subtype}
+              onChange={(next) => {
+                if (doc) {
+                  commitDoc(
+                    applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next),
+                  )
+                }
+              }}
+            />
+          )}
+          <span aria-hidden="true" className="text-text-tertiary">·</span>
+          <ContextChip name={project.name} audience={audienceShort} />
+          <span aria-hidden="true" className="text-text-tertiary">·</span>
+          <StatusChip status={status} />
+          {isRead && routing ? <RoutedNote destination={routing} /> : null}
+        </div>
+
+        {/* Drift indicator (edit mode) — the live body differs from the snapshot. */}
+        {drift ? (
+          <DriftIndicator
+            busy={reviewLoading}
+            onResubmit={() => void runReview()}
+            onUnsubmit={handleUnsubmit}
+          />
+        ) : null}
+
+        {/* Slim review strip — the minimal default. Renders NOTHING until a review
+            exists / is running / errored; "View N signals" opens the detail panel. */}
+        <ReviewStrip
+          loading={reviewLoading}
+          error={reviewError}
+          review={displayReview}
+          onView={() => setPanelOpen(true)}
+          onApplyPrompt={isRead ? undefined : handleApplyPrompt}
+          applying={applying}
+        />
+
+        {/* The borderless writing surface. */}
+        <div className="relative">
+          <DocumentCanvas
+            ref={canvasRef}
+            mode={mode}
+            // Lock the surface while an AI rewrite is in flight.
+            editable={isRead ? false : !applying}
+            content={initialContent}
+            onChange={isRead ? undefined : handleBodyChange}
+            onHighlightClick={handleHighlightClick}
+          />
+
+          {/* AI-rewrite in-flight scrim: dims the column with a spinner + "Rewriting…".
+              The editor is also made non-editable while `applying`. */}
+          {applying ? (
+            <div
+              className="document-apply-overlay"
+              role="status"
+              aria-live="polite"
+              aria-label="Rewriting"
+            >
+              <Loader2 className="size-6 animate-spin text-text-secondary" aria-hidden="true" />
+              <span className="text-label-sm font-medium text-text-primary">Rewriting…</span>
             </div>
           ) : null}
 
-          {/* Mobile-only toggle for the stacked drawer (the fixed layout takes over at lg). */}
-          <button
-            type="button"
-            onClick={() => setDrawerOpen((v) => !v)}
-            aria-expanded={drawerOpen}
-            className={cn(
-              'mt-4 inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-control border border-border bg-surface px-3 text-label-sm text-text-secondary lg:hidden',
-              'transition-colors hover:bg-panel hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-            )}
-          >
-            {drawerOpen ? 'Hide details & review' : 'Show details & review'}
-          </button>
+          {/* Accept / Discard the AI rewrite. Shown after a successful Apply until the
+              author decides (or edits). Accept keeps the rewrite; Discard restores the
+              exact pre-apply body. */}
+          {awaitingDecision ? (
+            <div
+              role="group"
+              aria-label="Review the rewrite"
+              className={cn(
+                'sticky bottom-3 z-10 mt-3 flex flex-wrap items-center justify-between gap-2',
+                'rounded-card border border-border bg-surface px-3 py-2 shadow-lg',
+              )}
+            >
+              <span className="text-label-sm text-text-secondary">
+                Rewrite applied — keep it?
+              </span>
+              <div className="flex items-center gap-2">
+                <Button variant="default" onClick={discardRewrite}>
+                  <X className="size-3.5" aria-hidden="true" />
+                  Discard
+                </Button>
+                <Button variant="ink" onClick={acceptRewrite}>
+                  <Check className="size-3.5" aria-hidden="true" />
+                  Accept
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
 
-        {/* THE DRAWER — one bordered surface: metadata (top), divider, then review. On
-            lg it is FIXED to the right with an internally scrolling body; below lg it
-            stacks here and is collapsible via the toggle above. */}
-        <aside
-          aria-label="Document details and review"
-          className={cn(
-            'document-drawer order-2 rounded-card border border-border bg-surface',
-            !drawerOpen && 'hidden lg:flex',
-          )}
-        >
-          <div className="document-drawer-scroll flex flex-col">
-            {/* Metadata + controls. */}
-            <div className="flex flex-col gap-3 p-4">
-              {/* Title — at the TOP of the panel: it's the document's name, so it reads
-                  first. Edit mode is a borderless large-text input; a clear placeholder
-                  signals it's editable. The subtype sits just under it. */}
-              <div className="flex flex-col gap-2">
-                {isRead ? (
-                  <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
-                ) : (
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    onBlur={() => persist({ title })}
-                    placeholder="Untitled — add a title"
-                    aria-label="Title"
-                    className={cn(
-                      'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
-                      'focus:outline-none',
-                    )}
-                  />
-                )}
-                <div className="flex items-center gap-2">
-                  {isRead ? (
-                    <SubtypeChip subtype={subtype} />
-                  ) : (
-                    <SubtypeSelect
-                      value={subtype}
-                      onChange={(next) => {
-                        if (doc) {
-                          commitDoc(
-                            applyManualSubtype({ ...doc, title, body, subtype, subtypeSource }, next),
-                          )
-                        }
-                      }}
-                    />
-                  )}
-                </div>
-              </div>
+        {/* A failed rewrite surfaces a typed error below the column (never silent). */}
+        {applyError ? <ErrorState error={applyError} title="Rewrite failed" /> : null}
+      </div>
 
-              <div className="border-t border-border" />
-
-              <ContextChip
-                name={project.name}
-                audience={audienceShort}
-                className="self-start"
-              />
-
-              <div className="flex flex-wrap items-center gap-2">
-                {isRead ? (
-                  <ReviewerStatusControl
-                    status={status}
-                    routing={routing}
-                    onStatusChange={handleReviewerStatus}
-                    onApprove={handleApprove}
-                  />
-                ) : (
-                  <StatusChip status={status} />
-                )}
-                {isRead ? <CopyLinkButton url={reviewUrl} /> : null}
-              </div>
-
-              {isRead && routing ? <RoutedNote destination={routing} /> : null}
-
-              {!isRead ? (
-                <button
-                  type="button"
-                  onClick={() => void runReview()}
-                  disabled={reviewLoading}
-                  className={cn(
-                    'inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-control bg-accent px-3 text-label-sm font-medium text-bg',
-                    'transition-[transform,opacity] hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:active:scale-100',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
-                  )}
-                >
-                  {reviewLoading ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Sparkles className="size-3.5" aria-hidden="true" />
-                  )}
-                  {reviewLoading ? 'Reviewing…' : 'Run review'}
-                </button>
-              ) : null}
-
-              {/* Drift indicator (edit mode). */}
-              {drift ? (
-                <DriftIndicator
-                  busy={reviewLoading}
-                  onResubmit={() => void runReview()}
-                  onUnsubmit={handleUnsubmit}
-                />
-              ) : null}
-            </div>
-
-            {/* Divider between the metadata block and the review section. The review
-                section (ResultsPanel) renders NOTHING until there is a review, a run in
-                flight, or an error — so the divider only reads as a seam once feedback
-                exists. */}
-            {displayReview || reviewLoading || reviewError ? (
-              <div className="border-t border-border" />
-            ) : null}
-
-            {/* Review section — the second half of the single drawer. */}
+      {/* The expandable review DETAIL panel — slides in from the right (bottom sheet on
+          mobile). Mounted whenever there is review content so it can animate in/out; a
+          scrim sits behind it while open. The ResultsPanel inside renders nothing until
+          there is content, so an empty mount is inert. */}
+      {hasReviewContent ? (
+        <>
+          {panelOpen ? (
+            <div
+              className="review-scrim review-scrim--open"
+              aria-hidden="true"
+              onClick={() => setPanelOpen(false)}
+            />
+          ) : null}
+          <div
+            className={cn('review-panel', panelOpen && 'review-panel--open')}
+            // Keep the closed panel out of the tab order / a11y tree (React 19 `inert`).
+            aria-hidden={panelOpen ? undefined : true}
+            inert={!panelOpen}
+          >
             <ResultsPanel
               ref={resultsPanelRef}
               loading={reviewLoading}
@@ -781,10 +749,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               onFranchiseClick={() => setFranchiseOpen(true)}
               onApplyPrompt={isRead ? undefined : handleApplyPrompt}
               applying={applying}
+              onClose={() => setPanelOpen(false)}
             />
           </div>
-        </aside>
-      </div>
+        </>
+      ) : null}
 
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
 

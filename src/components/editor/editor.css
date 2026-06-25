@@ -1,65 +1,34 @@
-/* Document page geometry tokens.
+/* Document page geometry + writing-surface styles.
  *
- * `--page-height` is the visual height of one "page sheet" (~US Letter at the document
- * type scale); `--page-gap` is the desk-colored gutter drawn between stacked sheets.
- * Both are layout values (not colors), so they live with the editor layer rather than
- * the color-token file. Content stays a SINGLE Tiptap document — these only drive the
- * page-break ILLUSION (a repeating background + a divider per page boundary); no nodes
- * are split, so squiggles and selection are unaffected. */
+ * The document page is ONE continuous, borderless white page (no gray desk, no paper
+ * card, no page-break sheets): a centered reading column on the plain page background.
+ * Layout values (column measure, gutters, panel width) live here; all colors come from
+ * the design tokens (referenced, never defined). */
+
 :root {
-  --page-height: 1056px; /* ~11in at 96dpi — one Letter sheet */
-  --page-width: 816px; /* ~8.5in at 96dpi — one Letter sheet width */
-  --page-gap: 28px;
+  /* The centered writing column — the hero of the page. */
+  --doc-column: 720px;
+  /* The slide-in review detail panel. */
+  --review-panel-width: 380px;
 }
 
-/* "Paper on a desk" surfaces.
- *
- * The neutral token scale flips elevation between themes: in light, `bg` (#fff) is the
- * brightest page and `surface`/`panel` are progressively grayer/recessed; in dark, `bg`
- * (#0a0a0a) is the darkest base and `surface`/`panel` are progressively lighter/elevated.
- * No single token reads as "paper" in both themes, so we key the right token off `.dark`
- * here (still token-only — no literal colors):
- *   - .document-desk  → the surrounding desk: grayer-than-paper in light, darker-than-
- *                        paper in dark, so the sheet always stands out.
- *   - .document-paper → the sheet: pure white in light, the elevated surface in dark. */
-
-.document-desk {
-  background-color: var(--panel);
-}
-
-.dark .document-desk {
-  background-color: var(--bg);
-}
-
-.document-paper {
-  background-color: var(--bg);
-}
-
-.dark .document-paper {
-  background-color: var(--surface);
-}
-
-/* Document content surface ("the paper").
+/* Writing surface ("the page").
  *
  * `.document-canvas` is the EditorContent wrapper; `.document-canvas-prose` is the
- * ProseMirror editable element. The paper look (background, shadow, rounded corners,
- * border, padding) lives on the container in document-page.tsx via tokens; here we
- * only shape the writing surface: a tall, page-like sheet whose content uses the
- * document body type scale and a comfortable reading measure, with the caret resting
- * at the top. All values are token-driven — no literal colors. */
+ * ProseMirror editable element. The page is borderless and shares the page background
+ * — the writing itself is the surface. Content uses the document body type scale and a
+ * comfortable reading measure, with the caret resting at the top. Token-driven only. */
 
 .document-canvas {
   display: flex;
   flex-direction: column;
-  min-height: var(--page-height);
 }
 
 .document-canvas-prose {
   flex: 1 1 auto;
-  /* Fill the sheet so the whole paper is a click target and the caret sits at the
-     top on an empty document, like a fresh page. */
-  min-height: var(--page-height);
-  max-width: var(--measure-doc);
+  /* A tall minimum so a fresh/empty document still reads as a generous page and the
+     whole area is a click target, without simulating fixed paper sheets. */
+  min-height: 60vh;
   font-size: var(--font-size-doc-body);
   line-height: var(--line-height-doc-body);
   font-weight: var(--font-weight-doc-body);
@@ -102,9 +71,6 @@
   text-decoration-skip-ink: none;
   cursor: pointer;
   border-radius: 2px;
-  /* Hover affordance (EPIC 15): the wavy line thickens and a faint severity-
-     toned wash appears, so flagged phrases read as interactive. The native
-     `title` (set on the decoration) still provides the rationale tooltip. */
   transition:
     text-decoration-thickness 120ms ease-out,
     background-color 120ms ease-out;
@@ -131,56 +97,24 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Page sheets (visual pagination).
+   Continuous document page.
 
-   The paper renders as STACKED page sheets: every `--page-height` down the sheet a
-   faint measured divider + a soft shadow mark a page boundary, so content that runs
-   past one page visually breaks onto a new page below. This is a pure overlay on a
-   `::after` pseudo-element of `.document-paper`: it never touches the editor DOM, so
-   the document stays one Tiptap doc — no node reflow, and squiggles + selection are
-   unaffected. The repeat is keyed to the page geometry tokens and uses only neutral
-   color tokens (mixed for subtlety). The pseudo-element is non-interactive.
+   The whole page is one white column centered on the page background. The editor,
+   the title, the meta line and the slim review strip all live in this column.
 --------------------------------------------------------------------------- */
 
-.document-paper {
-  position: relative;
-  /* The sheet is exactly one page wide (pairs with --page-height) and never wider; it
-     shrinks to fit a narrower column rather than overflow. */
-  width: var(--page-width);
-  max-width: 100%;
-}
-
-.document-paper--pages::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  border-radius: inherit;
-  /* A 1px divider line at the bottom of each page sheet, repeated every page. The
-     first boundary sits one page down; the gradient paints transparent up to the
-     boundary, then a hairline of bordered + shadowed tone, then transparent again. */
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent calc(var(--page-height) - 2px),
-    color-mix(in oklab, var(--border) 70%, transparent) calc(var(--page-height) - 2px),
-    color-mix(in oklab, var(--border) 70%, transparent) calc(var(--page-height) - 1px),
-    /* a soft "gutter" band reading as the gap to the next sheet */
-    color-mix(in oklab, var(--text-primary) 6%, transparent) calc(var(--page-height) - 1px),
-    color-mix(in oklab, var(--text-primary) 6%, transparent) var(--page-height),
-    transparent var(--page-height),
-    transparent calc(var(--page-height) + var(--page-gap))
-  );
-  background-size: 100% calc(var(--page-height) + var(--page-gap));
+.document-page-column {
+  width: 100%;
+  max-width: var(--doc-column);
+  margin-inline: auto;
 }
 
 /* ---------------------------------------------------------------------------
    Apply ("Rewriting…") overlay.
 
-   While an AI rewrite is in flight the paper is dimmed by a scrim with a centered
-   spinner + label, and the editor is made non-editable by the page. The scrim is a
-   neutral token wash so it adapts to light/dark; it sits above the prose but its label
-   text uses the primary text token for legibility.
+   While an AI rewrite is in flight the writing column is dimmed by a scrim with a
+   centered spinner + label, and the editor is made non-editable by the page. The
+   scrim is a neutral token wash so it adapts to light/dark.
 --------------------------------------------------------------------------- */
 
 .document-apply-overlay {
@@ -192,71 +126,97 @@
   align-items: center;
   justify-content: center;
   gap: var(--space-3);
-  border-radius: inherit;
+  border-radius: var(--radius-card);
   background-color: color-mix(in oklab, var(--bg) 64%, transparent);
   backdrop-filter: blur(1px);
 }
 
 /* ---------------------------------------------------------------------------
-   Document drawer (right-side metadata + review).
+   Review detail panel (slide-in).
 
-   On large screens the drawer is FIXED to the right of the centered content column,
-   spanning from just below the sticky h-14 header to the viewport bottom; its body
-   scrolls internally (the page/window does not scroll it). The editor column reserves
-   right margin equal to the drawer width + gap so nothing overlaps. Below `lg` the
-   drawer returns to normal flow and stacks below the editor (no overlap, togglable).
-   Widths/offsets are layout values (rem / viewport units); colors stay on tokens via
-   the Tailwind classes applied in the JSX.
+   The expandable review detail is a panel that slides in from the right on `lg+`
+   (a fixed full-height column flush to the viewport's right edge) and as a bottom
+   sheet / near-full overlay below `lg`. It is shown on demand ("View signals") or
+   auto-opened when a review completes. A backdrop scrim sits behind it.
+
+   Motion: ~270ms transform/opacity, composed with the global reduced-motion rule
+   in globals.css (which neutralizes long transitions). The panel mounts hidden and
+   animates open via the `--open` modifier toggled by React.
 --------------------------------------------------------------------------- */
 
-.document-page {
-  --drawer-width: 440px;
-  --drawer-gap: 24px;
-  --page-gutter: 1.5rem;
-  --app-header-height: 3.5rem; /* matches the h-14 app header */
+.review-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background-color: color-mix(in oklab, var(--text-primary) 28%, transparent);
+  opacity: 0;
+  transition: opacity 270ms ease-out;
 }
 
+.review-scrim--open {
+  opacity: 1;
+}
+
+.review-panel {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--surface);
+  overflow: hidden;
+  transition: transform 270ms cubic-bezier(0.32, 0.72, 0, 1);
+  will-change: transform;
+}
+
+/* The panel's own scroll region (header + body scroll; footer is sticky inside). */
+.review-panel-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+}
+
+/* --- Mobile (default): bottom sheet ------------------------------------- */
+.review-panel {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: 88vh;
+  border-top: 1px solid var(--border);
+  border-top-left-radius: var(--radius-card);
+  border-top-right-radius: var(--radius-card);
+  box-shadow: 0 -10px 30px -16px color-mix(in oklab, var(--text-primary) 30%, transparent);
+  transform: translateY(100%);
+}
+
+.review-panel--open {
+  transform: translateY(0);
+}
+
+/* --- Desktop (lg+): right-side slide-in column -------------------------- */
 @media (min-width: 1024px) {
-  /* Break the doc page OUT of the app-shell's centered max-w-5xl so it uses the full
-     viewport: a page-sized editor on the left AND a full-height drawer ANCHORED flush to
-     the viewport's right edge. The right padding reserves the drawer's column (+ a gap)
-     so the editor + breadcrumb never slide under it; the left keeps a gutter. */
-  .document-page {
-    margin-left: calc(50% - 50vw);
-    margin-right: calc(50% - 50vw);
-    padding-left: var(--page-gutter);
-    padding-right: calc(var(--drawer-width) + var(--drawer-gap));
-  }
-
-  .document-main-col {
-    /* The page padding already reserves the drawer column. */
-    margin-right: 0;
-  }
-
-  /* A full-height side panel flush to the right edge — flush top (below the header),
-     right and bottom — reading as a frame that slides in from the side, not a floating
-     card. The mobile card border/rounding is overridden here (higher specificity than
-     the Tailwind utilities on the element) with a single left border + soft left shadow. */
-  .document-page .document-drawer {
-    position: fixed;
-    top: var(--app-header-height);
+  .review-panel {
+    top: 0;
     right: 0;
     bottom: 0;
-    width: var(--drawer-width);
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden; /* the inner body owns the scroll */
-    border: 0;
+    left: auto;
+    width: var(--review-panel-width);
+    max-height: none;
+    border-top: 0;
     border-left: 1px solid var(--border);
     border-radius: 0;
     box-shadow: -10px 0 30px -16px color-mix(in oklab, var(--text-primary) 22%, transparent);
+    transform: translateX(100%);
   }
 
-  /* The inner scroll region: fills the fixed drawer and scrolls its own content. */
-  .document-drawer-scroll {
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow-y: auto;
+  .review-panel--open {
+    transform: translateX(0);
+  }
+}
+
+/* Honor reduce-motion: snap open/closed with no slide (opacity/visibility only). */
+@media (prefers-reduced-motion: reduce) {
+  .review-scrim,
+  .review-panel {
+    transition: none !important;
   }
 }
