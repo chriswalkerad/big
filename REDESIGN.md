@@ -51,6 +51,20 @@ studio exec would be delighted to use.
 - ✅ **B · Library + home:** `feat/redesign-library` @ 267fcb7 — hairline doc rows on white + `TopBar`
 - ✅ **C · Settings + shared dialogs:** `feat/redesign-settings` @ e169571 — signal admin + dialogs minimal
 
+## 🔁 Round 2 — post-QA feedback ✅ DONE (all merged → qa/redesign @ 2798e24, 350 tests, build green)
+- ✅ **Inline panel (not modal):** in-flow side panel the editor reflows around — scrim gone, editor
+  stays interactive. `feat/panel-inline`
+- ✅ **Removed GREENLIGHT celebration** (files deleted). `feat/panel-inline`
+- ✅ **Library TopBar flush** to viewport top. `feat/library-flush`
+- ✅ **Typography → system-first font** (San Francisco on macOS) + 36px title, matching the mockup.
+- ✅ **Owner/reviewer** — `Project.owner` + `Document.reviewer: Person`, real Big Shot creative roster
+  (`src/lib/people.ts`), shown on doc + library rows, + **reviewer-picker step at submission**
+  (`feat/people-model` + `feat/owner-reviewer-ui`)
+- ✅ **Scores 0→100** — x/10 → 0–100 (a 5/10 = 50) across schema / providers / seed / thresholds /
+  severity / display; verdict rules intact. `feat/score-100`
+- 🔎 **Badge sizes** — verify the oversized "Needs attention" badge at QA (agents found verdict +
+  scope badges already share classes; likely a different element).
+
 ## 🔭 Follow-ups (not blocking QA)
 - ⬜ Playwright e2e (`submit.spec`, `drawer-dismiss.spec`) still target the OLD drawer/breadcrumb —
   rewrite for the new TopBar + slide-in panel (separate `test:e2e`, not in the tsc/lint/vitest gate).
