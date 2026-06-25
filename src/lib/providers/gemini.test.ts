@@ -26,11 +26,11 @@ describe('GeminiProvider prompt building', () => {
     expect(sys).toContain('not_ready')
   })
 
-  it('asks for an overall summary and a paste-ready suggested prompt', () => {
+  it('asks for an overall summary and a ready-to-use suggested prompt with no placeholder', () => {
     const sys = buildSystemInstruction(input)
     expect(sys).toContain('"summary"')
     expect(sys).toContain('"suggestedPrompt"')
-    expect(sys.toLowerCase()).toContain('paste')
+    expect(sys.toLowerCase()).not.toContain('[paste your text here]')
   })
 
   it('prompt embeds the concept text and every signal as a labeled criterion', () => {

@@ -63,8 +63,9 @@ describe("TopBar", () => {
 
     const settings = screen.getByRole("menuitem", { name: /settings/i });
     expect(settings).toHaveAttribute("href", "/settings/signals");
+    // Theme is now a sibling "<icon> Theme" menuitem (same style as Settings).
     expect(
-      await screen.findByRole("button", { name: /switch to (light|dark) theme/i }),
+      await screen.findByRole("menuitem", { name: /switch to (light|dark) theme/i }),
     ).toBeInTheDocument();
   });
 });

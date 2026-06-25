@@ -464,17 +464,17 @@ function buildSummary(
     summary =
       'This reads as ready — every signal is at or above its threshold. Give it a final proofread for tone and consistency before you submit.'
     suggestedPrompt =
-      'Lightly polish the following creative concept for tone and clarity without changing its meaning, audience, or any specific details. Keep it family-appropriate and on-brand:\n\n[paste your text here]'
+      'Lightly polish the following creative concept for tone and clarity without changing its meaning, audience, or any specific details. Keep it family-appropriate and on-brand:'
   } else if (brandSafety) {
     const others = focusNames.filter((n) => n !== signalLabel(brandSafety.def))
     const tail = others.length > 0 ? ` Also tighten ${joinNames(others)}.` : ''
     summary = `Brand Safety is below threshold, so this isn't ready as written — rewrite or remove the unsafe content before resubmitting.${tail}`
     suggestedPrompt =
-      'Rewrite the following creative concept to be fully family-safe and on-brand for the target audience. Remove or replace any violent, scary, mature, or off-brand content while preserving the core premise and the parts that work. Return only the revised concept:\n\n[paste your text here]'
+      'Rewrite the following creative concept to be fully family-safe and on-brand for the target audience. Remove or replace any violent, scary, mature, or off-brand content while preserving the core premise and the parts that work. Return only the revised concept:'
   } else {
     const verb = verdict.label === 'not_ready' ? 'needs significant work' : 'needs some work'
     summary = `This ${verb}: ${joinNames(focusNames)} ${focusNames.length === 1 ? 'is' : 'are'} below threshold. Revise ${focusNames.length === 1 ? 'that area' : 'those areas'} and resubmit.`
-    suggestedPrompt = `Revise the following creative concept to strengthen ${joinNames(focusNames)}. Be concrete and specific, keep the audience and format intact, and stay on-brand. Return only the revised concept:\n\n[paste your text here]`
+    suggestedPrompt = `Revise the following creative concept to strengthen ${joinNames(focusNames)}. Be concrete and specific, keep the audience and format intact, and stay on-brand. Return only the revised concept:`
   }
 
   return { summary, suggestedPrompt }

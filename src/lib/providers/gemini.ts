@@ -97,7 +97,7 @@ export function buildSystemInstruction(input: ReviewInput): string {
     '- Brand-safety issues use severity "risk"; clarity/other inline issues use severity "minor".',
     '- "flagCount" is the number of signals scoring below their threshold. Verdict: "looks_ready" if none are below threshold; "not_ready" if any Brand Safety signal is below threshold OR 4+ signals are flagged; otherwise "needs_work".',
     '- "summary": a 1-3 sentence plain-language overview of what the author should do next. Reference the lowest-scoring signals and call out any brand-safety risk specifically. Be concrete and actionable.',
-    '- "suggestedPrompt": a ready-to-paste prompt the author can give an AI to revise their text in line with this review. Target the weakest signals, instruct the AI to keep audience/format/on-brand details intact, and end with a placeholder like "[paste your text here]" for the author\'s concept.',
+    '- "suggestedPrompt": a ready-to-use revision instruction the author can apply directly to their text in line with this review. Target the weakest signals and instruct the AI to keep audience/format/on-brand details intact. Do NOT append a placeholder or the author\'s text — return ONLY the instruction.',
   ].join('\n')
 }
 

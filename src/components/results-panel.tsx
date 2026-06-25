@@ -444,10 +444,7 @@ function PanelHeader({
   /** Collapse the panel back to the minimal strip. */
   onClose?: () => void
 }) {
-  const reduceMotion = useReducedMotion()
   const verdict = review?.verdict
-  const prominent = verdict ? isVerdictProminent(verdict.label) : false
-  const notReady = verdict?.label === 'not_ready'
 
   let title = 'Review'
   if (loading) title = 'Reviewing…'
@@ -461,21 +458,6 @@ function PanelHeader({
           <h2 className="text-title text-text-primary" data-verdict={verdict?.label}>
             {title}
           </h2>
-          {prominent && verdict ? (
-            <motion.span
-              key={verdict.label}
-              initial={reduceMotion ? false : { scale: 0.85, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 24 }}
-              className={cn(
-                'inline-flex items-center rounded-pill border px-2 py-0.5 text-label-xs uppercase tracking-[0.05em]',
-                notReady ? 'border-risk text-risk' : 'border-minor text-minor',
-              )}
-              data-verdict={verdict.label}
-            >
-              {notReady ? 'Action needed' : 'Needs attention'}
-            </motion.span>
-          ) : null}
           {!loading && !error && verdict ? (
             <span className="text-label-sm tabular-nums text-text-secondary">
               {formatFlagCount(verdict.flagCount, review?.signals.length ?? 0)}

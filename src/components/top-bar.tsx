@@ -95,12 +95,8 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
                   <Settings className="size-4" aria-hidden="true" />
                   <span>Settings</span>
                 </Link>
-                {/* The theme toggle keeps its own button role; wrapped so it sits
-                    as a row in the overflow menu. */}
-                <div className="flex items-center justify-between gap-2 rounded-control px-2.5 py-1.5 text-label-sm text-text-secondary">
-                  <span>Theme</span>
-                  <ThemeToggle />
-                </div>
+                {/* Theme row — matches the Settings item's "<icon> Text" style. */}
+                <ThemeToggle asMenuItem onSelect={close} />
               </>
             )}
           </Menu>

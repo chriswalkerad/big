@@ -7,6 +7,10 @@ import { cn } from "@/lib/utils";
 
 interface ThemeToggleProps {
   className?: string;
+  /** Render as a full-width "<icon> Theme" menu row (matches the other overflow-menu items). */
+  asMenuItem?: boolean;
+  /** Called after toggling when rendered as a menu item (e.g. to close the menu). */
+  onSelect?: () => void;
 }
 
 const emptySubscribe = () => () => {};
@@ -26,11 +30,48 @@ function useMounted(): boolean {
  * mounted to avoid a hydration mismatch, since the resolved theme is only
  * known on the client.
  */
-export function ThemeToggle({ className }: ThemeToggleProps) {
+export function ThemeToggle({ className, asMenuItem = false, onSelect }: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
 
   const isDark = resolvedTheme === "dark";
+
+  // Overflow-menu row form: "<icon> Theme", styled identically to the Settings item.
+  if (asMenuItem) {
+    const menuClassName = cn(
+      "flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm",
+      "text-text-secondary transition-colors hover:bg-panel hover:text-text-primary",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+      className,
+    );
+    if (!mounted) {
+      return (
+        <button type="button" role="menuitem" className={menuClassName} aria-hidden="true" tabIndex={-1}>
+          <Sun className="size-4" aria-hidden="true" />
+          <span>Theme</span>
+        </button>
+      );
+    }
+    return (
+      <button
+        type="button"
+        role="menuitem"
+        onClick={() => {
+          setTheme(isDark ? "light" : "dark");
+          onSelect?.();
+        }}
+        className={menuClassName}
+        aria-label={isDark ? "Switch to light theme" : "Switch to dark theme"}
+      >
+        {isDark ? (
+          <Sun className="size-4" aria-hidden="true" />
+        ) : (
+          <Moon className="size-4" aria-hidden="true" />
+        )}
+        <span>Theme</span>
+      </button>
+    );
+  }
 
   const buttonClassName = cn(
     "inline-flex h-8 w-8 items-center justify-center rounded-control",

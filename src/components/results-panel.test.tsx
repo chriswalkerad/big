@@ -48,11 +48,10 @@ describe('ResultsPanel header', () => {
     expect(screen.getByText('0 of 6 need attention')).toBeInTheDocument()
   })
 
-  it('marks not_ready as the most prominent state', () => {
+  it('shows the verdict label for not_ready', () => {
     const review: ReviewResult = { ...REVIEW, verdict: { label: 'not_ready', flagCount: 2 } }
     renderPanel({ review })
     expect(screen.getByText('Not ready')).toBeInTheDocument()
-    expect(screen.getByText('Action needed')).toBeInTheDocument()
   })
 
   it('exposes a labelled "Review results" region (inline, not a dialog)', () => {
