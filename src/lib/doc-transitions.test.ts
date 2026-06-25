@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { Document, ReviewResult } from '@/types'
+import type { Document, Person, ReviewResult } from '@/types'
 import {
   applySubmit,
   applyUnsubmit,
@@ -8,6 +8,13 @@ import {
   applyManualSubtype,
   hasDrift,
 } from './doc-page'
+
+// A submit always carries the reviewer chosen at submission.
+const REVIEWER: Person = {
+  id: 'person-luigi-lucarelli',
+  name: 'Luigi Lucarelli',
+  role: 'Character Designer & Concept Artist',
+}
 
 function review(overrides: Partial<ReviewResult> = {}): ReviewResult {
   return {
@@ -39,7 +46,8 @@ function draftDoc(overrides: Partial<Document> = {}): Document {
 describe('applySubmit', () => {
   it('sets the submitted snapshot from the reviewed body + review', () => {
     const doc = draftDoc()
-    const out = applySubmit(doc, { body: 'original body', review: review(), submittedAt: 'T1' })
+    const out = applySubmit(doc, { body: 'original body', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
+    // The snapshot records body/review/submittedAt; the reviewer lives on the document.
     expect(out.submittedSnapshot).toEqual({
       body: 'original body',
       review: review(),
@@ -47,19 +55,31 @@ describe('applySubmit', () => {
     })
   })
 
+  it('records the chosen reviewer on the document', () => {
+    const out = applySubmit(draftDoc(), {
+      body: 'b',
+      review: review(),
+      submittedAt: 'T1',
+      reviewer: REVIEWER,
+    })
+    expect(out.reviewer).toEqual(REVIEWER)
+    // A draft never carries a reviewer until it is submitted.
+    expect(draftDoc().reviewer).toBeUndefined()
+  })
+
   it('advances a draft to submitted', () => {
-    const out = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1' })
+    const out = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
     expect(out.status).toBe('submitted')
   })
 
   it('preserves a non-draft status on resubmit', () => {
     const doc = draftDoc({ status: 'in_review' })
-    const out = applySubmit(doc, { body: 'b', review: review(), submittedAt: 'T1' })
+    const out = applySubmit(doc, { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
     expect(out.status).toBe('in_review')
   })
 
   it('prefills an empty title and the subtype while source is auto', () => {
-    const out = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1' })
+    const out = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
     expect(out.title).toBe('AI Suggested Title')
     expect(out.subtype).toBe('character_concept')
     expect(out.subtypeSource).toBe('auto')
@@ -72,6 +92,7 @@ describe('applySubmit', () => {
       body: 'b',
       review: review({ detectedSubtype: 'script_excerpt' }),
       submittedAt: 'T1',
+      reviewer: REVIEWER,
     })
     expect(out.subtype).toBe('world_building')
     expect(out.subtypeSource).toBe('user')
@@ -82,11 +103,13 @@ describe('applySubmit', () => {
       body: 'first body',
       review: review({ suggestedTitle: 'First' }),
       submittedAt: 'T1',
+      reviewer: REVIEWER,
     })
     const second = applySubmit(first, {
       body: 'second body',
       review: review({ suggestedTitle: 'Second' }),
       submittedAt: 'T2',
+      reviewer: REVIEWER,
     })
     expect(second.submittedSnapshot?.body).toBe('second body')
     expect(second.submittedSnapshot?.submittedAt).toBe('T2')
@@ -99,6 +122,7 @@ describe('drift + editing does not auto-unsubmit', () => {
       body: 'submitted body',
       review: review(),
       submittedAt: 'T1',
+      reviewer: REVIEWER,
     })
     // Author keeps editing the live working body (a separate value in the UI).
     const liveBody = 'submitted body, now with more'
@@ -112,7 +136,7 @@ describe('drift + editing does not auto-unsubmit', () => {
 describe('applyUnsubmit', () => {
   it('clears the snapshot, returns to draft, and drops routing', () => {
     const submitted = applyApprove(
-      applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1' }),
+      applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER }),
       'animation',
     )
     expect(submitted.submittedSnapshot).toBeDefined()
@@ -125,20 +149,20 @@ describe('applyUnsubmit', () => {
 
 describe('reviewer actions', () => {
   it('applies a reviewer status change', () => {
-    const submitted = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1' })
+    const submitted = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
     const out = applyReviewerStatus(submitted, 'changes_requested')
     expect(out.status).toBe('changes_requested')
   })
 
   it('records routing when approving', () => {
-    const submitted = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1' })
+    const submitted = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
     const out = applyApprove(submitted, 'production')
     expect(out.status).toBe('approved')
     expect(out.routing).toBe('production')
   })
 
   it('defaults nothing — routing only set via approve', () => {
-    const submitted = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1' })
+    const submitted = applySubmit(draftDoc(), { body: 'b', review: review(), submittedAt: 'T1', reviewer: REVIEWER })
     expect(submitted.routing).toBeUndefined()
   })
 })

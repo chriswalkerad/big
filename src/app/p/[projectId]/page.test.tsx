@@ -30,6 +30,21 @@ describe("LibraryPage", () => {
     expect(caperLink).toHaveAttribute("href", "/p/proj-eloise/d/doc-midnight-caper");
   });
 
+  it("shows the project owner on every row and the reviewer (— for drafts)", async () => {
+    renderLibrary();
+    await screen.findByText("Eloise and the Midnight Room-Service Caper");
+
+    // Eloise's owner is Maya Kambe (seed); it appears on every row.
+    const owners = screen.getAllByText(/Owner: Maya Kambe/);
+    expect(owners.length).toBeGreaterThan(0);
+
+    // A submitted doc shows its reviewer's name; the "Rooftop idea" draft shows "—".
+    expect(screen.getAllByText(/Reviewer: /).length).toBeGreaterThan(0);
+    const draftRow = screen.getByText("Rooftop idea").closest("a");
+    expect(draftRow).not.toBeNull();
+    expect(draftRow).toHaveTextContent(/Reviewer: —/);
+  });
+
   it("links the New button to the new-document route", async () => {
     renderLibrary();
     await screen.findByText("Eloise and the Midnight Room-Service Caper");

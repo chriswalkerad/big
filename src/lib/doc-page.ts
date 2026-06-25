@@ -6,6 +6,7 @@
 
 import type {
   Document,
+  Person,
   ReviewResult,
   RoutingDestination,
   SignalDef,
@@ -221,13 +222,16 @@ export interface SubmitArgs {
   body: string
   review: ReviewResult
   submittedAt: string
+  /** The reviewer the author chose at submission — recorded on the document. */
+  reviewer: Person
 }
 
 /**
  * Apply a submit OR resubmit. Sets `submittedSnapshot` to a fresh snapshot of the
- * reviewed body+review (resubmit REPLACES the prior snapshot — no history), prefills
- * title/subtype respecting user sources, and auto-advances a draft to `submitted`
- * (other statuses are preserved). The body is committed to the snapshotted text.
+ * reviewed body+review (resubmit REPLACES the prior snapshot — no history), records the
+ * chosen `reviewer`, prefills title/subtype respecting user sources, and auto-advances a
+ * draft to `submitted` (other statuses are preserved). The body is committed to the
+ * snapshotted text.
  */
 export function applySubmit(doc: Document, args: SubmitArgs): Document {
   const prefill = applyPrefill(doc, args.review)
@@ -238,6 +242,7 @@ export function applySubmit(doc: Document, args: SubmitArgs): Document {
     subtype: prefill.subtype,
     subtypeSource: prefill.subtypeSource,
     status: statusAfterSubmit(doc.status),
+    reviewer: args.reviewer,
     submittedSnapshot: makeSnapshot(args.body, args.review, args.submittedAt),
   }
 }

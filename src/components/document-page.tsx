@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Check, Loader2, Sparkles, X } from 'lucide-react'
 import type {
   Document,
+  Person,
   Project,
   ReviewResult,
   RoutingDestination,
@@ -40,6 +41,7 @@ import { ReviewerStatusControl } from '@/components/reviewer-status-control'
 import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
 import { ResultsPanel, ReviewStrip } from '@/components/results-panel'
+import { ReviewerPicker } from '@/components/reviewer-picker'
 import { FranchiseDetail } from '@/components/franchise-detail'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
@@ -97,6 +99,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [doc, setDoc] = useState<Document | null>(null)
   const [signals, setSignals] = useState<SignalDef[]>([])
   const [project, setProject] = useState<Project | null>(null)
+  const [people, setPeople] = useState<Person[]>([])
 
   // Live working state (edit mode mutates these before persisting on key events).
   const [title, setTitle] = useState('')
@@ -106,6 +109,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [status, setStatus] = useState<SubmissionStatus>('draft')
   const [routing, setRouting] = useState<RoutingDestination | undefined>(undefined)
   const [snapshot, setSnapshot] = useState<SubmittedSnapshot | undefined>(undefined)
+  // The reviewer recorded on the document (set at submission; drafts have none).
+  const [reviewer, setReviewer] = useState<Person | undefined>(undefined)
+
+  // The reviewer-picker dialog (step between confirm and commit). Open it from the
+  // ResultsPanel's Confirm button; choosing a reviewer there commits the submission.
+  const [reviewerPickerOpen, setReviewerPickerOpen] = useState(false)
 
   // Review state.
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -155,6 +164,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     }
     setDoc(found)
     setSignals(repo.listSignals())
+    setPeople(repo.listPeople())
     setProject(repo.getProject(found.projectId) ?? repo.getProject(projectId))
     setTitle(found.title)
     setBody(found.body)
@@ -164,6 +174,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setStatus(found.status)
     setRouting(found.routing)
     setSnapshot(found.submittedSnapshot)
+    setReviewer(found.reviewer)
     setLoaded(true)
   }, [docId, projectId, mode])
   /* eslint-enable react-hooks/set-state-in-effect */
@@ -234,6 +245,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setStatus(stamped.status)
     setRouting(stamped.routing)
     setSnapshot(stamped.submittedSnapshot)
+    setReviewer(stamped.reviewer)
   }, [])
 
   // --- Read mode: render the snapshot, not the live body ---------------------
@@ -412,32 +424,51 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [body, doc, project, signals, inlineIds])
 
   // --- Confirm submission (step 2 of review-then-confirm) --------------------
-  // Commit the pending preview: build the working doc from live fields with the exact
-  // reviewed body, apply the submit transition (sets/replaces the snapshot, prefills,
-  // advances the status), persist, render squiggles from the committed review, and clear
-  // the preview. This is exactly the old one-step submit behaviour, now gated behind the
-  // author reading the review first.
+  // Confirming the preview no longer commits immediately: the author must first pick WHO
+  // should review the document. The ResultsPanel's Confirm button opens the reviewer
+  // picker; `commitSubmission` (below) runs once a reviewer is chosen. A reviewer is
+  // REQUIRED to submit, so there is no commit path that skips this step.
   const confirmSubmission = useCallback(() => {
     const current = doc
     if (!current || !pendingReview || pendingBody === null) return
-    const review = pendingReview
-    const text = pendingBody
-    const working: Document = {
-      ...current,
-      title,
-      body: text,
-      subtype,
-      subtypeSource,
-      status,
-    }
-    const next = applySubmit(working, { body: text, review, submittedAt: new Date().toISOString() })
-    commitDoc(next)
+    setReviewerPickerOpen(true)
+  }, [doc, pendingReview, pendingBody])
 
-    // Render inline squiggles for the freshly submitted body, then clear the preview.
-    canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
-    setPendingReview(null)
-    setPendingBody(null)
-  }, [doc, pendingReview, pendingBody, title, subtype, subtypeSource, status, commitDoc, inlineIds])
+  // Commit the pending preview WITH the chosen reviewer: build the working doc from live
+  // fields with the exact reviewed body, apply the submit transition (sets/replaces the
+  // snapshot, records the reviewer, prefills, advances the status), persist, render
+  // squiggles from the committed review, and clear the preview. This is the old one-step
+  // submit behaviour, now gated behind reading the review AND choosing a reviewer.
+  const commitSubmission = useCallback(
+    (chosenReviewer: Person) => {
+      const current = doc
+      if (!current || !pendingReview || pendingBody === null) return
+      const review = pendingReview
+      const text = pendingBody
+      const working: Document = {
+        ...current,
+        title,
+        body: text,
+        subtype,
+        subtypeSource,
+        status,
+      }
+      const next = applySubmit(working, {
+        body: text,
+        review,
+        submittedAt: new Date().toISOString(),
+        reviewer: chosenReviewer,
+      })
+      commitDoc(next)
+
+      // Render inline squiggles for the freshly submitted body, then clear the preview.
+      canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
+      setPendingReview(null)
+      setPendingBody(null)
+      setReviewerPickerOpen(false)
+    },
+    [doc, pendingReview, pendingBody, title, subtype, subtypeSource, status, commitDoc, inlineIds],
+  )
 
   // --- Unsubmit (manual only) ------------------------------------------------
   const handleUnsubmit = useCallback(() => {
@@ -644,6 +675,18 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
         </div>
 
+        {/* People line — the project owner and (once submitted) the chosen reviewer,
+            shown calmly beneath the status meta. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary">
+          <PersonNote label="Owner" person={project.owner} />
+          {reviewer ? (
+            <>
+              <span aria-hidden="true">·</span>
+              <PersonNote label="Reviewer" person={reviewer} />
+            </>
+          ) : null}
+        </div>
+
         {/* Drift indicator (edit mode) — the live body differs from the snapshot. */}
         {drift ? (
           <DriftIndicator
@@ -758,8 +801,26 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
         ) : null}
       </div>
 
+      <ReviewerPicker
+        open={reviewerPickerOpen}
+        people={people}
+        current={reviewer}
+        onClose={() => setReviewerPickerOpen(false)}
+        onConfirm={commitSubmission}
+      />
+
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
     </div>
+  )
+}
+
+/** A calm "Owner · Maya Kambe" / "Reviewer · Luigi Lucarelli" meta note. */
+function PersonNote({ label, person }: { label: string; person: Person }) {
+  return (
+    <span>
+      {label} <span aria-hidden="true">·</span>{' '}
+      <span className="text-text-secondary">{person.name}</span>
+    </span>
   )
 }
 

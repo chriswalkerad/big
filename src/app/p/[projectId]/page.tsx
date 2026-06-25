@@ -3,7 +3,7 @@
 import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
-import type { Document, SubmissionStatus } from "@/types";
+import type { Document, Person, SubmissionStatus } from "@/types";
 import {
   ALL_STATUSES,
   filterDocuments,
@@ -191,7 +191,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
             <ul className="flex flex-col border-t border-border">
               {filtered.map((doc) => (
                 <li key={doc.id} className="border-b border-border">
-                  <DocumentRow projectId={projectId} doc={doc} />
+                  <DocumentRow projectId={projectId} doc={doc} owner={project.owner} />
                 </li>
               ))}
             </ul>
@@ -225,14 +225,22 @@ function LibraryShell({
   );
 }
 
-function DocumentRow({ projectId, doc }: { projectId: string; doc: Document }) {
+function DocumentRow({
+  projectId,
+  doc,
+  owner,
+}: {
+  projectId: string;
+  doc: Document;
+  owner: Person;
+}) {
   return (
     <Link
       href={`/p/${projectId}/d/${doc.id}`}
       className={cn(
         // Title / Subtype / Status as three aligned columns (fixed widths on ≥sm
         // keep the Subtype and Status columns lined up across rows); the meta line
-        // spans the full width beneath.
+        // (owner + reviewer + updated) spans the full width beneath.
         "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-2 py-3.5 transition-colors",
         "sm:grid-cols-[minmax(0,1fr)_8.5rem_10rem]",
         "hover:bg-panel",
@@ -245,13 +253,10 @@ function DocumentRow({ projectId, doc }: { projectId: string; doc: Document }) {
       <span className="text-label-sm text-text-secondary">{SUBTYPE_LABELS[doc.subtype]}</span>
       <span className="text-label-sm text-text-secondary">{STATUS_LABELS[doc.status]}</span>
       <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary sm:col-span-3">
-        <span>By {doc.createdBy}</span>
-        {doc.reviewer ? (
-          <>
-            <span aria-hidden="true">·</span>
-            <span>Reviewer: {doc.reviewer.name}</span>
-          </>
-        ) : null}
+        {/* Owner is always present; reviewer is set at submission (drafts show "—"). */}
+        <span>Owner: {owner.name}</span>
+        <span aria-hidden="true">·</span>
+        <span>Reviewer: {doc.reviewer ? doc.reviewer.name : "—"}</span>
         <span aria-hidden="true">·</span>
         <span>Updated {relativeTime(doc.updatedAt)}</span>
       </div>

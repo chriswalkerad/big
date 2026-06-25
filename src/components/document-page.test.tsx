@@ -91,9 +91,18 @@ describe('DocumentPage edit mode — submit flow', () => {
     expect(previewed?.title).toBe('')
     expect(previewed?.subtype).toBe('story_premise')
 
-    // Step 2: confirm submission commits exactly the old submit behaviour.
+    // Step 2: confirm submission opens the reviewer picker (it does NOT commit yet).
     const confirm = screen.getByRole('button', { name: /confirm submission/i })
     fireEvent.click(confirm)
+
+    // The reviewer picker dialog appears; nothing is committed until a reviewer is chosen.
+    const picker = await screen.findByRole('dialog', { name: /choose a reviewer/i })
+    expect(createStorageRepository().getDocument('doc-test')?.status).toBe('draft')
+
+    // Step 3: pick a reviewer and submit → the old submit behaviour now commits, with the
+    // chosen reviewer recorded on the document.
+    fireEvent.click(within(picker).getByLabelText(/luigi lucarelli/i))
+    fireEvent.click(within(picker).getByRole('button', { name: /submit for review/i }))
 
     await waitFor(() => {
       const saved = createStorageRepository().getDocument('doc-test')
@@ -102,6 +111,8 @@ describe('DocumentPage edit mode — submit flow', () => {
       // Empty title prefilled from the suggestion; subtype detected (source still auto).
       expect(saved?.title).toBe('AI Title')
       expect(saved?.subtype).toBe('character_concept')
+      // The reviewer chosen in the picker is recorded.
+      expect(saved?.reviewer?.id).toBe('person-luigi-lucarelli')
     })
 
     // The confirm action is gone once the doc is submitted (snapshot, not preview).
@@ -352,10 +363,15 @@ describe('DocumentPage version drift (edit mode)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /confirm submission/i }))
 
+    // Choosing a reviewer in the picker commits the resubmit.
+    const picker = await screen.findByRole('dialog', { name: /choose a reviewer/i })
+    fireEvent.click(within(picker).getByRole('button', { name: /submit for review/i }))
+
     await waitFor(() => {
       const saved = createStorageRepository().getDocument('doc-test')
       expect(saved?.submittedSnapshot?.body).toBe('edited working body')
       expect(saved?.status).toBe('submitted')
+      expect(saved?.reviewer).toBeDefined()
     })
     // No longer drifted → indicator gone.
     await waitFor(() => {
