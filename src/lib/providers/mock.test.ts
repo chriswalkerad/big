@@ -64,7 +64,7 @@ describe('MockProvider', () => {
     const result = reviewSync(inputFor(doc.body))
     const brandSafety = result.signals.find((s) => s.signalId === 'brand_safety')
     expect(brandSafety).toBeDefined()
-    expect(brandSafety!.score).toBeLessThan(7) // below threshold
+    expect(brandSafety!.score).toBeLessThan(70) // below threshold
     expect(brandSafety!.issues.length).toBeGreaterThanOrEqual(2)
     for (const issue of brandSafety!.issues) {
       expect(issue.severity).toBe('risk')
@@ -83,7 +83,7 @@ describe('MockProvider', () => {
     const result = reviewSync(inputFor(doc.body))
     const clarity = result.signals.find((s) => s.signalId === 'clarity')
     expect(clarity).toBeDefined()
-    expect(clarity!.score).toBeLessThan(7)
+    expect(clarity!.score).toBeLessThan(70)
     expect(clarity!.issues.length).toBeGreaterThanOrEqual(1)
     for (const issue of clarity!.issues) {
       expect(issue.severity).toBe('minor')
@@ -110,12 +110,12 @@ describe('MockProvider', () => {
     expect(result.themes.length).toBeGreaterThan(0)
   })
 
-  it('only ever scores within 0..10', () => {
+  it('only ever scores within 0..100', () => {
     for (const doc of seedDocuments) {
       const result = reviewSync(inputFor(doc.body))
       for (const s of result.signals) {
         expect(s.score).toBeGreaterThanOrEqual(0)
-        expect(s.score).toBeLessThanOrEqual(10)
+        expect(s.score).toBeLessThanOrEqual(100)
       }
     }
   })

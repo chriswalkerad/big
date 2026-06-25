@@ -109,7 +109,7 @@ describe('seed documents', () => {
   })
 
   it('flagCount equals the number of signals scoring below threshold', () => {
-    const thresholds = { clarity: 7, completeness: 7, brand_safety: 7, hook_strength: 6, character: 6, franchise_fit: 6 } as Record<string, number>
+    const thresholds = { clarity: 70, completeness: 70, brand_safety: 70, hook_strength: 60, character: 60, franchise_fit: 60 } as Record<string, number>
     for (const doc of seedDocuments) {
       const review = doc.submittedSnapshot?.review
       if (!review) continue

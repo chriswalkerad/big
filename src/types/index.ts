@@ -72,8 +72,9 @@ export interface ReviewVerdict {
   flagCount: number
 }
 
-// Signal bar rule (mirrors design tokens): fill bar proportional to score/10; fill
-// color = green if score >= threshold, amber if 1-2 below, red if 3+ below.
+// Signal bar rule (mirrors design tokens): scores are on a 0–100 scale; fill bar is
+// proportional to score/100; fill color = green if score >= threshold, amber if up to
+// 20 below, red if more than 20 below.
 // Verdict rule: looks_ready = no signals below threshold; not_ready = any Brand
 // Safety below threshold OR 4+ flags; needs_work = everything else.
 

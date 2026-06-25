@@ -23,9 +23,9 @@ import {
 } from './doc-page'
 
 const SIGNALS: SignalDef[] = [
-  { id: 'clarity', name: 'Clarity', mode: 'inline', threshold: 7, prompt: '' },
-  { id: 'brand_safety', name: 'Brand Safety', mode: 'inline', threshold: 7, prompt: '' },
-  { id: 'hook_strength', name: 'Hook Strength', mode: 'doc', threshold: 6, prompt: '' },
+  { id: 'clarity', name: 'Clarity', mode: 'inline', threshold: 70, prompt: '' },
+  { id: 'brand_safety', name: 'Brand Safety', mode: 'inline', threshold: 70, prompt: '' },
+  { id: 'hook_strength', name: 'Hook Strength', mode: 'doc', threshold: 60, prompt: '' },
 ]
 
 function review(overrides: Partial<ReviewResult> = {}): ReviewResult {
@@ -60,31 +60,31 @@ describe('verdict + flag formatting', () => {
 
 describe('barTone — color maps to the signal threshold', () => {
   it('is pass when score >= threshold (boundary and above)', () => {
-    expect(barTone(7, 7)).toBe('pass')
-    expect(barTone(10, 7)).toBe('pass')
-    expect(barTone(6, 6)).toBe('pass')
+    expect(barTone(70, 70)).toBe('pass')
+    expect(barTone(100, 70)).toBe('pass')
+    expect(barTone(60, 60)).toBe('pass')
   })
 
-  it('is minor when 1-2 below threshold', () => {
-    expect(barTone(6, 7)).toBe('minor') // 1 below
-    expect(barTone(5, 7)).toBe('minor') // 2 below
-    expect(barTone(4, 6)).toBe('minor') // 2 below, different threshold
+  it('is minor when up to 20 below threshold', () => {
+    expect(barTone(60, 70)).toBe('minor') // 10 below
+    expect(barTone(50, 70)).toBe('minor') // 20 below
+    expect(barTone(40, 60)).toBe('minor') // 20 below, different threshold
   })
 
-  it('is risk when 3+ below threshold', () => {
-    expect(barTone(4, 7)).toBe('risk') // 3 below
-    expect(barTone(2, 7)).toBe('risk') // 5 below
-    expect(barTone(3, 6)).toBe('risk') // 3 below
+  it('is risk when more than 20 below threshold', () => {
+    expect(barTone(40, 70)).toBe('risk') // 30 below
+    expect(barTone(20, 70)).toBe('risk') // 50 below
+    expect(barTone(30, 60)).toBe('risk') // 30 below
   })
 })
 
 describe('barFillPercent', () => {
   it('is proportional and clamped 0-100', () => {
     expect(barFillPercent(0)).toBe(0)
-    expect(barFillPercent(5)).toBe(50)
-    expect(barFillPercent(10)).toBe(100)
-    expect(barFillPercent(12)).toBe(100)
-    expect(barFillPercent(-3)).toBe(0)
+    expect(barFillPercent(50)).toBe(50)
+    expect(barFillPercent(100)).toBe(100)
+    expect(barFillPercent(120)).toBe(100)
+    expect(barFillPercent(-30)).toBe(0)
   })
 })
 
@@ -185,19 +185,19 @@ describe('inline highlight mapping', () => {
   const results: SignalResult[] = [
     {
       signalId: 'clarity',
-      score: 4,
+      score: 40,
       rationale: '',
       issues: [{ quote: 'vague phrase', message: 'unclear', severity: 'minor' }],
     },
     {
       signalId: 'brand_safety',
-      score: 2,
+      score: 20,
       rationale: '',
       issues: [{ quote: 'body count', message: 'unsafe', severity: 'risk' }],
     },
     {
       signalId: 'hook_strength',
-      score: 9,
+      score: 90,
       rationale: '',
       issues: [{ quote: 'should be ignored', message: 'doc-level', severity: 'minor' }],
     },

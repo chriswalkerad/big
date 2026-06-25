@@ -41,6 +41,43 @@ describe('reviewResultSchema summary + suggestedPrompt', () => {
   })
 })
 
+describe('signal score bounds (0–100)', () => {
+  it('accepts a score at the top of the 0–100 range', () => {
+    const result = reviewResultSchema.parse({
+      ...base,
+      signals: [{ signalId: 'clarity', score: 100, rationale: 'Perfect.', issues: [] }],
+    })
+    expect(result.signals[0].score).toBe(100)
+  })
+
+  it('accepts a score of 0', () => {
+    expect(() =>
+      reviewResultSchema.parse({
+        ...base,
+        signals: [{ signalId: 'clarity', score: 0, rationale: 'Zero.', issues: [] }],
+      }),
+    ).not.toThrow()
+  })
+
+  it('rejects a score above 100', () => {
+    expect(() =>
+      reviewResultSchema.parse({
+        ...base,
+        signals: [{ signalId: 'clarity', score: 101, rationale: 'Too high.', issues: [] }],
+      }),
+    ).toThrow()
+  })
+
+  it('rejects a negative score', () => {
+    expect(() =>
+      reviewResultSchema.parse({
+        ...base,
+        signals: [{ signalId: 'clarity', score: -1, rationale: 'Negative.', issues: [] }],
+      }),
+    ).toThrow()
+  })
+})
+
 describe('applyRequestSchema', () => {
   it('accepts a well-formed apply request', () => {
     const parsed = applyRequestSchema.parse({

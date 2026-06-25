@@ -9,7 +9,7 @@ import type { SignalDef, SignalMode } from '@/types'
 export interface SignalFormValues {
   name: string
   prompt: string
-  /** Raw input value; parsed/validated into a 0–10 integer on submit. */
+  /** Raw input value; parsed/validated into a 0–100 integer on submit. */
   threshold: string
   mode: SignalMode
 }
@@ -18,7 +18,7 @@ export interface SignalFormValues {
 export type SignalFormErrors = Partial<Record<keyof SignalFormValues, string>>
 
 export const THRESHOLD_MIN = 0
-export const THRESHOLD_MAX = 10
+export const THRESHOLD_MAX = 100
 
 export const SIGNAL_MODES: SignalMode[] = ['inline', 'doc']
 
@@ -29,7 +29,7 @@ export const SIGNAL_MODE_LABELS: Record<SignalMode, string> = {
 
 /** A blank draft for "New Signal" (create mode). */
 export function emptySignalForm(): SignalFormValues {
-  return { name: '', prompt: '', threshold: '7', mode: 'inline' }
+  return { name: '', prompt: '', threshold: '70', mode: 'inline' }
 }
 
 /** Pre-fill the form from an existing signal (edit mode). */
@@ -49,7 +49,7 @@ export function isSignalMode(value: string): value is SignalMode {
 
 /**
  * Validate a draft. Returns a per-field error map (empty when valid). Name and
- * prompt must be non-empty; threshold must parse to an integer in [0, 10]; mode
+ * prompt must be non-empty; threshold must parse to an integer in [0, 100]; mode
  * must be a known mode.
  */
 export function validateSignalForm(values: SignalFormValues): SignalFormErrors {

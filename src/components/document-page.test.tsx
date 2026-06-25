@@ -16,12 +16,12 @@ const REVIEW: ReviewResult = {
   suggestedTitle: 'AI Title',
   themes: ['friendship'],
   signals: [
-    { signalId: 'clarity', score: 4, rationale: 'unclear', issues: [{ quote: 'vague', message: 'm', severity: 'minor' }] },
-    { signalId: 'completeness', score: 8, rationale: 'ok', issues: [] },
-    { signalId: 'brand_safety', score: 9, rationale: 'safe', issues: [] },
-    { signalId: 'hook_strength', score: 7, rationale: 'good', issues: [] },
-    { signalId: 'character', score: 7, rationale: 'fine', issues: [] },
-    { signalId: 'franchise_fit', score: 6, rationale: 'fits', issues: [] },
+    { signalId: 'clarity', score: 40, rationale: 'unclear', issues: [{ quote: 'vague', message: 'm', severity: 'minor' }] },
+    { signalId: 'completeness', score: 80, rationale: 'ok', issues: [] },
+    { signalId: 'brand_safety', score: 90, rationale: 'safe', issues: [] },
+    { signalId: 'hook_strength', score: 70, rationale: 'good', issues: [] },
+    { signalId: 'character', score: 70, rationale: 'fine', issues: [] },
+    { signalId: 'franchise_fit', score: 60, rationale: 'fits', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 1 },
 }

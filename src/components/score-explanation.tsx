@@ -26,8 +26,8 @@ function isBrandSafety(id: string): boolean {
 /** One legend row describing a bar tone, sourced from `barTone`/`BAR_TONE_BG`. */
 const BAR_TONE_LEGEND: ReadonlyArray<{ tone: BarTone; label: string; detail: string }> = [
   { tone: 'pass', label: 'Green', detail: 'at or above the threshold — this signal passes.' },
-  { tone: 'minor', label: 'Amber', detail: '1–2 points below the threshold — a minor miss.' },
-  { tone: 'risk', label: 'Red', detail: '3 or more points below the threshold — a real risk.' },
+  { tone: 'minor', label: 'Amber', detail: 'up to 20 points below the threshold — a minor miss.' },
+  { tone: 'risk', label: 'Red', detail: 'more than 20 points below the threshold — a real risk.' },
 ]
 
 /**
@@ -57,7 +57,7 @@ export function ScoreExplanation({ signals, onBack }: ScoreExplanationProps) {
       <p className="text-body text-text-secondary">
         Each submission is judged against {signals.length} signals. The AI provider (or the
         deterministic mock used by default) reads your text against each signal&rsquo;s prompt and
-        returns a score from 0 to 10, a short rationale, and — for inline signals — the exact
+        returns a score from 0 to 100, a short rationale, and — for inline signals — the exact
         phrases it flagged. Nothing here is a hard block; the scores are guidance.
       </p>
 
@@ -79,7 +79,6 @@ export function ScoreExplanation({ signals, onBack }: ScoreExplanationProps) {
                   <span className="tabular-nums text-text-secondary">
                     passes at{' '}
                     <span className="text-text-primary">{signal.threshold}</span>
-                    <span className="text-text-tertiary">/10</span>
                   </span>
                 </span>
               </div>

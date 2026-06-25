@@ -26,7 +26,7 @@ interface SignalRowProps {
 }
 
 /**
- * One signal in the results drawer: name, score `x/10` (tabular), a proportional
+ * One signal in the results drawer: name, a bare 0–100 score (tabular), a proportional
  * fill bar colored by the signal's own threshold, and the rationale. Inline signals
  * also list their flagged phrases (clickable for bidirectional focus). The Franchise
  * Fit row renders a clickable "franchise" reference into the franchise detail.
@@ -49,10 +49,7 @@ export const SignalRow = forwardRef<HTMLDivElement, SignalRowProps>(function Sig
     >
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-body-emphasis text-text-primary">{def.name}</span>
-        <span className="text-label-sm tabular-nums text-text-secondary">
-          <span className="text-text-primary">{score}</span>
-          <span className="text-text-tertiary">/10</span>
-        </span>
+        <span className="text-label-sm tabular-nums text-text-primary">{score}</span>
       </div>
 
       <SignalBar score={score} threshold={def.threshold} />

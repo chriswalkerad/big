@@ -45,7 +45,7 @@ const RESPONSE_JSON_SCHEMA: Record<string, unknown> = {
         additionalProperties: false,
         properties: {
           signalId: { type: 'string' },
-          score: { type: 'number' },
+          score: { type: 'number', minimum: 0, maximum: 100 },
           rationale: { type: 'string' },
           issues: {
             type: 'array',

@@ -40,13 +40,13 @@ function makeRng(seed: number): () => number {
   }
 }
 
-/** Deterministic small jitter in [-1, 1], so two distinct texts rarely tie. */
+/** Deterministic small jitter in [-10, 10], so two distinct texts rarely tie. */
 function jitter(rng: () => number): number {
-  return Math.round((rng() * 2 - 1) * 10) / 10
+  return Math.round((rng() * 2 - 1) * 10)
 }
 
 function clampScore(n: number): number {
-  return Math.max(0, Math.min(10, Math.round(n)))
+  return Math.max(0, Math.min(100, Math.round(n)))
 }
 
 // --- Text utilities ------------------------------------------------------------
@@ -260,8 +260,8 @@ function evalClarity(ctx: HeuristicContext): SignalEval {
       }
     }
   }
-  const penalty = issues.length * 2.5
-  const score = clampScore(9 - penalty + jitter(ctx.rng))
+  const penalty = issues.length * 25
+  const score = clampScore(90 - penalty + jitter(ctx.rng))
   const rationale =
     issues.length > 0
       ? 'Some phrasing is vague or describes a feeling rather than concrete detail.'
@@ -275,7 +275,7 @@ function evalCompleteness(ctx: HeuristicContext): SignalEval {
   const hasCharacter = /\b(?:[A-Z][a-z]+|protagonist|lead|character|hero(?:ine)?)\b/.test(ctx.text)
   const hasPremise = ctx.words >= 25
   const present = [hasAudience, hasFormat, hasCharacter, hasPremise].filter(Boolean).length
-  const score = clampScore(2 + present * 2 + (ctx.words >= 60 ? 1 : 0) + jitter(ctx.rng))
+  const score = clampScore(20 + present * 20 + (ctx.words >= 60 ? 10 : 0) + jitter(ctx.rng))
   const missing: string[] = []
   if (!hasPremise) missing.push('a fuller premise')
   if (!hasAudience) missing.push('a target audience')
@@ -303,8 +303,8 @@ function evalBrandSafety(ctx: HeuristicContext, threshold: number): SignalEval {
   // Any hit drops the score well below threshold; more hits, lower score.
   const score =
     issues.length === 0
-      ? clampScore(10 + jitter(ctx.rng) * 0.2)
-      : clampScore(threshold - 4 - (issues.length - 1) * 1.5 + Math.abs(jitter(ctx.rng)) * 0.2)
+      ? clampScore(100 + jitter(ctx.rng) * 0.2)
+      : clampScore(threshold - 40 - (issues.length - 1) * 15 + Math.abs(jitter(ctx.rng)) * 0.2)
   const rationale =
     issues.length === 0
       ? 'Nothing unsafe or off-brand for a family audience.'
@@ -316,7 +316,7 @@ function evalHookStrength(ctx: HeuristicContext): SignalEval {
   const opener = ctx.sentences[0] ?? ctx.text.trim()
   const concrete = /\b(?:secret|midnight|haunted|discovers|when|race|trapped|first|only|last)\b/i.test(opener)
   const punchy = opener.length >= 20 && opener.length <= 200
-  const score = clampScore(4 + (concrete ? 3 : 0) + (punchy ? 2 : 0) + jitter(ctx.rng))
+  const score = clampScore(40 + (concrete ? 30 : 0) + (punchy ? 20 : 0) + jitter(ctx.rng))
   const rationale = concrete
     ? `The opening promises something specific: "${opener.slice(0, 80)}".`
     : 'The opening is serviceable but does not promise an immediate, scroll-stopping payoff.'
@@ -329,8 +329,8 @@ function evalCharacter(ctx: HeuristicContext): SignalEval {
     ctx.text,
   )
   const vague = /\b(?:vibe|cool|energy|whatever|some kind)\b/i.test(ctx.text)
-  let score = 4 + (named ? 2 : 0) + (hasTrait ? 3 : 0)
-  if (vague) score -= 2
+  let score = 40 + (named ? 20 : 0) + (hasTrait ? 30 : 0)
+  if (vague) score -= 20
   score = clampScore(score + jitter(ctx.rng))
   const rationale = hasTrait
     ? 'The lead has a specific, ownable trait, want, or quirk.'
@@ -341,8 +341,8 @@ function evalCharacter(ctx: HeuristicContext): SignalEval {
 function evalFranchiseFit(ctx: HeuristicContext): SignalEval {
   const onBrand = /\b(?:playful|family|whimsical|warm|upscale|plaza|eloise|kids?)\b/i.test(ctx.text)
   const offBrand = /\b(?:horror|frightening|body count|jump scares?|grim|violent|mature)\b/i.test(ctx.text)
-  let score = 6 + (onBrand ? 2 : 0)
-  if (offBrand) score -= 4
+  let score = 60 + (onBrand ? 20 : 0)
+  if (offBrand) score -= 40
   score = clampScore(score + jitter(ctx.rng))
   const rationale = offBrand
     ? 'The tone clashes with the playful, family-safe world this project lives in.'
@@ -352,7 +352,7 @@ function evalFranchiseFit(ctx: HeuristicContext): SignalEval {
 
 function evalGeneric(ctx: HeuristicContext): SignalEval {
   // Length- and substance-based fallback for custom signals.
-  const score = clampScore(5 + (ctx.words >= 40 ? 2 : 0) + (ctx.words >= 80 ? 1 : 0) + jitter(ctx.rng))
+  const score = clampScore(50 + (ctx.words >= 40 ? 20 : 0) + (ctx.words >= 80 ? 10 : 0) + jitter(ctx.rng))
   const rationale = 'Evaluated heuristically; no specific concerns detected for this criterion.'
   return { score, rationale, issues: [] }
 }

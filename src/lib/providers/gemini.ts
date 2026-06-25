@@ -33,7 +33,7 @@ const RESPONSE_SCHEMA: Schema = {
         type: Type.OBJECT,
         properties: {
           signalId: { type: Type.STRING },
-          score: { type: Type.NUMBER },
+          score: { type: Type.NUMBER, minimum: 0, maximum: 100 },
           rationale: { type: Type.STRING },
           issues: {
             type: Type.ARRAY,
@@ -91,7 +91,7 @@ export function buildSystemInstruction(input: ReviewInput): string {
     'OUTPUT RULES',
     '- Return JSON only, matching the provided schema exactly. No prose outside the JSON.',
     '- For every signal in the criteria below, return one entry in "signals" whose "signalId" is that signal\'s id.',
-    '- Score each signal 0-10.',
+    '- Score each signal with an integer from 0 to 100.',
     '- Only signals whose mode is "inline" may include "issues". Doc-mode signals must return an empty "issues" array.',
     '- Each issue\'s "quote" MUST be an EXACT, VERBATIM substring of the concept text below — copy it character-for-character, do not paraphrase, trim, or correct it. If you cannot quote verbatim, omit the issue.',
     '- Brand-safety issues use severity "risk"; clarity/other inline issues use severity "minor".',

@@ -7,12 +7,12 @@ import { ResultsPanel, ReviewStrip } from './results-panel'
 afterEach(cleanup)
 
 const SIGNALS: SignalDef[] = [
-  { id: 'clarity', name: 'Clarity', mode: 'inline', threshold: 7, prompt: '' },
-  { id: 'completeness', name: 'Completeness', mode: 'doc', threshold: 7, prompt: '' },
-  { id: 'brand_safety', name: 'Brand Safety', mode: 'inline', threshold: 7, prompt: '' },
-  { id: 'hook_strength', name: 'Hook Strength', mode: 'doc', threshold: 6, prompt: '' },
-  { id: 'character', name: 'Character Distinctiveness', mode: 'doc', threshold: 6, prompt: '' },
-  { id: 'franchise_fit', name: 'Franchise Fit', mode: 'doc', threshold: 6, prompt: '' },
+  { id: 'clarity', name: 'Clarity', mode: 'inline', threshold: 70, prompt: '' },
+  { id: 'completeness', name: 'Completeness', mode: 'doc', threshold: 70, prompt: '' },
+  { id: 'brand_safety', name: 'Brand Safety', mode: 'inline', threshold: 70, prompt: '' },
+  { id: 'hook_strength', name: 'Hook Strength', mode: 'doc', threshold: 60, prompt: '' },
+  { id: 'character', name: 'Character Distinctiveness', mode: 'doc', threshold: 60, prompt: '' },
+  { id: 'franchise_fit', name: 'Franchise Fit', mode: 'doc', threshold: 60, prompt: '' },
 ]
 
 const REVIEW: ReviewResult = {
@@ -20,12 +20,12 @@ const REVIEW: ReviewResult = {
   suggestedTitle: 'Title',
   themes: [],
   signals: [
-    { signalId: 'clarity', score: 4, rationale: 'unclear', issues: [{ quote: 'vague phrase', message: 'unclear', severity: 'minor' }] },
-    { signalId: 'completeness', score: 4, rationale: 'missing pieces', issues: [] },
-    { signalId: 'brand_safety', score: 9, rationale: 'safe', issues: [] },
-    { signalId: 'hook_strength', score: 9, rationale: 'strong', issues: [] },
-    { signalId: 'character', score: 3, rationale: 'thin', issues: [] },
-    { signalId: 'franchise_fit', score: 6, rationale: 'plausible fit', issues: [] },
+    { signalId: 'clarity', score: 40, rationale: 'unclear', issues: [{ quote: 'vague phrase', message: 'unclear', severity: 'minor' }] },
+    { signalId: 'completeness', score: 40, rationale: 'missing pieces', issues: [] },
+    { signalId: 'brand_safety', score: 90, rationale: 'safe', issues: [] },
+    { signalId: 'hook_strength', score: 90, rationale: 'strong', issues: [] },
+    { signalId: 'character', score: 30, rationale: 'thin', issues: [] },
+    { signalId: 'franchise_fit', score: 60, rationale: 'plausible fit', issues: [] },
   ],
   verdict: { label: 'needs_work', flagCount: 3 },
 }
@@ -228,7 +228,7 @@ describe('ResultsPanel score explanation', () => {
     for (const def of SIGNALS) {
       expect(screen.getByText(def.name)).toBeInTheDocument()
     }
-    // Thresholds are stated as "passes at N/10".
+    // Thresholds are stated as "passes at N".
     const passesAt = screen.getAllByText(/passes at/i)
     expect(passesAt).toHaveLength(SIGNALS.length)
   })
