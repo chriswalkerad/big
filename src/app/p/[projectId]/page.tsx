@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import type { Document, SubmissionStatus } from "@/types";
@@ -72,28 +72,24 @@ export function LibraryView({ projectId }: { projectId: string }) {
 
   if (snapshot.status === "loading") {
     return (
-      <>
-        <TopBar actions={newAction} />
-        <div className="flex flex-col gap-4 py-8">
+      <LibraryShell topBar={<TopBar actions={newAction} />}>
+        <div className="flex flex-col gap-4">
           <LoadingState rows={2} label="Loading library…" />
           <LoadingState rows={5} className="mt-4" label="Loading documents…" />
         </div>
-      </>
+      </LibraryShell>
     );
   }
 
   if (snapshot.status === "error") {
     return (
-      <>
-        <TopBar actions={newAction} />
-        <div className="py-8">
-          <ErrorState
-            error={snapshot.error}
-            title="Couldn't open the library"
-            onRetry={reload}
-          />
-        </div>
-      </>
+      <LibraryShell topBar={<TopBar actions={newAction} />}>
+        <ErrorState
+          error={snapshot.error}
+          title="Couldn't open the library"
+          onRetry={reload}
+        />
+      </LibraryShell>
     );
   }
 
@@ -101,18 +97,20 @@ export function LibraryView({ projectId }: { projectId: string }) {
   const isFiltering = query.trim().length > 0 || status !== ALL_STATUSES;
 
   return (
-    <>
-      <TopBar
-        breadcrumb={
-          <AppBreadcrumb
-            segments={[{ label: project.name, current: true }]}
-            currentProjectId={projectId}
-          />
-        }
-        actions={newAction}
-      />
-
-      <div className="flex flex-col gap-8 py-8">
+    <LibraryShell
+      topBar={
+        <TopBar
+          breadcrumb={
+            <AppBreadcrumb
+              segments={[{ label: project.name, current: true }]}
+              currentProjectId={projectId}
+            />
+          }
+          actions={newAction}
+        />
+      }
+    >
+      <div className="flex flex-col gap-8">
         <header className="flex flex-col gap-1.5">
           <h1 className="text-display text-text-primary">{project.name}</h1>
           <p className="text-body text-text-secondary">{project.audience}</p>
@@ -200,7 +198,30 @@ export function LibraryView({ projectId }: { projectId: string }) {
           )}
         </div>
       </div>
-    </>
+    </LibraryShell>
+  );
+}
+
+/**
+ * Page frame for the library. Breaks OUT of the AppShell `<main>` padding
+ * (`px-4 py-6 sm:px-6`) with matching negative margins so the slim `<TopBar>`
+ * sits flush to the top of the viewport and spans the content column
+ * edge-to-edge — consistent with the document and settings pages. The page's
+ * own horizontal padding + a top measure is then re-applied to the content
+ * BELOW the bar.
+ */
+function LibraryShell({
+  topBar,
+  children,
+}: {
+  topBar: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="-mx-4 -my-6 sm:-mx-6">
+      {topBar}
+      <div className="px-4 py-8 sm:px-6">{children}</div>
+    </div>
   );
 }
 
