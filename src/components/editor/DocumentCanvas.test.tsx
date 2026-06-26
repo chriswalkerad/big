@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest'
 import { createRef } from 'react'
-import { render, cleanup, waitFor } from '@testing-library/react'
+import { render, cleanup, waitFor, fireEvent } from '@testing-library/react'
 import { DocumentCanvas, type DocumentCanvasHandle } from './DocumentCanvas'
 import type { SignalHighlightIssue } from './SignalHighlight'
 
@@ -132,7 +132,7 @@ describe('DocumentCanvas', () => {
     expect(onChange.mock.calls.at(-1)?.[0]).toContain('Hello world')
   })
 
-  it('refines interim in place then commits to normal text, firing onChange', async () => {
+  it('refines interim in place then commits to normal text; setInterim does NOT fire onChange, commit does', async () => {
     const onChange = vi.fn()
     const ref = createRef<DocumentCanvasHandle>()
     const { container } = render(
@@ -142,14 +142,17 @@ describe('DocumentCanvas', () => {
     await waitFor(() => expect(ref.current).toBeTruthy())
     await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
 
-    // First hypothesis → ghost text appears.
+    onChange.mockClear()
+
+    // First hypothesis → ghost text appears. Provisional: no onChange.
     ref.current!.setInterim('hello')
     await waitFor(() => {
       const ghost = container.querySelector<HTMLElement>('.dictation-interim')
       expect(ghost?.textContent).toBe('hello')
     })
+    expect(onChange).not.toHaveBeenCalled()
 
-    // Refined hypothesis → REPLACES in place; still exactly one ghost span.
+    // Refined hypothesis → REPLACES in place; still exactly one ghost span. Still no onChange.
     ref.current!.setInterim('hello there')
     await waitFor(() => {
       const ghosts = container.querySelectorAll('.dictation-interim')
@@ -159,10 +162,9 @@ describe('DocumentCanvas', () => {
     const prose = container.querySelector<HTMLElement>('.ProseMirror')
     expect(prose?.textContent).toBe('hello there')
     expect(prose?.textContent).not.toContain('hellohello')
+    expect(onChange).not.toHaveBeenCalled()
 
-    onChange.mockClear()
-
-    // Commit → text persists as normal authored text; the ghost mark is gone; onChange fired.
+    // Commit (no finalText) → un-ghost in place; mark gone; onChange fires once now.
     ref.current!.commitInterim()
     await waitFor(() => {
       expect(container.querySelector('.dictation-interim')).toBeNull()
@@ -170,8 +172,135 @@ describe('DocumentCanvas', () => {
     expect(container.querySelector<HTMLElement>('.ProseMirror')?.textContent).toBe(
       'hello there',
     )
-    expect(onChange).toHaveBeenCalled()
+    expect(onChange).toHaveBeenCalledTimes(1)
     expect(onChange.mock.calls.at(-1)?.[0]).toContain('hello there')
+  })
+
+  it('commitInterim(finalText) after setInterim replaces in place (one span → solid text) and fires onChange once', async () => {
+    const onChange = vi.fn()
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="" onChange={onChange} />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    ref.current!.setInterim('hello ther')
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')?.textContent).toBe('hello ther')
+    })
+
+    onChange.mockClear()
+    ref.current!.commitInterim('hello there')
+
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')).toBeNull()
+    })
+    const prose = container.querySelector<HTMLElement>('.ProseMirror')
+    // Final settled text replaced the ghost in place — solid text, no provisional span.
+    expect(prose?.textContent).toBe('hello there')
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls.at(-1)?.[0]).toContain('hello there')
+  })
+
+  it('commitInterim(finalText) lands at the interim anchor even if the selection moved away', async () => {
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="<p>start end</p>" />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    // Anchor the interim at the current caret, then MOVE the DOM selection elsewhere
+    // before committing — proving the commit uses the remembered anchor, not the caret.
+    ref.current!.setInterim('MID')
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')?.textContent).toBe('MID')
+    })
+
+    // Simulate the user clicking away: collapse the browser selection to the very end of
+    // the document, so a naive "insert at live caret" would land the final text wrongly.
+    const prose = container.querySelector<HTMLElement>('.ProseMirror')!
+    const sel = window.getSelection()
+    const lastText = prose.lastChild?.lastChild ?? prose.lastChild ?? prose
+    const range = document.createRange()
+    range.selectNodeContents(lastText)
+    range.collapse(false)
+    sel?.removeAllRanges()
+    sel?.addRange(range)
+
+    // Commit the settled text: it must replace the MID ghost in place, NOT append at end.
+    ref.current!.commitInterim('MIDDLE')
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')).toBeNull()
+    })
+    // The committed text is where the ghost was (where MID had been), not at the moved caret.
+    expect(prose.textContent).toContain('MIDDLE')
+    expect(prose.textContent).not.toContain('MID ')
+  })
+
+  it('normalizes spacing: no stray leading/trailing space, single space between utterances', async () => {
+    const onChange = vi.fn()
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="" onChange={onChange} />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    // First utterance at the doc start → no leading space even though finalText is padded.
+    ref.current!.setInterim('first')
+    await waitFor(() =>
+      expect(container.querySelector('.dictation-interim')?.textContent).toBe('first'),
+    )
+    ref.current!.commitInterim('  first  ')
+    await waitFor(() => expect(container.querySelector('.dictation-interim')).toBeNull())
+    expect(container.querySelector<HTMLElement>('.ProseMirror')?.textContent).toBe('first')
+
+    // Second utterance → exactly one separating space, no doubled space.
+    ref.current!.setInterim('second')
+    await waitFor(() =>
+      expect(container.querySelectorAll('.dictation-interim').length).toBe(1),
+    )
+    ref.current!.commitInterim(' second ')
+    await waitFor(() => expect(container.querySelector('.dictation-interim')).toBeNull())
+    expect(container.querySelector<HTMLElement>('.ProseMirror')?.textContent).toBe(
+      'first second',
+    )
+  })
+
+  it('undo after commit removes the dictated text in one step', async () => {
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="<p>seed</p>" />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    ref.current!.setInterim('spoken')
+    await waitFor(() =>
+      expect(container.querySelector('.dictation-interim')?.textContent).toBe('spoken'),
+    )
+    ref.current!.commitInterim('spoken words')
+    await waitFor(() => expect(container.querySelector('.dictation-interim')).toBeNull())
+
+    const prose = container.querySelector<HTMLElement>('.ProseMirror')!
+    expect(prose.textContent).toContain('spoken words')
+
+    // Cmd/Ctrl+Z through the real ProseMirror undo keymap must remove the dictated text
+    // (the interim churn was kept out of history; the commit is the single undoable step).
+    fireEvent.keyDown(prose, { key: 'z', ctrlKey: true })
+    fireEvent.keyDown(prose, { key: 'z', metaKey: true })
+
+    await waitFor(() => {
+      expect(
+        container.querySelector<HTMLElement>('.ProseMirror')?.textContent,
+      ).not.toContain('spoken words')
+    })
   })
 
   it('clears an uncommitted interim, removing the provisional text', async () => {
