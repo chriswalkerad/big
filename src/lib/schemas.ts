@@ -14,6 +14,16 @@ import type {
   SignalResult,
 } from '@/types'
 
+// Upper bound on the document text forwarded to the AI provider. A short creative
+// concept (premise, character sketch, brief, script excerpt) is well under this;
+// the cap rejects an oversized body with a typed validation error BEFORE it reaches
+// a paid model on a 60s timeout, rather than forwarding unbounded input.
+export const MAX_TEXT_LENGTH = 50_000
+
+const documentTextSchema = z
+  .string()
+  .max(MAX_TEXT_LENGTH, `Text must be at most ${MAX_TEXT_LENGTH.toLocaleString()} characters.`)
+
 export const textSubtypeSchema = z.enum([
   'story_premise',
   'character_concept',
@@ -87,14 +97,14 @@ export const reviewResultSchema: z.ZodType<ReviewResult> = z.object({
 
 /** Request body for POST /api/review. */
 export const reviewRequestSchema: z.ZodType<ReviewRequest> = z.object({
-  text: z.string(),
+  text: documentTextSchema,
   project: projectSchema,
   signals: z.array(signalDefSchema),
 })
 
 /** Request body for POST /api/apply. */
 export const applyRequestSchema: z.ZodType<ApplyRequest> = z.object({
-  text: z.string(),
+  text: documentTextSchema,
   instruction: z.string(),
   project: projectSchema,
 })

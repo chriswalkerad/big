@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { handleApply } from './handler'
 import { appError } from '@/lib/errors'
+import { MAX_TEXT_LENGTH } from '@/lib/schemas'
 import { seedDocuments, seedProject } from '@/lib/seed-data'
 import type { ReviewProvider } from '@/lib/providers/interface'
 import type { ReviewResult } from '@/types'
@@ -54,6 +55,27 @@ describe('handleApply', () => {
       expect(res.error.code).toBe('UNKNOWN')
       expect(res.error.cause).toBeDefined()
     }
+  })
+
+  it('rejects an over-length body with a typed error before calling the provider', async () => {
+    let called = false
+    const provider = applyProvider(async () => {
+      called = true
+      throw new Error('provider should not be reached for over-length input')
+    })
+    const res = await handleApply(bodyFor('x'.repeat(MAX_TEXT_LENGTH + 1)), { provider })
+    expect(res.ok).toBe(false)
+    if (!res.ok) {
+      expect(res.error.code).toBe('UNKNOWN')
+      expect(res.error.cause).toBeDefined()
+    }
+    expect(called).toBe(false)
+  })
+
+  it('accepts a body at the maximum allowed length', async () => {
+    const provider = applyProvider(async () => 'rewritten')
+    const res = await handleApply(bodyFor('x'.repeat(MAX_TEXT_LENGTH)), { provider })
+    expect(res.ok).toBe(true)
   })
 
   it('maps a provider that throws to a typed AppError', async () => {
