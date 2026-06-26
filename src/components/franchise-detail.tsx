@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
 import type { Project } from '@/types'
 import { cn } from '@/lib/utils'
@@ -19,6 +19,7 @@ interface FranchiseDetailProps {
  */
 export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps) {
   const dialogRef = useRef<HTMLDivElement>(null)
+  const descriptionId = useId()
 
   // Move focus into the dialog, trap Tab, restore focus to the trigger on close.
   useFocusTrap(dialogRef, open)
@@ -48,6 +49,7 @@ export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps
         role="dialog"
         aria-modal="true"
         aria-label={`Franchise detail: ${project.name}`}
+        aria-describedby={descriptionId}
         className={cn(
           'relative z-10 flex w-full max-w-md flex-col gap-4 rounded-card border border-border bg-surface p-5 shadow-lg',
         )}
@@ -67,7 +69,7 @@ export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps
           </button>
         </div>
 
-        <Field label="Audience">{project.audience}</Field>
+        <Field label="Audience" id={descriptionId}>{project.audience}</Field>
         <Field label="Tone & world">{project.franchiseContext}</Field>
 
         {project.tags.length > 0 ? (
@@ -90,11 +92,19 @@ export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps
   )
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  children,
+  id,
+}: {
+  label: string
+  children: React.ReactNode
+  id?: string
+}) {
   return (
     <div className="flex flex-col gap-1">
       <span className="text-label-xs uppercase tracking-[0.05em] text-text-tertiary">{label}</span>
-      <p className="text-body text-text-secondary">{children}</p>
+      <p id={id} className="text-body text-text-secondary">{children}</p>
     </div>
   )
 }

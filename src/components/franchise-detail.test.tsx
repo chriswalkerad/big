@@ -29,6 +29,16 @@ describe('FranchiseDetail', () => {
     expect(screen.getByText('comedy')).toBeInTheDocument()
   })
 
+  it('wires aria-describedby to a real description element (#13)', () => {
+    render(<FranchiseDetail project={PROJECT} open onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog')
+    const describedById = dialog.getAttribute('aria-describedby')
+    expect(describedById).toBeTruthy()
+    const description = document.getElementById(describedById as string)
+    expect(description).not.toBeNull()
+    expect(description).toHaveTextContent(PROJECT.audience)
+  })
+
   it('calls onClose from the close button', () => {
     const onClose = vi.fn()
     render(<FranchiseDetail project={PROJECT} open onClose={onClose} />)
