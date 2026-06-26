@@ -393,7 +393,7 @@ export function ReviewStrip({
             {applying ? (
               <Loader2 className="size-3 animate-spin" aria-hidden="true" />
             ) : (
-              <Sparkles className="size-3 text-accent" aria-hidden="true" />
+              <Sparkles className="size-3" aria-hidden="true" />
             )}
             {applying ? 'Applying…' : 'Apply fix'}
           </Button>
@@ -449,7 +449,7 @@ function ReviewSummary({
                 {applying ? (
                   <Loader2 className="size-3 animate-spin" aria-hidden="true" />
                 ) : (
-                  <Sparkles className="size-3 text-accent" aria-hidden="true" />
+                  <Sparkles className="size-3" aria-hidden="true" />
                 )}
                 <span>{applying ? 'Applying…' : 'Apply'}</span>
               </Button>

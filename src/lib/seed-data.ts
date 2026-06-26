@@ -19,8 +19,10 @@ import { speedDocuments, speedProject } from './seed/speed'
  * documents). v1 = single Eloise project; v2 = Eloise + Speed (13 documents);
  * v3 = adds Project.owner + Document.reviewer (Person) from the people roster.
  * v4 = rescales signal scores and thresholds from a 0–10 to a 0–100 scale.
+ * v5 = re-seed to refresh snapshots that held the stale "[paste your text here]"
+ * suggested-prompt placeholder from before it was removed.
  */
-export const SEED_VERSION = 4
+export const SEED_VERSION = 5
 
 /** Both seeded projects, in display order. */
 export const seedProjects: Project[] = [eloiseProject, speedProject]
