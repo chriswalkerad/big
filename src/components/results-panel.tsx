@@ -15,7 +15,7 @@ import {
   signalDefMap,
 } from '@/lib/doc-page'
 import { SignalRow } from '@/components/signal-row'
-import { ScoreExplanation } from '@/components/score-explanation'
+import { ScoreExplanation, SCORE_EXPLANATION_ID } from '@/components/score-explanation'
 import { ReviewerChoice } from '@/components/reviewer-choice'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
@@ -529,6 +529,7 @@ function PanelHeader({
           type="button"
           onClick={onToggleExplain}
           aria-expanded={explaining}
+          aria-controls={SCORE_EXPLANATION_ID}
           className={cn(
             'inline-flex h-7 w-fit items-center gap-1.5 rounded-control px-2 text-label-sm text-text-secondary transition-colors',
             'hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',

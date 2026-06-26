@@ -41,4 +41,17 @@ describe("ErrorState", () => {
     render(<ErrorState error={appError("AI_RATE_LIMIT")} />);
     expect(screen.queryByRole("button", { name: /retry/i })).not.toBeInTheDocument();
   });
+
+  it("renders the title as a real heading (default level 2) so heading-nav finds it", () => {
+    render(<ErrorState error={appError("AI_TIMEOUT")} title="Review failed" />);
+    const heading = screen.getByRole("heading", { name: "Review failed" });
+    expect(heading.tagName).toBe("H2");
+    // Still announced live.
+    expect(screen.getByRole("alert")).toBeInTheDocument();
+  });
+
+  it("honours an explicit headingLevel", () => {
+    render(<ErrorState error={appError("AI_TIMEOUT")} title="Nope" headingLevel={3} />);
+    expect(screen.getByRole("heading", { level: 3, name: "Nope" })).toBeInTheDocument();
+  });
 });

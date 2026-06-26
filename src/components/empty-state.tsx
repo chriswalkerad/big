@@ -18,7 +18,8 @@ export function EmptyState({ title, description, action, icon, className }: Empt
         className,
       )}
     >
-      {icon ? <div className="text-text-tertiary">{icon}</div> : null}
+      {/* Decorative illustration only; the title/description carry the meaning. */}
+      {icon ? <div aria-hidden="true" className="text-text-tertiary">{icon}</div> : null}
       <h2 className="text-display text-text-primary">{title}</h2>
       {description ? (
         <p className="max-w-prose text-body text-text-secondary">{description}</p>

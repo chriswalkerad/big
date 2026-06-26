@@ -4,6 +4,13 @@ import { ArrowLeft } from 'lucide-react'
 import type { SignalDef } from '@/types'
 import { cn } from '@/lib/utils'
 
+/**
+ * Id of the disclosed methodology region. The "How is this calculated?" toggle in
+ * ResultsPanel points its `aria-controls` here so assistive tech links the control to
+ * the region it expands.
+ */
+export const SCORE_EXPLANATION_ID = 'score-explanation-panel'
+
 interface ScoreExplanationProps {
   /** The signal definitions — names, prompts, modes, thresholds drive the copy. */
   signals: SignalDef[]
@@ -32,7 +39,11 @@ function isBrandSafety(id: string): boolean {
  */
 export function ScoreExplanation({ signals, onBack }: ScoreExplanationProps) {
   return (
-    <section aria-label="How the score is calculated" className="flex flex-col gap-4">
+    <section
+      id={SCORE_EXPLANATION_ID}
+      aria-label="How the score is calculated"
+      className="flex flex-col gap-4"
+    >
       <button
         type="button"
         onClick={onBack}
