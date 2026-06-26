@@ -20,8 +20,10 @@ type RecognizedArgs = { result: { text: string; reason: number } }
 type CanceledArgs = { reason: number; errorCode: number; errorDetails?: string }
 
 let lastRecognizer: FakeRecognizer | null = null
+let recognizerCount = 0
 function register(r: FakeRecognizer) {
   lastRecognizer = r
+  recognizerCount += 1
 }
 
 class FakeRecognizer {
@@ -71,6 +73,7 @@ afterEach(() => {
   requestSpeechTokenMock.mockReset()
   fakeAudioConfig.close.mockReset()
   lastRecognizer = null
+  recognizerCount = 0
 })
 
 const okToken = () =>
@@ -148,28 +151,61 @@ describe('useDictation', () => {
     expect(result.current.error?.message).toMatch(/microphone access/i)
   })
 
-  it('an auth-failure cancellation attempts a token refresh before erroring', async () => {
+  it('an auth-failure cancellation fully restarts (new recognizer, resumes), not just a token reassignment', async () => {
     requestSpeechTokenMock.mockResolvedValue(okToken())
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+    const onFinal = vi.fn()
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal }))
 
     await act(async () => {
       await result.current.start()
     })
     await waitFor(() => expect(result.current.status).toBe('listening'))
+    const deadRecognizer = lastRecognizer
+    expect(deadRecognizer).not.toBeNull()
 
-    // The refresh succeeds → no error; the recognizer's token is reassigned.
+    // The restart mints a fresh token and builds a NEW recognizer.
     requestSpeechTokenMock.mockResolvedValueOnce({
       ok: true,
       data: { token: 'tok-refreshed', region: 'eastus' },
     })
     await act(async () => {
-      // reason 1 (Error), errorCode 1 (AuthenticationFailure)
-      lastRecognizer?.canceled?.(null, { reason: 1, errorCode: 1, errorDetails: 'auth failed' })
+      // reason 1 (Error), errorCode 1 (AuthenticationFailure) — Azure has already torn the
+      // session down, so the handler must restart rather than reassign a token in place.
+      deadRecognizer?.canceled?.(null, { reason: 1, errorCode: 1, errorDetails: 'auth failed' })
+      await Promise.resolve()
       await Promise.resolve()
     })
 
-    expect(result.current.status).toBe('listening')
-    expect(lastRecognizer?.authorizationToken).toBe('tok-refreshed')
+    await waitFor(() => expect(result.current.status).toBe('listening'))
+    // A brand-new recognizer was created (the dead one was torn down).
+    expect(lastRecognizer).not.toBe(deadRecognizer)
+    expect(deadRecognizer?.stopped).toBe(true)
+    expect(deadRecognizer?.closed).toBe(true)
+
+    // Recognition actually resumes on the NEW recognizer.
+    act(() => {
+      lastRecognizer?.recognized?.(null, { result: { text: 'resumed', reason: 3 } })
+    })
+    expect(onFinal).toHaveBeenCalledWith('resumed')
+  })
+
+  it('a rapid double start() creates only ONE recognizer (no mic leak)', async () => {
+    // The token mint resolves on the next microtask, holding both start() calls in their
+    // awaited region simultaneously — the synchronous in-flight latch must make the second
+    // a no-op so only one recognizer / one mic capture is ever created.
+    requestSpeechTokenMock.mockImplementation(() => Promise.resolve(okToken()))
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+
+    await act(async () => {
+      // Fire two starts back-to-back without awaiting the first.
+      const p1 = result.current.start()
+      const p2 = result.current.start()
+      await Promise.all([p1, p2])
+    })
+    await waitFor(() => expect(result.current.status).toBe('listening'))
+
+    // Exactly one recognizer (and one mic capture) was ever created.
+    expect(recognizerCount).toBe(1)
   })
 
   it('stop tears down the recognizer + audio config and returns to idle', async () => {

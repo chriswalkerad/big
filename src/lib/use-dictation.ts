@@ -52,6 +52,16 @@ export function useDictation({ onInterim, onFinal }: UseDictationOptions): UseDi
   const refreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   // Set true once stop()/teardown runs so post-stop SDK callbacks don't resurrect state.
   const stoppedRef = useRef(true)
+  // SYNCHRONOUS "a start/restart is in flight" latch. `stoppedRef` only flips false AFTER
+  // the awaited token mint + SDK import, so it can't gate a re-entrant start() during those
+  // awaits; this ref does. Set true synchronously before any await, cleared on teardown and
+  // once a recognizer is live. Guarantees exactly one recognizer + one mic capture.
+  const startingRef = useRef(false)
+  // The lazily-imported SDK, cached so a mid-session restart doesn't re-import.
+  const sdkRef = useRef<SpeechSdk | null>(null)
+  // Indirection for buildAndStart's self-restart (auth-cancel path), so the callback can
+  // reference itself without a use-before-declaration cycle.
+  const buildAndStartRef = useRef<(() => Promise<boolean>) | null>(null)
 
   // Keep the latest callbacks without re-creating start/stop.
   const onInterimRef = useRef(onInterim)
@@ -64,8 +74,11 @@ export function useDictation({ onInterim, onFinal }: UseDictationOptions): UseDi
   }, [onFinal])
 
   // Tear down every SDK resource and the refresh timer. Safe to call repeatedly.
-  const teardown = useCallback(() => {
+  // `keepStarting` leaves the in-flight latch set so a restart can rebuild without a
+  // concurrent start() slipping in between the dead session's teardown and the new one.
+  const teardown = useCallback((keepStarting = false) => {
     stoppedRef.current = true
+    if (!keepStarting) startingRef.current = false
     if (refreshTimerRef.current !== null) {
       clearInterval(refreshTimerRef.current)
       refreshTimerRef.current = null
@@ -110,147 +123,201 @@ export function useDictation({ onInterim, onFinal }: UseDictationOptions): UseDi
     setStatus('idle')
   }, [teardown])
 
-  const start = useCallback(async () => {
-    // Already running — no-op.
-    if (!stoppedRef.current) return
-    setError(null)
+  // Build a fresh recognizer around a freshly-minted token and start continuous
+  // recognition. Used both for the initial start() and for the restart triggered when an
+  // auth/forbidden cancellation kills the session. Assumes the in-flight latch is held and
+  // any prior session has already been torn down. Returns true once recognition is wired.
+  const buildAndStart = useCallback((): Promise<boolean> => {
+    const sdk = sdkRef.current
+    if (!sdk) return Promise.resolve(false)
+    const {
+      SpeechConfig,
+      AudioConfig,
+      SpeechRecognizer,
+      ResultReason,
+      CancellationReason,
+      CancellationErrorCode,
+    } = sdk
 
-    // Mint a short-lived token. A failure here (HTTP/network/not configured) is a typed
-    // error — never a throw to render.
-    const tokenResult = await requestSpeechToken()
-    if (!tokenResult.ok) {
-      setError(tokenResult.error)
-      setStatus('error')
-      return
-    }
-    const { region } = tokenResult.data
-
-    // Lazy, client-only load of the SDK (SSR-safe, off the initial bundle).
-    let sdk: SpeechSdk
-    try {
-      sdk = await import('microsoft-cognitiveservices-speech-sdk')
-    } catch (e) {
-      setError(appError('UNKNOWN', "Couldn't load the speech recognizer.", e))
-      setStatus('error')
-      return
-    }
-    const { SpeechConfig, AudioConfig, SpeechRecognizer, ResultReason, CancellationReason, CancellationErrorCode } = sdk
-
-    stoppedRef.current = false
-
-    let recognizer: SpeechRecognizer
-    let audioConfig: AudioConfig
-    try {
-      const speechConfig = SpeechConfig.fromAuthorizationToken(tokenResult.data.token, region)
-      speechConfig.speechRecognitionLanguage = 'en-US'
-      audioConfig = AudioConfig.fromDefaultMicrophoneInput()
-      audioConfigRef.current = audioConfig
-      recognizer = new SpeechRecognizer(speechConfig, audioConfig)
-      recognizerRef.current = recognizer
-    } catch (e) {
-      setError(appError('UNKNOWN', "Couldn't start audio capture.", e))
-      setStatus('error')
-      teardown()
-      return
-    }
-
-    // Interim hypothesis — the full current text for the in-progress utterance.
-    recognizer.recognizing = (_, e) => {
-      if (stoppedRef.current) return
-      if (e.result.text) onInterimRef.current(e.result.text)
-    }
-
-    // A finalized utterance.
-    recognizer.recognized = (_, e) => {
-      if (stoppedRef.current) return
-      if (e.result.reason === ResultReason.RecognizedSpeech && e.result.text) {
-        onFinalRef.current(e.result.text)
+    return requestSpeechToken().then((tokenResult) => {
+      if (!tokenResult.ok) {
+        setError(tokenResult.error)
+        setStatus('error')
+        teardown()
+        return false
       }
-    }
+      const { token, region } = tokenResult.data
 
-    // Cancellation. Only an actual error reason is surfaced; a normal end-of-stream is
-    // not. An auth/forbidden code gets one token-refresh attempt before erroring (the
-    // mic may simply have outlived its token).
-    recognizer.canceled = (_, e) => {
-      if (stoppedRef.current) return
-      if (e.reason !== CancellationReason.Error) return
+      stoppedRef.current = false
 
-      const isAuth =
-        e.errorCode === CancellationErrorCode.AuthenticationFailure ||
-        e.errorCode === CancellationErrorCode.Forbidden
-
-      if (isAuth) {
-        // Try to refresh the token in place and keep going before giving up.
-        void requestSpeechToken().then((refreshed) => {
-          if (stoppedRef.current) return
-          const active = recognizerRef.current
-          if (refreshed.ok && active) {
-            active.authorizationToken = refreshed.data.token
-            return
-          }
-          surfaceCancelError(e.errorDetails)
-        })
-        return
+      let recognizer: SpeechRecognizer
+      try {
+        const speechConfig = SpeechConfig.fromAuthorizationToken(token, region)
+        speechConfig.speechRecognitionLanguage = 'en-US'
+        const audioConfig = AudioConfig.fromDefaultMicrophoneInput()
+        audioConfigRef.current = audioConfig
+        recognizer = new SpeechRecognizer(speechConfig, audioConfig)
+        recognizerRef.current = recognizer
+      } catch (e) {
+        setError(appError('UNKNOWN', "Couldn't start audio capture.", e))
+        setStatus('error')
+        teardown()
+        return false
       }
-      surfaceCancelError(e.errorDetails)
-    }
 
-    function surfaceCancelError(details: string | undefined) {
-      if (stoppedRef.current) return
-      const hay = String(details ?? '').toLowerCase()
-      const micBlocked =
-        hay.includes('permission') || hay.includes('denied') || hay.includes('notallowed')
-      setError(
-        micBlocked
-          ? appError(
-              'UNKNOWN',
-              'Microphone access was blocked. Allow it in your browser to dictate.',
-              details,
-            )
-          : toAppError(new Error(details ?? 'Speech recognition was canceled.')),
-      )
-      setStatus('error')
-      teardown()
-    }
+      // Interim hypothesis — the full current text for the in-progress utterance.
+      recognizer.recognizing = (_, e) => {
+        if (stoppedRef.current) return
+        if (e.result.text) onInterimRef.current(e.result.text)
+      }
 
-    // Begin continuous recognition. On success, schedule periodic token refreshes so a
-    // long session never drops; on failure (mic permission denied via AudioConfig, etc.)
-    // surface a typed error.
-    recognizer.startContinuousRecognitionAsync(
-      () => {
+      // A finalized utterance.
+      recognizer.recognized = (_, e) => {
         if (stoppedRef.current) return
-        setStatus('listening')
-        refreshTimerRef.current = setInterval(() => {
-          void requestSpeechToken().then((refreshed) => {
-            const active = recognizerRef.current
-            if (!stoppedRef.current && refreshed.ok && active) {
-              active.authorizationToken = refreshed.data.token
-            }
-          })
-        }, TOKEN_REFRESH_MS)
-      },
-      (err: string) => {
+        if (e.result.reason === ResultReason.RecognizedSpeech && e.result.text) {
+          onFinalRef.current(e.result.text)
+        }
+      }
+
+      function surfaceCancelError(details: string | undefined) {
         if (stoppedRef.current) return
-        const hay = String(err).toLowerCase()
+        const hay = String(details ?? '').toLowerCase()
         const micBlocked =
           hay.includes('permission') || hay.includes('denied') || hay.includes('notallowed')
         setError(
-          appError(
-            'UNKNOWN',
-            micBlocked
-              ? 'Microphone access was blocked. Allow it in your browser to dictate.'
-              : "Couldn't start the microphone.",
-            err,
-          ),
+          micBlocked
+            ? appError(
+                'UNKNOWN',
+                'Microphone access was blocked. Allow it in your browser to dictate.',
+                details,
+              )
+            : toAppError(new Error(details ?? 'Speech recognition was canceled.')),
         )
         setStatus('error')
         teardown()
-      },
-    )
+      }
+
+      // Cancellation. Only an actual error reason is surfaced; a normal end-of-stream is
+      // not. An auth/forbidden code means the token expired and Azure has ALREADY torn down
+      // this session — reassigning `authorizationToken` on the dead recognizer would not
+      // resume anything. So fully RESTART: tear down the dead session and build a brand-new
+      // recognizer around a fresh token. Only if that restart itself fails do we surface a
+      // typed error.
+      recognizer.canceled = (_, e) => {
+        if (stoppedRef.current) return
+        if (e.reason !== CancellationReason.Error) return
+
+        const isAuth =
+          e.errorCode === CancellationErrorCode.AuthenticationFailure ||
+          e.errorCode === CancellationErrorCode.Forbidden
+
+        if (isAuth) {
+          // Hold the in-flight latch across the dead-session teardown + rebuild so a
+          // concurrent start() can't double-init while we restart.
+          startingRef.current = true
+          teardown(true)
+          void (buildAndStartRef.current?.() ?? Promise.resolve(false))
+            .catch((restartErr) => {
+              setError(toAppError(restartErr))
+              setStatus('error')
+              teardown()
+              return false
+            })
+            .then((restarted) => {
+              if (!restarted) startingRef.current = false
+            })
+          return
+        }
+        surfaceCancelError(e.errorDetails)
+      }
+
+      // Begin continuous recognition. On success, schedule periodic token refreshes so a
+      // long session never drops; on failure (mic permission denied via AudioConfig, etc.)
+      // surface a typed error.
+      return new Promise<boolean>((resolve) => {
+        recognizer.startContinuousRecognitionAsync(
+          () => {
+            if (stoppedRef.current) {
+              resolve(false)
+              return
+            }
+            setStatus('listening')
+            // The session is live; the in-flight latch can drop — a subsequent start() is a
+            // no-op via stoppedRef, and a restart re-arms the latch itself.
+            startingRef.current = false
+            refreshTimerRef.current = setInterval(() => {
+              void requestSpeechToken().then((refreshed) => {
+                const active = recognizerRef.current
+                if (!stoppedRef.current && refreshed.ok && active) {
+                  // Proactive refresh on a STILL-LIVE recognizer: reassigning the token in
+                  // place is the correct, supported path (no restart needed here).
+                  active.authorizationToken = refreshed.data.token
+                }
+              })
+            }, TOKEN_REFRESH_MS)
+            resolve(true)
+          },
+          (err: string) => {
+            if (stoppedRef.current) {
+              resolve(false)
+              return
+            }
+            const hay = String(err).toLowerCase()
+            const micBlocked =
+              hay.includes('permission') || hay.includes('denied') || hay.includes('notallowed')
+            setError(
+              appError(
+                'UNKNOWN',
+                micBlocked
+                  ? 'Microphone access was blocked. Allow it in your browser to dictate.'
+                  : "Couldn't start the microphone.",
+                err,
+              ),
+            )
+            setStatus('error')
+            teardown()
+            resolve(false)
+          },
+        )
+      })
+    })
   }, [teardown])
+  // Keep the self-restart indirection pointed at the latest buildAndStart (set outside
+  // render so refs aren't mutated during render).
+  useEffect(() => {
+    buildAndStartRef.current = buildAndStart
+  }, [buildAndStart])
+
+  const start = useCallback(async () => {
+    // Already running, or a start/restart is already in flight — no-op. The synchronous
+    // latch is what makes a rapid second start() (double-click / StrictMode double-invoke)
+    // safe: stoppedRef stays true through the awaits below, so it alone can't gate re-entry.
+    if (!stoppedRef.current || startingRef.current) return
+    startingRef.current = true
+    setError(null)
+
+    // Lazy, client-only load of the SDK (SSR-safe, off the initial bundle), cached so a
+    // later restart reuses it.
+    if (!sdkRef.current) {
+      try {
+        sdkRef.current = await import('microsoft-cognitiveservices-speech-sdk')
+      } catch (e) {
+        setError(appError('UNKNOWN', "Couldn't load the speech recognizer.", e))
+        setStatus('error')
+        startingRef.current = false
+        return
+      }
+    }
+
+    // A stop() during the awaited import wins: it clears the latch. If the latch is no
+    // longer ours, abandon this start rather than resurrecting a torn-down session.
+    if (!startingRef.current) return
+
+    await buildAndStart()
+  }, [buildAndStart])
 
   // Full cleanup on unmount.
-  useEffect(() => teardown, [teardown])
+  useEffect(() => () => teardown(), [teardown])
 
   return { status, error, start, stop }
 }
