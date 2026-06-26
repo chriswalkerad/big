@@ -26,6 +26,41 @@ export function resultsPanel(page: Page) {
 }
 
 /**
+ * Open the inline review DETAIL panel. The panel is collapsed by default (the slim
+ * review strip is the minimal surface), so until it is opened it is `aria-hidden` and
+ * absent from the a11y tree — `resultsPanel(page)` won't resolve. The far-right meta-row
+ * toggle ("Show review panel") opens it; we wait for the region to become visible.
+ * Idempotent-ish: if the panel is already open this is a no-op (the toggle reads
+ * "Hide review panel"), so callers gate on visibility rather than always toggling.
+ */
+export async function openReviewPanel(page: Page) {
+  if (await resultsPanel(page).isVisible().catch(() => false)) return
+  await page.getByRole('button', { name: 'Show review panel' }).click()
+  await expect(resultsPanel(page)).toBeVisible()
+}
+
+/**
+ * Drive the second half of the submit flow against an open review preview. The
+ * preview's "Confirm submission" no longer commits directly: it opens an in-panel
+ * choose-reviewer view (see `reviewer-choice.tsx`) where a reviewer is REQUIRED.
+ * This clicks Confirm, then commits with the pre-selected reviewer via
+ * "Submit for review". Pass the same `resultsPanel(page)` the caller is asserting on.
+ */
+export async function confirmSubmission(page: Page) {
+  const panel = resultsPanel(page)
+  await panel.getByRole('button', { name: 'Confirm submission' }).click()
+
+  // The in-panel choose-reviewer view replaces the signal rows. A reviewer is
+  // pre-selected (the prior choice or the first roster member), so we can submit
+  // straight away.
+  const choose = panel.getByRole('region', { name: 'Choose a reviewer' })
+  await expect(choose).toBeVisible()
+  await choose.getByRole('button', { name: 'Submit for review' }).click()
+
+  await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
+}
+
+/**
  * Type text into the Tiptap canvas. The editor is contenteditable; we focus it,
  * move to the end, and type. Pass `replace` to select-all + overwrite first.
  */
