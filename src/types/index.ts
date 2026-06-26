@@ -162,3 +162,17 @@ export type TranscribeResponse =
 export interface TranscribeAvailability {
   available: boolean
 }
+
+/** Successful payload from GET /api/speech-token: a short-lived Azure Speech
+ * token + the region the real-time Speech SDK needs. The subscription key stays
+ * server-side; the client only ever receives this token. */
+export interface SpeechTokenResult {
+  token: string
+  region: string
+}
+
+/** Discriminated response from GET /api/speech-token (streaming voice dictation).
+ * A successful mint doubles as the availability probe. */
+export type SpeechTokenResponse =
+  | { ok: true; data: SpeechTokenResult }
+  | { ok: false; error: import('@/lib/errors').AppError }

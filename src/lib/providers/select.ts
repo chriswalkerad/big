@@ -38,6 +38,9 @@ export type TranscribeEnv = {
   AZURE_SPEECH_KEY?: string
   /** Fast-transcription model, e.g. mai-transcribe-1.5. */
   AZURE_SPEECH_TRANSCRIBE_MODEL?: string
+  /** Azure region for the Speech resource, e.g. eastus. Required to mint the
+   * short-lived token the real-time Speech SDK streams with. */
+  AZURE_SPEECH_REGION?: string
   // Legacy fallbacks (deprecated; OpenAI-compatible transcriptions path).
   AZURE_OPENAI_API_KEY?: string
   AZURE_OPENAI_ENDPOINT?: string
@@ -53,6 +56,7 @@ export function resolveTranscribeConfig(env: TranscribeEnv = process.env): {
   endpoint: string
   apiKey: string
   model: string
+  region: string
 } {
   const endpoint = (
     env.AZURE_SPEECH_ENDPOINT ??
@@ -71,7 +75,9 @@ export function resolveTranscribeConfig(env: TranscribeEnv = process.env): {
     env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT ??
     ''
   ).trim()
-  return { endpoint, apiKey, model }
+  // Region has no legacy fallback — it's only needed by the streaming token path.
+  const region = (env.AZURE_SPEECH_REGION ?? '').trim()
+  return { endpoint, apiKey, model, region }
 }
 
 /** True when a usable Gemini key is configured. */
@@ -101,6 +107,17 @@ export function hasAzureConfig(env: ProviderEnv = process.env): boolean {
 export function hasTranscribeConfig(env: TranscribeEnv = process.env): boolean {
   const { endpoint, apiKey, model } = resolveTranscribeConfig(env)
   return endpoint.length > 0 && apiKey.length > 0 && model.length > 0
+}
+
+/**
+ * True when the streaming Speech token path is fully configured: a Speech
+ * endpoint + key + region must all be present. The real-time Speech SDK
+ * authenticates with a short-lived token + region (NOT the model), so unlike
+ * {@link hasTranscribeConfig} the region is required and the model is not.
+ */
+export function hasSpeechTokenConfig(env: TranscribeEnv = process.env): boolean {
+  const { endpoint, apiKey, region } = resolveTranscribeConfig(env)
+  return endpoint.length > 0 && apiKey.length > 0 && region.length > 0
 }
 
 /** Select the review provider based on the environment (Azure > Gemini > mock). */
