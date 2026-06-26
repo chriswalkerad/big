@@ -62,12 +62,14 @@ describe("SignalForm", () => {
     const onSubmit = vi.fn();
     render(<Harness initial={emptySignalForm()} mode="create" onSubmit={onSubmit} />);
 
-    // The mode picker is the shared Select (a button labelled "Mode"), defaulting to "Inline".
-    const modeTrigger = screen.getByRole("button", { name: "Mode" });
+    // The mode picker is the shared Select listbox; its accessible name composes the
+    // visible "Mode" label with the current value ("Inline" by default).
+    const modeTrigger = screen.getByRole("button", { name: /mode\s+inline/i });
+    expect(modeTrigger).toHaveAttribute("aria-haspopup", "listbox");
     expect(modeTrigger).toHaveTextContent("Inline");
 
     await user.click(modeTrigger);
-    await user.click(screen.getByRole("menuitem", { name: /document/i }));
+    await user.click(screen.getByRole("option", { name: /document/i }));
 
     await user.type(screen.getByLabelText("Name"), "Tone");
     await user.type(screen.getByLabelText("Prompt"), "Judge the tone.");
@@ -75,6 +77,16 @@ describe("SignalForm", () => {
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit.mock.calls[0][0]).toMatchObject({ mode: "doc" });
+  });
+
+  it("associates the visible Mode label with the picker (3.3.2 parity)", () => {
+    render(<Harness initial={emptySignalForm()} mode="create" onSubmit={() => {}} />);
+
+    // The picker's name is composed from the visible "Mode" label + current value,
+    // mirroring how the other fields associate their <label>.
+    const modeLabel = screen.getByText("Mode");
+    const modeTrigger = screen.getByRole("button", { name: /mode\s+inline/i });
+    expect(modeTrigger.getAttribute("aria-labelledby")).toContain(modeLabel.id);
   });
 
   it("flags an out-of-range threshold", async () => {

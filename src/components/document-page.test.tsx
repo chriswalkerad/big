@@ -259,7 +259,9 @@ describe('DocumentPage edit mode — submit flow', () => {
 
   it('Escape closes an open menu without ALSO collapsing the review panel', async () => {
     seedDoc()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // Fresh Response per call: the capability check (GET /api/speech-token) and the
+    // review POST both read a body, and a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
     )
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
@@ -268,15 +270,15 @@ describe('DocumentPage edit mode — submit flow', () => {
     fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
     await screen.findByRole('region', { name: 'Review results' })
 
-    // Open the bare subtype Select — a shared Menu popover (role="menu").
-    fireEvent.click(screen.getByRole('button', { name: 'Subtype' }))
-    expect(await screen.findByRole('menu')).toBeInTheDocument()
+    // Open the bare subtype Select — a shared listbox value picker (role="listbox").
+    fireEvent.click(screen.getByRole('button', { name: /subtype/i }))
+    expect(await screen.findByRole('listbox')).toBeInTheDocument()
 
-    // ONE Escape while the menu is open dismisses the menu but must NOT also collapse
+    // ONE Escape while the listbox is open dismisses it but must NOT also collapse
     // the panel beneath it — the page's Escape handler defers to the open overlay.
     fireEvent.keyDown(document.body, { key: 'Escape' })
     await waitFor(() => {
-      expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+      expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
     })
     expect(screen.getByRole('region', { name: 'Review results' })).toBeInTheDocument()
 

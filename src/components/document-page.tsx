@@ -636,13 +636,13 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && panelOpen) {
-        // The shared Menu (role="menu") and DestinationPicker (role="dialog") register
-        // their OWN window/document Escape handlers and don't stopPropagation, so a
-        // single Escape that dismisses an open popover would also bubble to here and
-        // collapse the panel beneath it. Guard against that: only collapse the panel
-        // when NO such overlay is open — i.e. Escape closes the popover first, and a
-        // second Escape (with nothing open) collapses the panel.
-        if (document.querySelector('[role="menu"],[role="dialog"]')) return
+        // The shared Menu (role="menu"), Select (role="listbox") and DestinationPicker
+        // (role="dialog") register their OWN window/document Escape handlers and don't
+        // stopPropagation, so a single Escape that dismisses an open popover would also
+        // bubble to here and collapse the panel beneath it. Guard against that: only
+        // collapse the panel when NO such overlay is open — i.e. Escape closes the popover
+        // first, and a second Escape (with nothing open) collapses the panel.
+        if (document.querySelector('[role="menu"],[role="listbox"],[role="dialog"]')) return
         setPanelOpen(false)
         return
       }

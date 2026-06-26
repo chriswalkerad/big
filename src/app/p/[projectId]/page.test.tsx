@@ -106,13 +106,13 @@ describe("LibraryPage", () => {
     renderLibrary();
     await screen.findByText("Eloise and the Midnight Room-Service Caper");
 
-    // The status filter is the shared Select (a menu-button, not a native combobox);
-    // its trigger defaults to the "All" sentinel label.
+    // The status filter is the shared Select (a listbox value picker, not a native
+    // combobox); its trigger defaults to the "All" sentinel label.
     const filter = screen.getByRole("button", { name: /filter by status/i });
     expect(filter).toHaveTextContent("All");
 
     fireEvent.click(filter);
-    fireEvent.click(screen.getByRole("menuitem", { name: "Approved" }));
+    fireEvent.click(screen.getByRole("option", { name: "Approved" }));
 
     // Only the caper is approved in the seed data.
     expect(
