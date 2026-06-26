@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { LibraryView } from "./page";
 
 // The library page reads through StorageRepository, which seeds the four demo
@@ -48,7 +48,8 @@ describe("LibraryPage", () => {
   it("links the New button to the new-document route", async () => {
     renderLibrary();
     await screen.findByText("Eloise and the Midnight Room-Service Caper");
-    const newLink = screen.getByRole("link", { name: "New" });
+    // The New action is an icon-only ink button; its accessible name is "New document".
+    const newLink = screen.getByRole("link", { name: "New document" });
     expect(newLink).toHaveAttribute("href", "/p/proj-eloise/d/new");
   });
 
@@ -96,5 +97,45 @@ describe("LibraryPage", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       /project could not be found/i,
     );
+  });
+
+  it("opens the review inbox and lists submissions awaiting review, linking to /review", async () => {
+    renderLibrary();
+    await screen.findByText("Eloise and the Midnight Room-Service Caper");
+
+    const inbox = screen.getByRole("button", { name: "Review inbox" });
+    fireEvent.click(inbox);
+
+    // Scope all assertions to the open inbox popover (the document list behind it
+    // also renders these titles).
+    const menu = within(screen.getByRole("menu", { name: "Review inbox" }));
+
+    // Seed has three docs awaiting review: "A New Friend at the Plaza" (submitted),
+    // "The Plaza Mini Olympics" (in_review), "The Below-Lobby World of the Plaza"
+    // (submitted). Each row is a menuitem linking to that doc's /review view.
+    const reviewLinks = menu.getAllByRole("menuitem");
+    expect(reviewLinks).toHaveLength(3);
+    for (const link of reviewLinks) {
+      expect(link.getAttribute("href")).toMatch(/\/review$/);
+    }
+
+    const friend = menu.getByText("A New Friend at the Plaza").closest("a");
+    expect(friend).toHaveAttribute(
+      "href",
+      "/p/proj-eloise/d/doc-new-friend/review",
+    );
+
+    // Approved and draft docs are NOT in the queue.
+    expect(
+      menu.queryByText("Eloise and the Midnight Room-Service Caper"),
+    ).not.toBeInTheDocument();
+    expect(menu.queryByText("Rooftop idea")).not.toBeInTheDocument();
+  });
+
+  it("shows the awaiting-review count as a badge on the inbox button", async () => {
+    renderLibrary();
+    await screen.findByText("Eloise and the Midnight Room-Service Caper");
+    const inbox = screen.getByRole("button", { name: "Review inbox" });
+    expect(inbox).toHaveTextContent("3");
   });
 });

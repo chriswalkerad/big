@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
-import type { Document, SubmissionStatus } from "@/types";
-import { ALL_STATUSES, filterDocuments, relativeTime } from "./library";
+import type { Document, Person, SubmissionStatus } from "@/types";
+import { ALL_STATUSES, filterDocuments, relativeTime, reviewQueue } from "./library";
+
+const REVIEWER: Person = { id: "p-anil", name: "Anil Rao", role: "Story Editor" };
 
 /** Build a Document with sensible defaults; override only what a test cares about. */
 function makeDoc(overrides: Partial<Document> = {}): Document {
@@ -88,6 +90,39 @@ describe("filterDocuments", () => {
     const input = [...docs];
     filterDocuments(input, { query: "caper", status: "approved" });
     expect(input).toEqual(docs);
+  });
+});
+
+describe("reviewQueue", () => {
+  const submitted = makeDoc({ id: "d-sub", status: "submitted", reviewer: REVIEWER });
+  const inReview = makeDoc({ id: "d-rev", status: "in_review", reviewer: REVIEWER });
+  const draft = makeDoc({ id: "d-draft", status: "draft" });
+  const changes = makeDoc({ id: "d-chg", status: "changes_requested", reviewer: REVIEWER });
+  const approved = makeDoc({ id: "d-app", status: "approved", reviewer: REVIEWER });
+  // Submitted but missing a reviewer — not actionable by anyone, so excluded.
+  const noReviewer = makeDoc({ id: "d-norev", status: "submitted" });
+
+  it("keeps only submitted/in_review docs that have a reviewer", () => {
+    const queue = [submitted, inReview, draft, changes, approved, noReviewer];
+    expect(reviewQueue(queue)).toEqual([submitted, inReview]);
+  });
+
+  it("excludes draft, changes_requested, and approved", () => {
+    expect(reviewQueue([draft, changes, approved])).toEqual([]);
+  });
+
+  it("excludes a submitted doc with no reviewer assigned", () => {
+    expect(reviewQueue([noReviewer])).toEqual([]);
+  });
+
+  it("returns an empty array for no documents", () => {
+    expect(reviewQueue([])).toEqual([]);
+  });
+
+  it("does not mutate the input array", () => {
+    const input = [submitted, draft];
+    reviewQueue(input);
+    expect(input).toEqual([submitted, draft]);
   });
 });
 

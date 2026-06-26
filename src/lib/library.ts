@@ -43,6 +43,35 @@ export function filterDocuments(
   });
 }
 
+/**
+ * The submission statuses that mean a document is sitting in a reviewer's queue,
+ * awaiting their attention. A `draft` has not been submitted; `changes_requested`
+ * and `approved` are terminal-for-the-reviewer outcomes (the ball is back with the
+ * author or the work is done). So only `submitted` and `in_review` are "awaiting
+ * review". Derived directly from `SubmissionStatus`.
+ */
+const AWAITING_REVIEW_STATUSES: ReadonlySet<SubmissionStatus> = new Set<SubmissionStatus>([
+  "submitted",
+  "in_review",
+]);
+
+/**
+ * The reviewer's inbox for a SINGLE project: the documents that have been
+ * submitted and are still awaiting a reviewer's attention (status `submitted` or
+ * `in_review`) AND have a reviewer assigned. Pure: returns a new array, never
+ * mutates input.
+ *
+ * Scope is intentionally the current project — the library is per-project, so the
+ * caller passes that project's documents. A cross-project inbox (one queue across
+ * every project a person reviews) is a future extension; it would live a layer up
+ * (over the full document set), not here.
+ */
+export function reviewQueue(docs: readonly Document[]): Document[] {
+  return docs.filter(
+    (doc) => doc.reviewer != null && AWAITING_REVIEW_STATUSES.has(doc.status),
+  );
+}
+
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
