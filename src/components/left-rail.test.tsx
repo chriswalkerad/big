@@ -6,13 +6,16 @@ import { LeftRail, RailEdgeToggle } from "./left-rail";
 
 // LeftRail reads the route via next/navigation; mock both hooks per test.
 const pathnameMock = vi.fn(() => "/p/proj-eloise");
-const paramsMock = vi.fn(() => ({ projectId: "proj-eloise" }));
+const paramsMock = vi.fn<() => { projectId?: string }>(() => ({
+  projectId: "proj-eloise",
+}));
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock(),
   useParams: () => paramsMock(),
 }));
 
 const RAIL_KEY = "bsp:ui:rail-collapsed";
+const LAST_PROJECT_KEY = "bsp:ui:last-project";
 
 beforeEach(() => {
   window.localStorage.clear();
@@ -125,6 +128,30 @@ describe("LeftRail", () => {
     expect(
       screen.queryByRole("button", { name: /navigation$/ }),
     ).toBeNull();
+  });
+
+  it("persists the project id when visiting a /p/{id} route", () => {
+    pathnameMock.mockReturnValue("/p/proj-speed-anime");
+    paramsMock.mockReturnValue({ projectId: "proj-speed-anime" });
+    renderRail();
+    expect(window.localStorage.getItem(LAST_PROJECT_KEY)).toBe(
+      "proj-speed-anime",
+    );
+  });
+
+  it("resolves to the persisted project (not the seeded fallback) on /settings", () => {
+    // Pretend the user was last inside a non-seeded-default project.
+    window.localStorage.setItem(LAST_PROJECT_KEY, "proj-speed-anime");
+    // A settings route has no project id in the path or params.
+    pathnameMock.mockReturnValue("/settings/signals");
+    paramsMock.mockReturnValue({});
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    // Home points at the persisted project, NOT the seeded proj-eloise.
+    expect(within(nav).getByRole("link", { name: "Home" })).toHaveAttribute(
+      "href",
+      "/p/proj-speed-anime",
+    );
   });
 
   it("reads a persisted collapsed value from localStorage on mount", () => {
