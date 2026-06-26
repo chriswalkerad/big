@@ -221,7 +221,7 @@ function MobileStrip({ onOpen }: { onOpen: () => void }) {
           height={16}
           className="size-4 rounded-[4px]"
         />
-        <span className="text-label-sm text-text-secondary">Creative Review</span>
+        <span className="text-label-sm text-text-secondary">Big Review</span>
       </span>
     </div>
   );
@@ -272,7 +272,7 @@ function NavMode({
         <Link
           href={homeHref}
           onClick={onNavigate}
-          aria-label="Creative Review home"
+          aria-label="Big Review home"
           className={cn(
             "inline-flex shrink-0 items-center rounded-control",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
@@ -289,7 +289,7 @@ function NavMode({
         </Link>
         {!collapsed ? (
           <span className="min-w-0 flex-1 truncate text-label-sm text-text-secondary">
-            Creative Review
+            Big Review
           </span>
         ) : null}
       </div>
