@@ -25,7 +25,6 @@ import {
   signalToForm,
   toSignalDef,
 } from "@/lib/signal-form";
-import { Breadcrumb } from "@/components/breadcrumb";
 import { Button } from "@/components/button";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
@@ -137,14 +136,6 @@ export default function SignalsAdminPage() {
     // measure (max-w-3xl) + padding below, so the forms keep their current width.
     <div className="mx-[calc(50%-50vw)] -my-6">
       <TopBar
-        breadcrumb={
-          <Breadcrumb
-            segments={[
-              { label: "Home", href: "/" },
-              { label: "Settings · Signals", current: true },
-            ]}
-          />
-        }
         actions={
           <Button variant="ink" onClick={openCreate}>
             <Plus className="size-4" aria-hidden="true" />

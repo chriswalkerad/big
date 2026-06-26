@@ -1,8 +1,11 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { MoreHorizontal, Settings } from "lucide-react";
+import { MoreHorizontal, Settings, UserRound } from "lucide-react";
 import { Menu } from "@/components/menu";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { AccountDialog } from "@/components/account-dialog";
 import { cn } from "@/lib/utils";
 
 export interface TopBarProps {
@@ -25,7 +28,8 @@ export interface TopBarProps {
  * Layout:
  *   LEFT  — a small decorative brand mark + the page `breadcrumb`.
  *   RIGHT — the page `actions` slot, then a global overflow `⋯` menu holding
- *           Settings (→ `/settings/signals`) and the theme toggle.
+ *           Account (opens the `AccountDialog`), Settings (→ `/settings/signals`)
+ *           and the theme toggle.
  *
  * It is `sticky top-0` with a single hairline bottom border on a white (token)
  * background. Pages render their own `<TopBar>` just below the app frame's
@@ -40,6 +44,8 @@ export interface TopBarProps {
  * ```
  */
 export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
+  const [accountOpen, setAccountOpen] = useState(false);
+
   return (
     <header
       className={cn(
@@ -82,15 +88,24 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
           >
             {(close) => (
               <>
+                {/* Account — opens the AccountDialog (relocated from the breadcrumb). */}
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    close();
+                    setAccountOpen(true);
+                  }}
+                  className={menuRowClass}
+                >
+                  <UserRound className="size-4" aria-hidden="true" />
+                  <span>Account</span>
+                </button>
                 <Link
                   href="/settings/signals"
                   role="menuitem"
                   onClick={close}
-                  className={cn(
-                    "flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm",
-                    "text-text-secondary transition-colors hover:bg-panel hover:text-text-primary",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                  )}
+                  className={menuRowClass}
                 >
                   <Settings className="size-4" aria-hidden="true" />
                   <span>Settings</span>
@@ -102,6 +117,14 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
           </Menu>
         </div>
       </div>
+      <AccountDialog open={accountOpen} onClose={() => setAccountOpen(false)} />
     </header>
   );
 }
+
+/** Shared "<icon> Text" row style for the overflow menu items (Account, Settings). */
+const menuRowClass = cn(
+  "flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm",
+  "text-text-secondary transition-colors hover:bg-panel hover:text-text-primary",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+);

@@ -2,6 +2,7 @@
 
 import { useId, useState } from "react";
 import { Button } from "@/components/button";
+import { Select } from "@/components/select";
 import { cn } from "@/lib/utils";
 import {
   SIGNAL_MODES,
@@ -9,7 +10,6 @@ import {
   THRESHOLD_MAX,
   THRESHOLD_MIN,
   type SignalFormValues,
-  isSignalMode,
   validateSignalForm,
 } from "@/lib/signal-form";
 
@@ -71,6 +71,11 @@ export function SignalForm({
   const promptId = `${baseId}-prompt`;
   const thresholdId = `${baseId}-threshold`;
   const modeId = `${baseId}-mode`;
+
+  const modeOptions = SIGNAL_MODES.map((m) => ({
+    value: m,
+    label: SIGNAL_MODE_LABELS[m],
+  }));
 
   return (
     <form
@@ -153,26 +158,16 @@ export function SignalForm({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor={modeId} className={fieldLabelClass}>
+          <span id={modeId} className={fieldLabelClass}>
             Mode
-          </label>
-          <select
-            id={modeId}
+          </span>
+          <Select
             value={values.mode}
-            onChange={(e) => {
-              const next = e.target.value;
-              if (isSignalMode(next)) set("mode", next);
-            }}
-            aria-invalid={visible.mode ? true : undefined}
-            aria-describedby={visible.mode ? `${modeId}-error` : undefined}
-            className={controlClass}
-          >
-            {SIGNAL_MODES.map((m) => (
-              <option key={m} value={m}>
-                {SIGNAL_MODE_LABELS[m]}
-              </option>
-            ))}
-          </select>
+            onChange={(next) => set("mode", next)}
+            options={modeOptions}
+            ariaLabel="Mode"
+            triggerClassName="w-full"
+          />
           {visible.mode ? (
             <p id={`${modeId}-error`} role="alert" className={fieldErrorClass}>
               {visible.mode}
