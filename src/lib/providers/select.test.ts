@@ -53,68 +53,96 @@ describe('provider selection', () => {
   })
 })
 
-describe('transcription config', () => {
-  const TRANSCRIBE_ENV = {
-    ...AZURE_ENV,
-    AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'openai--whisper-large-v3-turbo',
+describe('transcription config (Azure AI Speech fast transcription)', () => {
+  const SPEECH_ENV = {
+    AZURE_SPEECH_ENDPOINT: 'https://eastus.api.cognitive.microsoft.com',
+    AZURE_SPEECH_KEY: 'speech-key',
+    AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5',
   }
 
-  it('requires endpoint + key + transcribe deployment all present', () => {
+  it('requires endpoint + key + model all present', () => {
     expect(hasTranscribeConfig({})).toBe(false)
-    // Endpoint + key but no transcription deployment.
-    expect(hasTranscribeConfig(AZURE_ENV)).toBe(false)
-    // Deployment but no endpoint/key at all.
+    // Endpoint + key but no model.
     expect(
-      hasTranscribeConfig({ AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'whisper' }),
+      hasTranscribeConfig({
+        AZURE_SPEECH_ENDPOINT: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
+        AZURE_SPEECH_KEY: SPEECH_ENV.AZURE_SPEECH_KEY,
+      }),
     ).toBe(false)
-    expect(hasTranscribeConfig(TRANSCRIBE_ENV)).toBe(true)
+    // Model but no endpoint/key at all.
+    expect(hasTranscribeConfig({ AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5' })).toBe(false)
+    expect(hasTranscribeConfig(SPEECH_ENV)).toBe(true)
   })
 
   it('treats blank/whitespace values as unset', () => {
     expect(
       hasTranscribeConfig({
-        AZURE_OPENAI_ENDPOINT: '  ',
-        AZURE_OPENAI_API_KEY: 'k',
-        AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'whisper',
+        AZURE_SPEECH_ENDPOINT: '  ',
+        AZURE_SPEECH_KEY: 'k',
+        AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5',
       }),
     ).toBe(false)
   })
 
-  it('resolves endpoint and key from the main Azure values by default', () => {
-    expect(resolveTranscribeConfig(TRANSCRIBE_ENV)).toEqual({
-      endpoint: AZURE_ENV.AZURE_OPENAI_ENDPOINT,
-      apiKey: AZURE_ENV.AZURE_OPENAI_API_KEY,
-      deployment: 'openai--whisper-large-v3-turbo',
+  it('resolves the AZURE_SPEECH_* values', () => {
+    expect(resolveTranscribeConfig(SPEECH_ENV)).toEqual({
+      endpoint: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
+      apiKey: SPEECH_ENV.AZURE_SPEECH_KEY,
+      model: 'mai-transcribe-1.5',
     })
   })
 
-  it('prefers the transcription-specific endpoint and key overrides when set', () => {
+  it('prefers AZURE_SPEECH_* over the legacy AZURE_OPENAI_TRANSCRIBE_* fallbacks', () => {
     const resolved = resolveTranscribeConfig({
-      ...TRANSCRIBE_ENV,
-      AZURE_OPENAI_TRANSCRIBE_ENDPOINT: 'https://whisper.inference.ai.azure.com/openai/v1',
-      AZURE_OPENAI_TRANSCRIBE_API_KEY: 'whisper-only-key',
+      ...SPEECH_ENV,
+      AZURE_OPENAI_TRANSCRIBE_ENDPOINT: 'https://legacy/openai/v1',
+      AZURE_OPENAI_TRANSCRIBE_API_KEY: 'legacy-key',
+      AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'whisper',
     })
-    expect(resolved.endpoint).toBe('https://whisper.inference.ai.azure.com/openai/v1')
-    expect(resolved.apiKey).toBe('whisper-only-key')
-    expect(resolved.deployment).toBe('openai--whisper-large-v3-turbo')
+    expect(resolved).toEqual({
+      endpoint: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
+      apiKey: SPEECH_ENV.AZURE_SPEECH_KEY,
+      model: 'mai-transcribe-1.5',
+    })
   })
 
-  it('is configured via a transcribe endpoint even without the main endpoint', () => {
-    expect(
-      hasTranscribeConfig({
-        AZURE_OPENAI_TRANSCRIBE_ENDPOINT: 'https://whisper.inference.ai.azure.com/openai/v1',
-        AZURE_OPENAI_API_KEY: 'k',
-        AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'whisper',
-      }),
-    ).toBe(true)
+  it('falls back to the legacy AZURE_OPENAI_TRANSCRIBE_* names when AZURE_SPEECH_* are unset', () => {
+    const env = {
+      AZURE_OPENAI_TRANSCRIBE_ENDPOINT: 'https://legacy.api.cognitive.microsoft.com',
+      AZURE_OPENAI_TRANSCRIBE_API_KEY: 'legacy-key',
+      AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'mai-transcribe-1.5',
+    }
+    expect(hasTranscribeConfig(env)).toBe(true)
+    expect(resolveTranscribeConfig(env)).toEqual({
+      endpoint: 'https://legacy.api.cognitive.microsoft.com',
+      apiKey: 'legacy-key',
+      model: 'mai-transcribe-1.5',
+    })
+  })
+
+  it('falls back to the main AZURE_OPENAI_* endpoint/key', () => {
+    const resolved = resolveTranscribeConfig({
+      AZURE_OPENAI_ENDPOINT: 'https://main.api.cognitive.microsoft.com',
+      AZURE_OPENAI_API_KEY: 'main-key',
+      AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5',
+    })
+    expect(resolved).toEqual({
+      endpoint: 'https://main.api.cognitive.microsoft.com',
+      apiKey: 'main-key',
+      model: 'mai-transcribe-1.5',
+    })
   })
 
   it('trims resolved values', () => {
     const resolved = resolveTranscribeConfig({
-      AZURE_OPENAI_TRANSCRIBE_ENDPOINT: '  https://e/openai/v1  ',
-      AZURE_OPENAI_TRANSCRIBE_API_KEY: '  key  ',
-      AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: '  whisper  ',
+      AZURE_SPEECH_ENDPOINT: '  https://e.api.cognitive.microsoft.com  ',
+      AZURE_SPEECH_KEY: '  key  ',
+      AZURE_SPEECH_TRANSCRIBE_MODEL: '  mai-transcribe-1.5  ',
     })
-    expect(resolved).toEqual({ endpoint: 'https://e/openai/v1', apiKey: 'key', deployment: 'whisper' })
+    expect(resolved).toEqual({
+      endpoint: 'https://e.api.cognitive.microsoft.com',
+      apiKey: 'key',
+      model: 'mai-transcribe-1.5',
+    })
   })
 })

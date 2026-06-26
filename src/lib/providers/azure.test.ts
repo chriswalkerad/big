@@ -9,10 +9,11 @@ vi.mock('openai', () => ({
   },
 }))
 
-import { AzureProvider, DEFAULT_AZURE_DEPLOYMENT } from './azure'
+import { AzureProvider, DEFAULT_AZURE_DEPLOYMENT, transcribeAudio } from './azure'
 import { seedProject, seedSignals } from '@/lib/seed-data'
 import type { ReviewInput } from './interface'
 import type { ReviewResult } from '@/types'
+import type { TranscribeEnv } from './select'
 
 const input: ReviewInput = {
   text: 'Eloise runs a secret midnight room-service operation at the Plaza.',
@@ -71,4 +72,88 @@ describe('AzureProvider', () => {
   // whose status mapping (429 -> AI_RATE_LIMIT, 5xx -> AI_UNAVAILABLE, etc.) is
   // covered directly in errors.test.ts. The catch -> toAppError path itself is
   // exercised by the AI_BAD_JSON cases above.
+})
+
+describe('transcribeAudio (Azure AI Speech fast transcription)', () => {
+  const CONFIGURED: TranscribeEnv = {
+    AZURE_SPEECH_ENDPOINT: 'https://eastus.api.cognitive.microsoft.com/',
+    AZURE_SPEECH_KEY: 'speech-key',
+    AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5',
+  }
+
+  function audioBlob(): Blob {
+    return new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'audio/wav' })
+  }
+
+  function jsonResponse(body: unknown, status = 200): Response {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('throws AI_UNAVAILABLE when unconfigured (no fetch call)', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+    await expect(transcribeAudio(audioBlob(), {})).rejects.toMatchObject({ code: 'AI_UNAVAILABLE' })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('happy path: POSTs multipart fast-transcription and joins combinedPhrases', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ combinedPhrases: [{ text: 'Hello there.' }, { text: 'How are you?' }] }),
+    )
+    const out = await transcribeAudio(audioBlob(), CONFIGURED)
+    expect(out).toBe('Hello there. How are you?')
+
+    expect(fetchMock).toHaveBeenCalledOnce()
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    // URL: endpoint (trailing slash stripped) + fast-transcription path + api-version.
+    expect(url).toBe(
+      'https://eastus.api.cognitive.microsoft.com/speechtotext/transcriptions:transcribe?api-version=2025-10-15',
+    )
+    expect(init.method).toBe('POST')
+    expect((init.headers as Record<string, string>)['Ocp-Apim-Subscription-Key']).toBe('speech-key')
+    // Body is FormData carrying the audio + the enhanced-mode definition.
+    const body = init.body as FormData
+    expect(body).toBeInstanceOf(FormData)
+    expect(body.get('audio')).toBeInstanceOf(Blob)
+    const definition = JSON.parse(String(body.get('definition')))
+    expect(definition).toEqual({
+      enhancedMode: { enabled: true, model: 'mai-transcribe-1.5', transcribeStyle: 'verbatim' },
+    })
+  })
+
+  it('falls back to phrases[] when combinedPhrases is absent', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      jsonResponse({ phrases: [{ text: 'one' }, { text: 'two' }] }),
+    )
+    expect(await transcribeAudio(audioBlob(), CONFIGURED)).toBe('one two')
+  })
+
+  it('maps a non-2xx response to a typed error', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('rate limited', { status: 429 }),
+    )
+    await expect(transcribeAudio(audioBlob(), CONFIGURED)).rejects.toMatchObject({
+      code: 'AI_RATE_LIMIT',
+    })
+  })
+
+  it('maps a 5xx response to AI_UNAVAILABLE', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('boom', { status: 503 }))
+    await expect(transcribeAudio(audioBlob(), CONFIGURED)).rejects.toMatchObject({
+      code: 'AI_UNAVAILABLE',
+    })
+  })
+
+  it('throws AI_BAD_JSON on an empty transcript', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ combinedPhrases: [{ text: '' }] }))
+    await expect(transcribeAudio(audioBlob(), CONFIGURED)).rejects.toMatchObject({
+      code: 'AI_BAD_JSON',
+    })
+  })
 })
