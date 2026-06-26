@@ -31,7 +31,7 @@ export default function RootLayout({
             page content (WCAG 2.4.1 Bypass Blocks). */}
         <a
           href="#main-content"
-          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-control focus:border focus:border-border focus:bg-surface focus:px-3 focus:py-2 focus:text-label-sm focus:text-text-primary focus:outline-none focus:ring-2 focus:ring-accent"
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded-control focus:border focus:border-border focus:bg-surface focus:px-3 focus:py-2 focus:text-label-sm focus:text-text-primary focus:outline-none focus:ring-2 focus:ring-focus"
         >
           Skip to main content
         </a>

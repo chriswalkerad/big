@@ -29,7 +29,7 @@ export function SubtypeSelect({ value, onChange, disabled, className }: SubtypeS
         className={cn(
           'h-8 rounded-pill border border-border bg-surface px-2.5 text-label-xs uppercase text-text-tertiary',
           'transition-colors hover:bg-panel disabled:cursor-not-allowed disabled:opacity-60',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         )}
       >
         {SUBTYPE_ORDER.map((subtype) => (

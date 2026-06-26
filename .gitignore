@@ -47,3 +47,6 @@ next-env.d.ts
 
 # keep the example env tracked
 !.env.example
+
+# Local Claude agent worktrees / data
+.claude/

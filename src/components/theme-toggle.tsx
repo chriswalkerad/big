@@ -41,7 +41,7 @@ export function ThemeToggle({ className, asMenuItem = false, onSelect }: ThemeTo
     const menuClassName = cn(
       "flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm",
       "text-text-secondary transition-colors hover:bg-panel hover:text-text-primary",
-      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
       className,
     );
     if (!mounted) {
@@ -77,7 +77,7 @@ export function ThemeToggle({ className, asMenuItem = false, onSelect }: ThemeTo
     "inline-flex h-8 w-8 items-center justify-center rounded-control",
     "border border-border bg-surface text-text-secondary",
     "transition-colors hover:bg-panel hover:text-text-primary",
-    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
     className,
   );
 

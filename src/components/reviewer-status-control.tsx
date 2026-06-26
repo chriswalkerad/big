@@ -39,7 +39,7 @@ export function ReviewerStatusControl({
         triggerClassName={cn(
           'inline-flex h-8 items-center gap-1.5 rounded-pill border border-border bg-surface px-2.5 text-label-sm text-text-secondary',
           'transition-colors hover:bg-panel hover:text-text-primary',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         )}
         label={
           <>

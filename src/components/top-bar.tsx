@@ -54,7 +54,7 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
             aria-label="Creative Review home"
             className={cn(
               "inline-flex shrink-0 items-center rounded-control",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
             )}
           >
             {/* Decorative: the link's aria-label already names it. */}
@@ -76,7 +76,7 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
             triggerClassName={cn(
               "inline-flex size-7 items-center justify-center rounded-control text-text-secondary",
               "transition-colors hover:bg-panel hover:text-text-primary",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
             )}
             label={<MoreHorizontal className="size-4" aria-hidden="true" />}
           >
@@ -89,7 +89,7 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
                   className={cn(
                     "flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm",
                     "text-text-secondary transition-colors hover:bg-panel hover:text-text-primary",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                   )}
                 >
                   <Settings className="size-4" aria-hidden="true" />

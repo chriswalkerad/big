@@ -39,7 +39,7 @@ export function DriftIndicator({ onResubmit, onUnsubmit, busy, className }: Drif
           type="button"
           onClick={onUnsubmit}
           disabled={busy}
-          className="inline-flex h-8 items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-label-sm text-text-secondary transition-colors hover:bg-panel hover:text-text-primary disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="inline-flex h-8 items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-label-sm text-text-secondary transition-colors hover:bg-panel hover:text-text-primary disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <Undo2 className="size-3.5" aria-hidden="true" />
           Unsubmit
@@ -48,7 +48,7 @@ export function DriftIndicator({ onResubmit, onUnsubmit, busy, className }: Drif
           type="button"
           onClick={onResubmit}
           disabled={busy}
-          className="inline-flex h-8 items-center gap-1.5 rounded-control bg-accent px-2.5 text-label-sm font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="inline-flex h-8 items-center gap-1.5 rounded-control bg-accent px-2.5 text-label-sm font-medium text-bg transition-opacity hover:opacity-90 disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <RotateCcw className="size-3.5" aria-hidden="true" />
           {busy ? 'Resubmitting…' : 'Resubmit'}

@@ -67,7 +67,7 @@ export const SignalRow = forwardRef<HTMLDivElement, SignalRowProps>(function Sig
                 onClick={() => onPhraseClick?.(def.id, issue.quote)}
                 className={cn(
                   'group flex w-full flex-col gap-0.5 rounded-control border border-border bg-panel px-2 py-1.5 text-left transition-colors',
-                  'hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+                  'hover:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
                 )}
               >
                 <span
@@ -108,7 +108,7 @@ function FranchiseRationale({
         onClick={onFranchiseClick}
         className={cn(
           'rounded-control text-label-sm text-text-primary underline decoration-dotted underline-offset-2',
-          'transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          'transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         )}
       >
         View franchise

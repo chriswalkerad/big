@@ -316,7 +316,7 @@ export function ReviewStrip({
           className={cn(
             'ml-auto inline-flex shrink-0 items-center gap-1 rounded-control px-1.5 py-1 text-label-sm text-text-secondary',
             'transition-colors hover:bg-surface hover:text-text-primary',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           )}
         >
           {viewLabel}
@@ -330,7 +330,7 @@ export function ReviewStrip({
           onClick={onView}
           className={cn(
             'line-clamp-1 rounded-control text-left text-body text-text-secondary',
-            'transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+            'transition-colors hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           )}
         >
           {summary}
@@ -472,7 +472,7 @@ function PanelHeader({
             className={cn(
               'inline-flex size-7 shrink-0 items-center justify-center rounded-control text-text-secondary',
               'transition-colors hover:bg-panel hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
             )}
           >
             <X className="size-4" aria-hidden="true" />
@@ -488,7 +488,7 @@ function PanelHeader({
           aria-pressed={explaining}
           className={cn(
             'inline-flex h-7 w-fit items-center gap-1.5 rounded-control px-2 text-label-sm text-text-secondary transition-colors',
-            'hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+            'hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
             explaining ? 'bg-panel text-text-primary' : '',
           )}
         >

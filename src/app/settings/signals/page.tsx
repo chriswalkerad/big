@@ -206,7 +206,7 @@ export default function SignalsAdminPage() {
                     onClick={() => openEdit(signal)}
                     className={cn(
                       "flex min-w-0 flex-1 items-center gap-3 rounded-control text-left",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                     )}
                     aria-label={`Open ${signal.name}`}
                   >

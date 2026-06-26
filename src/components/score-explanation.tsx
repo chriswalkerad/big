@@ -47,7 +47,7 @@ export function ScoreExplanation({ signals, onBack }: ScoreExplanationProps) {
         className={cn(
           'inline-flex h-8 w-fit items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-label-sm text-text-secondary',
           'transition-colors hover:bg-panel hover:text-text-primary',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         )}
       >
         <ArrowLeft className="size-3.5" aria-hidden="true" />

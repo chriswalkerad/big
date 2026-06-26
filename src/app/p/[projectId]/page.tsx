@@ -132,7 +132,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
                 className={cn(
                   "h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3",
                   "text-body text-text-primary placeholder:text-text-tertiary",
-                  "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                  "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                 )}
               />
             </div>
@@ -143,7 +143,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
               className={cn(
                 "h-9 shrink-0 rounded-control border border-border bg-surface px-3",
                 "text-label-sm text-text-secondary",
-                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
               )}
             >
               <option value={ALL_STATUSES}>All statuses</option>
@@ -244,7 +244,7 @@ function DocumentRow({
         "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-2 py-3.5 transition-colors",
         "sm:grid-cols-[minmax(0,1fr)_8.5rem_10rem]",
         "hover:bg-panel",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
       )}
     >
       <span className="col-span-2 min-w-0 truncate text-body-emphasis text-text-primary sm:col-span-1">

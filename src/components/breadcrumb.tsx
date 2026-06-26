@@ -47,7 +47,7 @@ export interface BreadcrumbProps {
 const interactiveSegmentClass = cn(
   "rounded-control text-label-sm font-normal text-text-tertiary transition-colors",
   "hover:text-text-primary",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
 );
 
 /**

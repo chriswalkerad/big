@@ -37,8 +37,10 @@
      for meta copy; `--text-tertiary` (#91908b) is decoration/non-text only. */
   --text-secondary: #6b6a64;
   --text-tertiary: #91908b;
-  /* Brand yellow — used sparingly (focus rings, small accents). */
+  /* Brand yellow — used sparingly (small accents). */
   --accent: #facc15;
+  /* Focus ring — a calm neutral gray (NOT the brand yellow). */
+  --focus: #6b6a64;
 
   /* Functional / chromatic — light (muted/calm).
      `--risk/--minor/--pass` are the GRAPHICAL values (squiggle underlines and
@@ -146,6 +148,8 @@
   --text-tertiary: #7f7f78;
   /* Brand yellow stays as the sparing accent in dark too. */
   --accent: #facc15;
+  /* Focus ring — calm neutral gray (dark theme). */
+  --focus: #9b9b95;
 
   /* Inverse ink — dark: the primary button is a near-white surface with dark
      label (Notion-dark style), so it reads as the strong action against the

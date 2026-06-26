@@ -85,7 +85,7 @@ export function AccountDialog({ open, onClose }: AccountDialogProps) {
             className={cn(
               "-mr-1 -mt-1 inline-flex size-7 shrink-0 items-center justify-center rounded-control",
               "text-text-secondary transition-colors hover:bg-panel hover:text-text-primary",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
             )}
           >
             <X className="size-4" aria-hidden="true" />

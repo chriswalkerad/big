@@ -51,7 +51,7 @@ export function ProjectSwitcher({ currentProjectId }: ProjectSwitcherProps) {
       triggerClassName={cn(
         "inline-flex max-w-full items-center gap-1 rounded-control text-label-sm text-text-primary",
         "transition-colors hover:text-text-primary",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
       )}
       label={
         <>
@@ -82,7 +82,7 @@ export function ProjectSwitcher({ currentProjectId }: ProjectSwitcherProps) {
               }}
               className={cn(
                 "flex w-full items-center justify-between gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
                 isCurrent
                   ? "cursor-default text-text-primary"
                   : "text-text-secondary hover:bg-panel hover:text-text-primary",

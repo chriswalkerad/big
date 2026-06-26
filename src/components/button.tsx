@@ -32,7 +32,7 @@ const base = cn(
   "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-control",
   "px-[11px] py-[5px] text-[12.5px] font-medium leading-4",
   "transition-colors",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-1 focus-visible:ring-offset-bg",
   "disabled:pointer-events-none disabled:opacity-50",
 );
 

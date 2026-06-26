@@ -42,7 +42,7 @@ export function ErrorState({
         <button
           type="button"
           onClick={onRetry}
-          className="inline-flex items-center gap-1.5 rounded-control border border-border bg-panel px-3 py-1.5 text-label-sm text-text-primary transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="inline-flex items-center gap-1.5 rounded-control border border-border bg-panel px-3 py-1.5 text-label-sm text-text-primary transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
         >
           <RotateCcw className="size-3.5" aria-hidden="true" />
           Retry

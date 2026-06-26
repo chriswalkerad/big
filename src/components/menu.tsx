@@ -161,7 +161,7 @@ export function MenuItem({ onClick, children, selected, disabled }: MenuItemProp
       onClick={onClick}
       className={cn(
         'flex w-full items-center justify-between gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm transition-colors',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
         disabled
           ? 'cursor-not-allowed text-text-tertiary'
           : 'text-text-secondary hover:bg-panel hover:text-text-primary',
