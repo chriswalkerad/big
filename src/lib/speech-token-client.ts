@@ -1,9 +1,8 @@
 // Client-side wrapper for GET /api/speech-token (streaming voice dictation). Keeps
 // fetch/parse/error-mapping out of the UI and returns the same discriminated
 // SpeechTokenResponse the route emits, so callers branch on `result.ok`. Never
-// throws — network and parse failures are mapped to typed AppErrors. Mirrors
-// transcribe-client.ts. The token it returns is short-lived; the subscription key
-// never leaves the server.
+// throws — network and parse failures are mapped to typed AppErrors. The token
+// it returns is short-lived; the subscription key never leaves the server.
 
 import type { SpeechTokenResponse } from '@/types'
 import { isAppError, toAppError } from '@/lib/errors'

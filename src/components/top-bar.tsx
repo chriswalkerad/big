@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { MoreHorizontal, Settings, UserRound } from "lucide-react";
 import { Menu } from "@/components/menu";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -64,11 +65,12 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
             )}
           >
             {/* Decorative: the link's aria-label already names it. */}
-            <img
+            <Image
               src="/big-shot-icon.png"
               alt=""
               width={16}
               height={16}
+              priority
               className="size-4 rounded-[4px]"
             />
           </Link>

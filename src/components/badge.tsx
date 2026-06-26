@@ -1,41 +1,5 @@
 import type { ReactNode } from "react";
-import { clsx, type ClassValue } from "clsx";
-import { extendTailwindMerge } from "tailwind-merge";
-
-/**
- * The project's custom `text-{label-xs,label-sm,body,…}` utilities are
- * font-size scales, but the stock tailwind-merge groups every `text-*` class as
- * one conflict — so it would drop `text-label-xs` whenever a `text-text-*`
- * color sits alongside it. Teach merge that these names are font-sizes so the
- * size and the color coexist (and overrides still resolve correctly).
- */
-const mergeBadgeClasses = extendTailwindMerge({
-  extend: {
-    classGroups: {
-      "font-size": [
-        {
-          text: [
-            "label-xs",
-            "label-sm",
-            "body",
-            "body-emphasis",
-            "title",
-            "heading",
-            "display",
-            "doc-body",
-            "doc-title",
-            "chip",
-          ],
-        },
-      ],
-    },
-  },
-});
-
-/** Token-aware class merge for the badge (size + color no longer collide). */
-function cn(...inputs: ClassValue[]): string {
-  return mergeBadgeClasses(clsx(inputs));
-}
+import { cn } from "@/lib/utils";
 
 /**
  * The visual flavours of {@link Badge}. All variants share one base pill

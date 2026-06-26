@@ -1,6 +1,6 @@
 // /api/speech-token — mints a SHORT-LIVED token for the Azure real-time Speech
-// SDK (client-side WebSocket streaming dictation). Like /api/transcribe, its job
-// is to keep the provider key off the client: the SDK authenticates with this
+// SDK (client-side WebSocket streaming dictation). Its job is to keep the
+// provider key off the client: the SDK authenticates with this
 // token + region, never the subscription key.
 //   GET: mints a token, returning a typed SpeechTokenResponse. Delegates to
 //        handleSpeechToken (testable core). A failed mint doubles as the UI
