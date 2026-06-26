@@ -1,7 +1,7 @@
 // Pure, unit-testable logic for the document library screen. No React, no
 // storage, no DOM — just the search/filter transform the list view applies to a
 // set of documents. Kept here (not inline in the page) so the rules can be
-// tested directly. See specs/bsp-frontend-build-spec.md (screen 1).
+// tested directly.
 
 import type { Document, SubmissionStatus } from "@/types";
 

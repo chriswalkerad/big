@@ -57,7 +57,7 @@ interface ResultsPanelProps {
   /**
    * Apply the suggested prompt as an AI rewrite of the body. The panel only exposes
    * the affordance and the in-flight spinner — the actual rewrite is wired by the
-   * orchestrator. Omitted → no Apply button is shown.
+   * caller. Omitted → no Apply button is shown.
    */
   onApplyPrompt?: () => void
   /** While true, the Apply button shows a spinner and is disabled. */
@@ -69,18 +69,18 @@ interface ResultsPanelProps {
 const FRANCHISE_SIGNAL_ID = 'franchise_fit'
 
 /**
- * The expandable review DETAIL panel. It is rendered inside the INLINE side panel
- * owned by DocumentPage (a right-side column on lg+, stacked beneath the writing
- * column on mobile — never a modal), and holds the full review: verdict header (+ a
- * `×` to collapse back to the minimal strip), the summary
- * + suggested prompt with Apply, the six signal rows, the "How is this calculated?"
- * methodology, and the sticky Confirm-submission footer for an unsubmitted preview.
+ * The expandable review DETAIL panel, rendered inside the inline side panel owned by
+ * DocumentPage (a right-side column on lg+, stacked beneath the writing column on
+ * mobile — never a modal). It holds the full review: verdict header (+ a `×` to
+ * collapse back to the minimal strip), summary + suggested prompt with Apply, the six
+ * signal rows, the "How is this calculated?" methodology, and the sticky
+ * Confirm-submission footer for an unsubmitted preview.
  *
- * It owns NO outer surface chrome of its own (no border/background): the surrounding
+ * It owns no outer surface chrome (no border/background): the surrounding
  * `.review-panel` provides the surface. The header is pinned; the body
  * (`.review-panel-scroll`) is the single scroll container; the confirm footer is
- * sticky within it. When there is nothing to show — no review, not loading, no error —
- * it renders NOTHING (the panel is only opened once feedback exists).
+ * sticky within it. With nothing to show (no review, not loading, no error) it renders
+ * nothing.
  *
  * The forwarded ref points at the section so the page can manage focus when a review
  * appears or a signal row is targeted from a squiggle.
@@ -290,11 +290,11 @@ const ROW_VARIANTS = {
 }
 
 /**
- * The slim REVIEW STRIP — the minimal default under the document meta line. It renders
- * NOTHING until a review exists / is running / errored, then shows a one-line
- * disclosure: a verdict label, the "N of 6 need attention" count, a one-line summary,
- * an optional "Apply fix" affordance, and a "View N signals" toggle that opens the
- * detail panel. Clicking the strip's verdict count / summary also opens the panel.
+ * The slim REVIEW STRIP — the minimal default under the document meta line. Renders
+ * nothing until a review exists / is running / errored, then shows a one-line
+ * disclosure: verdict label, "N of 6 need attention" count, a one-line summary, an
+ * optional "Apply fix" affordance, and a "View N signals" toggle that opens the detail
+ * panel. Clicking the verdict count / summary also opens the panel.
  */
 export function ReviewStrip({
   loading,

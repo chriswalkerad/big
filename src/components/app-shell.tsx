@@ -13,11 +13,10 @@ export interface AppShellProps {
  * the single slim top "action line" is rendered per page via `<TopBar>`.
  *
  * `<LeftRail>` is a client component that reads the current route: on editor
- * routes (`/p/{id}/d/...`) it returns `null`, so the layout collapses back to
- * exactly today's — `main` full-width within the row, the editor's
- * `mx-[calc(50%-50vw)]` full-bleed intact. On library/settings routes it
- * renders the rail beside the content; `main` keeps its `max-w-5xl mx-auto`
- * measure WITHIN the content column.
+ * routes (`/p/{id}/d/...`) it returns `null`, so the row's only child is `main`
+ * (full-width, the editor's `mx-[calc(50%-50vw)]` full-bleed intact). On
+ * library/settings routes it renders the rail beside the content; `main` keeps
+ * its `max-w-5xl mx-auto` measure WITHIN the content column.
  *
  * `className` overrides the default `max-w-5xl` measure (the document page
  * widens it itself).
@@ -35,7 +34,7 @@ export function AppShell({ children, className }: AppShellProps) {
           overflowing; `flex-1` claims the remaining width. `relative` anchors
           the floating collapse toggle to this column's left edge. When the rail
           returns null (editor routes) this column is the row's only child and
-          spans the full viewport, so the editor full-bleed math is unchanged.
+          spans the full viewport, preserving the editor full-bleed math.
           `main` keeps its own centered measure inside this column. */}
       <div className="relative flex min-w-0 flex-1 flex-col">
         <RailEdgeToggle />

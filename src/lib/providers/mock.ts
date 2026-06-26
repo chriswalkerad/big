@@ -1,9 +1,8 @@
-// First-class deterministic mock provider. This is what reviewers run locally with
-// no API key. Given the same `text` it returns byte-identical output (a small PRNG
-// seeded from a hash of the text). It works for ANY pasted concept, not just the
-// seeded docs, via per-signal heuristics with a generic fallback. Inline issues set
-// `quote` to a REAL substring of `text` so canvas highlighting anchors correctly.
-// See specs/bsp-backend-build-spec.md.
+// Deterministic mock provider — the default when no API key is set. Given the same
+// `text` it returns byte-identical output (a small PRNG seeded from a hash of the
+// text). It works for ANY pasted concept, not just the seeded docs, via per-signal
+// heuristics with a generic fallback. Inline issues set `quote` to a REAL substring
+// of `text` so canvas highlighting anchors correctly.
 
 import type {
   ReviewResult,
@@ -89,9 +88,9 @@ function exactSubstring(text: string, candidate: string): string | null {
 }
 
 // --- Brand safety risky phrases -----------------------------------------------
-// Ordered most-specific first. MUST include the terms that trigger the seeded
+// Ordered most-specific first. Must include the terms that trigger the seeded
 // Brand Safety flags so a live re-review of the seeded docs reproduces their
-// stored not_ready snapshots (Doc 3: "body count", "never seen again").
+// stored not_ready snapshots (e.g. "body count", "never seen again").
 
 interface RiskyTerm {
   pattern: RegExp

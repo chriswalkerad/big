@@ -169,7 +169,7 @@ function DocumentCanvasInner(
   const interimAnchorRef = useRef<number | null>(null)
 
   // Read `data-signal-id` off the clicked element via handleDOMEvents (NOT a React
-  // onClick) so clicks land on the ProseMirror decoration DOM, per spec rule 5.
+  // onClick) so clicks land on the ProseMirror decoration DOM.
   const handleHighlightMouseDown = useCallback(
     (_view: EditorView, event: MouseEvent): boolean => {
       if (!onHighlightClick) return false
@@ -185,7 +185,7 @@ function DocumentCanvasInner(
   )
 
   const editor = useEditor({
-    // No StarterKit — compose exactly the extensions the spec allows (rule 1).
+    // No StarterKit — compose exactly the extensions we need.
     extensions: [
       Document,
       Paragraph,
@@ -200,7 +200,7 @@ function DocumentCanvasInner(
     // Edit mode: place the caret at the top of the sheet on load so the author can
     // start typing immediately without clicking in. Read mode never grabs focus.
     autofocus: mode === 'edit' ? 'start' : false,
-    // Prevent Next.js SSR hydration mismatch (rule 3).
+    // Prevent Next.js SSR hydration mismatch.
     immediatelyRender: false,
     editorProps: {
       attributes: {

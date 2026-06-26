@@ -5,8 +5,8 @@ import { AppShell } from "./app-shell";
 
 // AppShell is a flex row of the collapsible LeftRail + a centered <main>. The
 // rail is a client component that reads the route via next/navigation, so the
-// path is mocked per test. On editor routes the rail returns null and the
-// layout collapses back to a bare centered <main>.
+// path is mocked per test. On editor routes the rail returns null, leaving a
+// bare centered <main>.
 const pathnameMock = vi.fn(() => "/p/proj-eloise");
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameMock(),
@@ -59,7 +59,7 @@ describe("AppShell", () => {
     pathnameMock.mockReturnValue("/p/proj-eloise/d/doc-1/review");
     renderShell(<p>Page content</p>);
     expect(screen.queryByRole("navigation", { name: "Primary" })).toBeNull();
-    // The centered <main> still holds the page content (today's layout intact).
+    // The centered <main> still holds the page content.
     expect(screen.getByRole("main")).toContainElement(
       screen.getByText("Page content"),
     );

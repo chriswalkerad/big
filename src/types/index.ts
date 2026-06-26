@@ -1,6 +1,5 @@
 // Shared types — the single source of truth. Both the server (API route, providers)
-// and the client (StorageRepository, UI) import from here. Keep in sync with
-// specs/bsp-backend-build-spec.md.
+// and the client (StorageRepository, UI) import from here.
 
 export type TextSubtype =
   | 'story_premise'

@@ -2,7 +2,6 @@
 // signal-bar color, version-drift detection, the status state machine, and the
 // submit-prefill rules. Kept here (no React, no DOM) so it is unit-testable in
 // isolation and reused by the page component, the results drawer, and the tests.
-// See specs/bsp-frontend-build-spec.md (screens 2 + 3) and src/types/index.ts.
 
 import type {
   Document,
@@ -84,7 +83,7 @@ export function hasDrift(body: string, snapshot: SubmittedSnapshot | undefined):
   return body !== snapshot.body
 }
 
-// --- Status state machine (EPIC 14) --------------------------------------------
+// --- Status state machine -------------------------------------------------------
 
 /**
  * Allowed status transitions. Author submit/unsubmit and reviewer actions all flow

@@ -1,10 +1,10 @@
 "use client";
 
-// Signal admin — full CRUD over signal definitions (EPIC 13 / screen 4 of the
-// frontend build spec). All reads and writes go through StorageRepository, which
-// is the single source the review reads at submit time: deleting a signal here
-// removes it from `listSignals()`, so the next review simply won't see it (no
-// extra wiring, and we never cache a stale set — we re-read after every write).
+// Signal admin — full CRUD over signal definitions. All reads and writes go through
+// StorageRepository, which is the single source the review reads at submit time:
+// deleting a signal here removes it from `listSignals()`, so the next review simply
+// won't see it (no extra wiring, and we never cache a stale set — we re-read after
+// every write).
 
 import {
   useCallback,

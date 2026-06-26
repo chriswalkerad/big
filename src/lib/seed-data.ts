@@ -5,8 +5,7 @@
 // franchises. Inline issue `quote` values are EXACT substrings of each body so
 // canvas highlighting anchors. The per-project document sets live in
 // ./seed/eloise.ts and ./seed/speed.ts; this module aggregates them and owns the
-// shared signal definitions. See specs/bsp-seed-data-spec.md — do not paraphrase
-// the bodies.
+// shared signal definitions.
 
 import type { Document, Project, SignalDef } from '@/types'
 import { eloiseDocuments, eloiseProject } from './seed/eloise'

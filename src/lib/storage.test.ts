@@ -193,7 +193,6 @@ describe('StorageRepository migration', () => {
   }
 
   it('migrates a pre-redesign user document on load', () => {
-    // Legacy store: seeded at an old version, with one stale user doc and no marker.
     // A legacy persisted store: seeded at an old version, a stale user doc, and no
     // migration marker. Written directly so no constructor pre-runs migrate().
     store.map.set('bsp:meta:seeded', '1')

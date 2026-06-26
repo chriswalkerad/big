@@ -15,15 +15,12 @@ export interface AccountDialogProps {
 
 /**
  * Lightweight, accessible modal dialog for the "Account" breadcrumb stub.
- *
- * Hand-built with design tokens (no shadcn / Radix) because the shadcn CLI is
- * unreliable under Tailwind v4 + Next 16 in this repo. It provides the basics:
+ * Hand-built with design tokens (no shadcn / Radix), covering the basics:
  *   - `role="dialog"` + `aria-modal` with a labelled title and description.
  *   - Dismiss via the close button, a backdrop click, or the Escape key.
  *   - Focus moves to the dialog on open and returns to the trigger on close.
  *
- * It explains that, in a fuller product, this is where you would switch
- * projects or manage the account — the feature itself is intentionally a stub.
+ * The Account feature itself is intentionally a stub.
  */
 export function AccountDialog({ open, onClose }: AccountDialogProps) {
   const titleId = useId();

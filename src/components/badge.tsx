@@ -25,8 +25,7 @@ interface BadgeProps {
 
 /**
  * The shared base: one consistent pill — same height, padding, radius, border,
- * and text scale across every variant. That consistency is the whole point of
- * unifying the old status/subtype/context chips.
+ * and text scale across every variant, so the chips read as a single family.
  */
 const BADGE_BASE =
   "inline-flex items-center gap-1 rounded-pill border border-border px-2 py-0.5 text-label-xs";
@@ -40,9 +39,8 @@ const VARIANT_CLASSES: Record<BadgeVariant, string> = {
 };
 
 /**
- * One shared pill for the workspace's small chips. Consolidates the
- * near-duplicate status / subtype / context chips into a single component with
- * a consistent size and a `variant` for surface/ink/casing.
+ * One shared pill for the workspace's small chips: a consistent size with a
+ * `variant` selecting surface/ink/casing.
  */
 export function Badge({ variant = "status", dot, children, className }: BadgeProps) {
   return (

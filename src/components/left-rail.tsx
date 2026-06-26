@@ -260,9 +260,9 @@ function NavMode({
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Brand mark. The expanded header matches the editor TopBar's horizontal
           padding (px-4 sm:px-6) so the brand mark sits in the SAME spot whether
-          or not the rail is present — it must not jump between pages. The
-          collapse toggle now lives OUTSIDE the rail (a floating edge control
-          rendered by AppShell), so the header holds only the brand. */}
+          or not the rail is present — it must not jump between pages. The header
+          holds only the brand; the collapse toggle is a floating edge control
+          rendered by AppShell, outside the rail. */}
       <div
         className={cn(
           "flex h-[46px] items-center gap-2 border-b border-border",
@@ -305,7 +305,7 @@ function NavMode({
           onNavigate={onNavigate}
         />
 
-        {/* Compose a new document (was the library header's pencil button). */}
+        {/* Compose a new document. */}
         <RailLink
           href={`/p/${currentProjectId}/d/new`}
           icon={<SquarePen className="size-4" aria-hidden="true" />}
