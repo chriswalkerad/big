@@ -5,9 +5,8 @@
 //     returning the discriminated SpeechTokenResponse so callers branch on `ok`.
 //   - getSpeechAvailable() GETs the cheap config-only availability probe — no
 //     token is minted server-side, so a doc-page mount can check it for free.
-// Never throws — network and parse failures are mapped to typed AppErrors. Mirrors
-// transcribe-client.ts. The token it returns is short-lived; the subscription key
-// never leaves the server.
+// Never throws — network and parse failures are mapped to typed AppErrors. The
+// token it returns is short-lived; the subscription key never leaves the server.
 
 import type { SpeechTokenAvailability, SpeechTokenResponse } from '@/types'
 import { isAppError, toAppError } from '@/lib/errors'

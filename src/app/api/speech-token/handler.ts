@@ -4,7 +4,7 @@
 // SDK streams audio over a WebSocket authenticated with this token + the region,
 // never the subscription key. The key stays server-side here — the client only
 // ever receives the token. Always returns a typed SpeechTokenResponse; never
-// throws. Mirrors api/transcribe/handler.ts. Speech is AZURE-ONLY.
+// throws. Speech is AZURE-ONLY.
 
 import type { SpeechTokenResponse } from '@/types'
 import { appError, toAppError } from '@/lib/errors'

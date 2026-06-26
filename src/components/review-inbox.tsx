@@ -42,6 +42,7 @@ export function ReviewInbox({ projectId, queue, owner }: ReviewInboxProps) {
           <Inbox className="size-4" aria-hidden="true" />
           {count > 0 ? (
             <span
+              aria-label={`${count} awaiting review`}
               className={cn(
                 "absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-pill px-1",
                 "bg-ink text-[10px] font-medium leading-4 text-ink-foreground",

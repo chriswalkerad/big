@@ -10,7 +10,6 @@
 import OpenAI from 'openai'
 import type { ReviewResult } from '@/types'
 import { appError, toAppError } from '@/lib/errors'
-import { hasTranscribeConfig, resolveTranscribeConfig, type TranscribeEnv } from './select'
 import type { ApplyInput, ReviewInput, ReviewProvider } from './interface'
 import {
   buildApplyPrompt,
@@ -163,105 +162,5 @@ export class AzureProvider implements ReviewProvider {
     } catch (e) {
       throw toAppError(e)
     }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Speech-to-text (voice dictation). Azure-only, and intentionally NOT part of the
-// ReviewProvider interface: it has nothing to do with reviewing text, and the mock /
-// Gemini providers don't offer it. It calls the Azure AI Speech "fast transcription"
-// API (model MAI-Transcribe-1.5) directly over fetch — a distinct Speech resource
-// from the chat model, with its own endpoint/key/model (AZURE_SPEECH_ENDPOINT /
-// AZURE_SPEECH_KEY / AZURE_SPEECH_TRANSCRIBE_MODEL); legacy AZURE_OPENAI_TRANSCRIBE_*
-// names remain as fallbacks — see resolveTranscribeConfig.
-
-/** Speech fast-transcription is quick, but keep a generous ceiling for long clips. */
-const TRANSCRIBE_TIMEOUT_MS = 60_000
-
-/** Azure AI Speech fast-transcription API version. */
-const TRANSCRIBE_API_VERSION = '2025-10-15'
-
-/** Shape of the fast-transcription response we read text out of. */
-interface FastTranscriptionResponse {
-  combinedPhrases?: Array<{ text?: string }>
-  phrases?: Array<{ text?: string }>
-}
-
-/** Join the transcript text from a fast-transcription response: prefer
- * `combinedPhrases`, falling back to `phrases`. Returns the trimmed result. */
-function extractTranscript(body: FastTranscriptionResponse): string {
-  const source = body.combinedPhrases?.length ? body.combinedPhrases : body.phrases
-  return (source ?? [])
-    .map((p) => p.text ?? '')
-    .join(' ')
-    .trim()
-}
-
-/**
- * Transcribe an audio clip (the client sends WAV) to plain text via the Azure AI
- * Speech fast-transcription API (MAI-Transcribe-1.5). SERVER-ONLY. Throws a typed
- * AppError on any failure; the route catches and serializes it. Assumes the caller
- * has already checked {@link hasTranscribeConfig}.
- */
-export async function transcribeAudio(
-  audio: Blob | File,
-  env: TranscribeEnv = process.env,
-): Promise<string> {
-  try {
-    if (!hasTranscribeConfig(env)) {
-      // Defensive: the route short-circuits before calling, but never assume.
-      throw appError('AI_UNAVAILABLE', 'Speech-to-text is not configured.')
-    }
-    const { endpoint, apiKey, model } = resolveTranscribeConfig(env)
-
-    // Build the fast-transcription URL off the resolved endpoint (no trailing slash).
-    const base = endpoint.replace(/\/+$/, '')
-    const url = `${base}/speechtotext/transcriptions:transcribe?api-version=${TRANSCRIBE_API_VERSION}`
-
-    // multipart/form-data: the audio file + a JSON `definition` enabling enhanced
-    // (fast) mode with the configured model. Let fetch set the boundary.
-    const form = new FormData()
-    form.append('audio', audio, 'audio.wav')
-    form.append(
-      'definition',
-      JSON.stringify({
-        enhancedMode: { enabled: true, model, transcribeStyle: 'verbatim' },
-      }),
-    )
-
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), TRANSCRIBE_TIMEOUT_MS)
-    let res: Response
-    try {
-      res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Ocp-Apim-Subscription-Key': apiKey },
-        body: form,
-        signal: controller.signal,
-      })
-    } finally {
-      clearTimeout(timer)
-    }
-
-    if (!res.ok) {
-      // Read the body best-effort for context; status drives the error mapping.
-      const detail = await res.text().catch(() => '')
-      throw appError(
-        res.status === 429 ? 'AI_RATE_LIMIT' : res.status >= 500 ? 'AI_UNAVAILABLE' : 'UNKNOWN',
-        `Speech transcription failed (HTTP ${res.status}).${detail ? ` ${detail}` : ''}`,
-      )
-    }
-
-    const body = (await res.json()) as FastTranscriptionResponse
-    // An empty transcript is a VALID success, not an error: a silent / no-speech
-    // clip (the user paused to think) simply has nothing to transcribe. Return ''
-    // so the handler reports `{ ok: true, data: { text: '' } }` and the client
-    // treats it as a benign no-op. Real failures (non-2xx, timeout, offline,
-    // malformed JSON) still throw above / in the catch.
-    return extractTranscript(body)
-  } catch (e) {
-    // Maps AbortError -> AI_TIMEOUT, offline -> NETWORK_OFFLINE, and passes
-    // AppErrors through unchanged.
-    throw toAppError(e)
   }
 }
