@@ -203,12 +203,14 @@ export function LibraryView({ projectId }: { projectId: string }) {
 }
 
 /**
- * Page frame for the library. Breaks OUT of the AppShell `<main>` padding
- * (`px-4 py-6 sm:px-6`) with matching negative margins so the slim `<TopBar>`
- * sits flush to the top of the viewport and spans the content column
- * edge-to-edge — consistent with the document and settings pages. The page's
- * own horizontal padding + a top measure is then re-applied to the content
- * BELOW the bar.
+ * Page frame for the library. Breaks OUT of the AppShell `<main>` measure +
+ * padding using the SAME full-bleed technique as the document page
+ * (`mx-[calc(50%-50vw)]` spans the full viewport width; `-my-6` cancels the
+ * shell's vertical padding) so the slim `<TopBar>` sits flush to the top and
+ * spans the FULL viewport width — pixel-consistent with the document page's
+ * bar. The page's own measure (`max-w-5xl`) + horizontal padding + a top
+ * measure are then re-applied to the content BELOW the bar, so the document
+ * list keeps its current width.
  */
 function LibraryShell({
   topBar,
@@ -218,9 +220,11 @@ function LibraryShell({
   children: ReactNode;
 }) {
   return (
-    <div className="-mx-4 -my-6 sm:-mx-6">
+    <div className="mx-[calc(50%-50vw)] -my-6">
       {topBar}
-      <div className="px-4 py-8 sm:px-6">{children}</div>
+      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
+        {children}
+      </div>
     </div>
   );
 }

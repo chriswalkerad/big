@@ -129,10 +129,13 @@ export default function SignalsAdminPage() {
   }
 
   return (
-    // Break out of the AppShell `<main>` padding so the slim TopBar sits flush to
-    // the top and spans the content column edge-to-edge; the page re-applies its
-    // own measure + padding below.
-    <div className="-mx-4 -my-6 sm:-mx-6">
+    // Break out of the AppShell `<main>` measure + padding using the SAME
+    // full-bleed technique as the document page (`mx-[calc(50%-50vw)]` spans the
+    // full viewport width; `-my-6` cancels the shell's vertical padding) so the
+    // slim TopBar sits flush to the top and spans the FULL viewport width —
+    // pixel-consistent with the document page's bar. The page re-applies its own
+    // measure (max-w-3xl) + padding below, so the forms keep their current width.
+    <div className="mx-[calc(50%-50vw)] -my-6">
       <TopBar
         breadcrumb={
           <Breadcrumb
