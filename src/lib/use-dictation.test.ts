@@ -81,7 +81,7 @@ const okToken = () =>
 
 describe('useDictation', () => {
   it('starts idle', () => {
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {}, onClearInterim: () => {} }))
     expect(result.current.status).toBe('idle')
     expect(result.current.error).toBeNull()
   })
@@ -90,7 +90,10 @@ describe('useDictation', () => {
     requestSpeechTokenMock.mockResolvedValue(okToken())
     const onInterim = vi.fn()
     const onFinal = vi.fn()
-    const { result } = renderHook(() => useDictation({ onInterim, onFinal }))
+    const onClearInterim = vi.fn()
+    const { result } = renderHook(() =>
+      useDictation({ onInterim, onFinal, onClearInterim }),
+    )
 
     await act(async () => {
       await result.current.start()
@@ -109,16 +112,18 @@ describe('useDictation', () => {
     })
     expect(onFinal).toHaveBeenCalledWith('hello world')
 
-    // A non-speech recognized event (e.g. NoMatch reason) does NOT fire onFinal.
+    // A non-speech recognized event (e.g. NoMatch reason) does NOT fire onFinal, and
+    // instead CLEARS the interim ghost so the last hypothesis can't linger as real content.
     act(() => {
       lastRecognizer?.recognized?.(null, { result: { text: '', reason: 0 } })
     })
     expect(onFinal).toHaveBeenCalledTimes(1)
+    expect(onClearInterim).toHaveBeenCalledTimes(1)
   })
 
   it('surfaces a typed error when the token mint fails (never throws)', async () => {
     requestSpeechTokenMock.mockResolvedValue({ ok: false, error: appError('NETWORK_OFFLINE') })
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {}, onClearInterim: () => {} }))
 
     await act(async () => {
       await result.current.start()
@@ -131,7 +136,7 @@ describe('useDictation', () => {
 
   it('a mic-denied cancellation surfaces a typed "microphone blocked" error', async () => {
     requestSpeechTokenMock.mockResolvedValue(okToken())
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {}, onClearInterim: () => {} }))
 
     await act(async () => {
       await result.current.start()
@@ -154,7 +159,9 @@ describe('useDictation', () => {
   it('an auth-failure cancellation fully restarts (new recognizer, resumes), not just a token reassignment', async () => {
     requestSpeechTokenMock.mockResolvedValue(okToken())
     const onFinal = vi.fn()
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal }))
+    const { result } = renderHook(() =>
+      useDictation({ onInterim: () => {}, onFinal, onClearInterim: () => {} }),
+    )
 
     await act(async () => {
       await result.current.start()
@@ -194,7 +201,7 @@ describe('useDictation', () => {
     // awaited region simultaneously — the synchronous in-flight latch must make the second
     // a no-op so only one recognizer / one mic capture is ever created.
     requestSpeechTokenMock.mockImplementation(() => Promise.resolve(okToken()))
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {}, onClearInterim: () => {} }))
 
     await act(async () => {
       // Fire two starts back-to-back without awaiting the first.
@@ -210,7 +217,7 @@ describe('useDictation', () => {
 
   it('stop tears down the recognizer + audio config and returns to idle', async () => {
     requestSpeechTokenMock.mockResolvedValue(okToken())
-    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {} }))
+    const { result } = renderHook(() => useDictation({ onInterim: () => {}, onFinal: () => {}, onClearInterim: () => {} }))
 
     await act(async () => {
       await result.current.start()

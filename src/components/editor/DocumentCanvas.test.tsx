@@ -326,6 +326,50 @@ describe('DocumentCanvas', () => {
     )
   })
 
+  it('commitInterim with a whitespace-only final drops the ghost without firing onChange or entering undo history', async () => {
+    const onChange = vi.fn()
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="<p>seed</p>" onChange={onChange} />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    // A ghost is shown, then the utterance settles to whitespace only (a NoMatch-like
+    // empty final). The ghost must be removed — but as PROVISIONAL cleanup, not an edit.
+    ref.current!.setInterim('maybe')
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')?.textContent).toBe('maybe')
+    })
+
+    onChange.mockClear()
+    ref.current!.commitInterim('   ')
+
+    // The ghost is gone and nothing was authored: text is just the original seed.
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')).toBeNull()
+    })
+    const prose = container.querySelector<HTMLElement>('.ProseMirror')!
+    expect(prose.textContent).toBe('seed')
+    expect(prose.textContent).not.toContain('maybe')
+
+    // An empty final is not a genuine edit: onChange MUST NOT fire (it would wipe a pending
+    // review as if the author had typed).
+    expect(onChange).not.toHaveBeenCalled()
+
+    // And the delete MUST stay out of undo history: a Cmd/Ctrl+Z must not re-insert the
+    // ghost-marked 'maybe' text.
+    fireEvent.keyDown(prose, { key: 'z', ctrlKey: true })
+    fireEvent.keyDown(prose, { key: 'z', metaKey: true })
+    await waitFor(() => {
+      expect(
+        container.querySelector<HTMLElement>('.ProseMirror')?.textContent,
+      ).not.toContain('maybe')
+    })
+    expect(container.querySelector('.dictation-interim')).toBeNull()
+  })
+
   it('fires onHighlightClick with the data-signal-id on mousedown', async () => {
     const onHighlightClick = vi.fn()
     const ref = createRef<DocumentCanvasHandle>()

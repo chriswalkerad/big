@@ -629,7 +629,18 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     canvasRef.current?.commitInterim(text)
   }, [])
 
-  const dictation = useDictation({ onInterim: handleInterim, onFinal: handleFinal })
+  // A recognized result that settled with no usable text (NoMatch: noise/mumble). Nothing
+  // commits, so drop the in-flight interim ghost — otherwise the last hypothesis lingers in
+  // the doc and serializes as real authored content.
+  const handleClearInterim = useCallback(() => {
+    canvasRef.current?.clearInterim()
+  }, [])
+
+  const dictation = useDictation({
+    onInterim: handleInterim,
+    onFinal: handleFinal,
+    onClearInterim: handleClearInterim,
+  })
   const { stop: stopDictation } = dictation
   const dictationActive = dictation.status === 'listening'
 
@@ -646,6 +657,16 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   useEffect(() => {
     if ((isRead || applying) && dictationActive) endDictation()
   }, [isRead, applying, dictationActive, endDictation])
+
+  // Drop any uncommitted interim ghost when dictation ERRORS. On a non-auth cancellation
+  // (network/mic failure) the hook jumps status straight to 'error' and tears down, so the
+  // stop-on-toggle path above never runs and the last interim ghost would otherwise stay in
+  // the doc and serialize as authored content. The clear effect must therefore key off the
+  // error transition, not `dictationActive` (which is already false by then).
+  const dictationStatus = dictation.status
+  useEffect(() => {
+    if (dictationStatus === 'error') canvasRef.current?.clearInterim()
+  }, [dictationStatus])
   // Stop on unmount only. Held via a ref so a change in `endDictation`'s identity does
   // NOT re-run the cleanup (which would stop an active session mid-render); the empty
   // dep array means the cleanup fires exactly once, when the page unmounts.

@@ -326,9 +326,16 @@ function DocumentCanvasInner(
         // only when the preceding char is not already whitespace and not the doc start.
         const trimmed = finalText.trim()
         if (trimmed.length === 0) {
-          // Nothing to insert; drop any ghost that was tracked.
+          // Nothing to insert; drop any ghost that was tracked. This is provisional cleanup,
+          // NOT a genuine edit — tag it exactly like the other interim transactions so it
+          // stays out of undo history (Cmd-Z must not re-insert the ghost-marked text) and
+          // is skipped by `onUpdate` → `onChange` (an empty final must not wipe a pending
+          // review or look like an author edit).
           if (markType && range && range.to > range.from) {
-            editor.view.dispatch(state.tr.delete(range.from, range.to))
+            const tr = state.tr.delete(range.from, range.to)
+            tr.setMeta('addToHistory', false)
+            tr.setMeta(INTERIM_TX_META, true)
+            editor.view.dispatch(tr)
           }
           return
         }
