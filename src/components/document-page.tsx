@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Loader2, Sparkles, X } from 'lucide-react'
+import { Check, Loader2, Mic, Sparkles, Square, X } from 'lucide-react'
 import type {
   Document,
   Person,
@@ -17,6 +17,8 @@ import { type AppError, appError } from '@/lib/errors'
 import { createStorageRepository, type StorageRepository } from '@/lib/storage'
 import { requestReview } from '@/lib/review-client'
 import { requestApply } from '@/lib/apply-client'
+import { getTranscribeAvailable } from '@/lib/transcribe-client'
+import { useDictation } from '@/lib/use-dictation'
 import { htmlToText, textToHtml } from '@/lib/doc-body'
 import {
   ROUTING_LABELS,
@@ -536,6 +538,47 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setApplyError((prev) => (prev ? null : prev))
   }, [])
 
+  // --- Voice dictation -------------------------------------------------------
+  // A mic that records the author's speech, transcribes it phrase-by-phrase via the
+  // Azure-backed /api/transcribe, and inserts each phrase at the caret. The control is
+  // only rendered when transcription is configured on the server (capability gate) and
+  // only in edit mode. A transcribed phrase is a GENUINE edit — inserting it clears any
+  // pending review preview, which is the intended behaviour.
+  const [transcribeAvailable, setTranscribeAvailable] = useState(false)
+  useEffect(() => {
+    let alive = true
+    void getTranscribeAvailable().then((ok) => {
+      if (alive) setTranscribeAvailable(ok)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  // Insert a transcribed phrase at the caret, normalizing leading whitespace so phrases
+  // don't run into the preceding text. `insertText` fires onChange (a real edit).
+  const handlePhrase = useCallback((text: string) => {
+    canvasRef.current?.insertText(normalizeSpacing(text, bodyRef.current))
+  }, [])
+
+  const dictation = useDictation({ onPhrase: handlePhrase })
+  const { stop: stopDictation } = dictation
+  const dictationActive = dictation.status === 'listening' || dictation.status === 'transcribing'
+
+  // Stop dictation whenever the surface stops being an editable edit-mode canvas — when
+  // the doc enters read mode or an AI rewrite locks the editor.
+  useEffect(() => {
+    if ((isRead || applying) && dictationActive) stopDictation()
+  }, [isRead, applying, dictationActive, stopDictation])
+  // Stop on unmount only. Held via a ref so a change in `stopDictation`'s identity does
+  // NOT re-run the cleanup (which would stop an active session mid-render); the empty
+  // dep array means the cleanup fires exactly once, when the page unmounts.
+  const stopDictationRef = useRef(stopDictation)
+  useEffect(() => {
+    stopDictationRef.current = stopDictation
+  }, [stopDictation])
+  useEffect(() => () => stopDictationRef.current(), [])
+
   // --- Keyboard: Cmd/Ctrl+Enter = Run review; Esc = close panel --------------
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -655,6 +698,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           <span aria-hidden="true" className="text-text-tertiary">·</span>
           <StatusChip status={status} />
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
+          {!isRead && transcribeAvailable ? (
+            <DictationControl dictation={dictation} disabled={applying} />
+          ) : null}
         </div>
 
         {/* Title — the largest text on the page. Edit mode is a borderless
@@ -813,6 +859,73 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
     </div>
   )
+}
+
+/**
+ * The voice-dictation mic in the type/status row. A ghost icon button toggles
+ * recording; while active it shows a stop icon, a pulsing "live" dot, and a
+ * "Listening…" label (the dot's pulse yields to prefers-reduced-motion via the
+ * global motion-reduce rule). A failed transcription or blocked mic surfaces a brief
+ * inline message. The audio internals live entirely in `useDictation`.
+ */
+function DictationControl({
+  dictation,
+  disabled,
+}: {
+  dictation: ReturnType<typeof useDictation>
+  disabled: boolean
+}) {
+  const { status, error, start, stop } = dictation
+  const listening = status === 'listening' || status === 'transcribing'
+
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <Button
+        variant="ghost"
+        onClick={() => (listening ? stop() : void start())}
+        disabled={disabled}
+        aria-pressed={listening}
+        aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}
+        className={cn('size-7 px-0 py-0', listening && 'text-text-primary')}
+      >
+        {listening ? (
+          <Square className="size-3.5 fill-current" aria-hidden="true" />
+        ) : (
+          <Mic className="size-3.5" aria-hidden="true" />
+        )}
+      </Button>
+      {listening ? (
+        <span
+          className="inline-flex items-center gap-1.5 text-label-sm text-text-secondary"
+          role="status"
+          aria-live="polite"
+        >
+          <span
+            aria-hidden="true"
+            className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse"
+          />
+          {status === 'transcribing' ? 'Transcribing…' : 'Listening…'}
+        </span>
+      ) : null}
+      {!listening && error ? (
+        <span className="text-label-sm text-risk-text" role="alert">
+          {error.message}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+/**
+ * Normalize a transcribed phrase for insertion at the caret: collapse leading/trailing
+ * whitespace to a single space, and ensure ONE leading space when the body doesn't
+ * already end with whitespace, so consecutive phrases don't run together.
+ */
+function normalizeSpacing(text: string, currentBody: string): string {
+  const trimmed = text.trim()
+  if (!trimmed) return ''
+  const needsLeadingSpace = currentBody.length > 0 && !/\s$/.test(currentBody)
+  return needsLeadingSpace ? ` ${trimmed}` : trimmed
 }
 
 /** A calm "Owner · Maya Kambe" / "Reviewer · Luigi Lucarelli" meta note. */
