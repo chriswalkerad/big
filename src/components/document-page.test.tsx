@@ -356,7 +356,7 @@ describe('DocumentPage — UX pass (subtype / star / copy-link / breadcrumb)', (
     await screen.findByRole('button', { name: /run review/i })
     // The project-name breadcrumb is gone; the brand-mark home link remains.
     expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).not.toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /creative review home/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /big review home/i })).toBeInTheDocument()
   })
 })
 

@@ -95,6 +95,47 @@ const NO_DOCS: Document[] = [];
 const noopSubscribe = () => () => {};
 
 /**
+ * Stable DOM id for the primary `<nav>` landmark. Shared between {@link LeftRail}
+ * (which sets it on the `<nav>`) and {@link RailEdgeToggle} (which references it
+ * via `aria-controls`). A module constant rather than `useId` because the two
+ * are separate components rendered as siblings by `AppShell`, so they must agree
+ * on the id without sharing a hook. There is only ever one rail mounted.
+ */
+const RAIL_NAV_ID = "left-rail-nav";
+
+/**
+ * The `<sm` (narrow phone) breakpoint. Below it the rail is the off-canvas
+ * drawer; at `sm+` (≥640px) it is the persistent in-flow column. Tailwind's
+ * default `sm` is 40rem (640px), so "narrow" is everything strictly below it.
+ */
+const NARROW_QUERY = "(max-width: 639.98px)";
+
+/**
+ * Tracks whether the viewport is a narrow phone (`<sm`). Used only to decide
+ * whether the CLOSED drawer should be removed from the a11y tree + tab order
+ * (`inert`): below `sm` the closed drawer is hidden purely by a transform while
+ * still in the DOM, so without this it would stay reachable by screen readers
+ * and the Tab key. The persistent `sm+` rail must NEVER be inert, so this gates
+ * that behavior on the live media query.
+ *
+ * SSR/hydration-safe: the server snapshot is `false` (treat as `sm+`, never
+ * inert), matching the first client paint; the real value is read after mount
+ * via `useSyncExternalStore`. Purely behavioral — it changes no visuals.
+ */
+function useIsNarrow(): boolean {
+  const subscribe = useCallback((onStoreChange: () => void) => {
+    const mql = window.matchMedia(NARROW_QUERY);
+    mql.addEventListener("change", onStoreChange);
+    return () => mql.removeEventListener("change", onStoreChange);
+  }, []);
+  return useSyncExternalStore(
+    subscribe,
+    () => window.matchMedia(NARROW_QUERY).matches,
+    () => false,
+  );
+}
+
+/**
  * Editor routes own the full viewport (full-bleed writing column + slide-in
  * review panel), so the rail must NOT render there. Matches the document
  * editor (`/p/{id}/d/{docId}` and its `/new`) and the reviewer view
@@ -208,6 +249,7 @@ export function LeftRail() {
   const pathname = usePathname();
   const currentProjectId = useCurrentProjectId();
   const { collapsed, expand, mounted } = useRailState();
+  const isNarrow = useIsNarrow();
 
   const [mode, setMode] = useState<RailMode>("nav");
   const [accountOpen, setAccountOpen] = useState(false);
@@ -274,6 +316,7 @@ export function LeftRail() {
 
       <nav
         ref={navRef}
+        id={RAIL_NAV_ID}
         aria-label="Primary"
         // While the off-canvas drawer is OPEN (phones, <sm) the rail is a modal
         // dialog: a focus trap + Escape are active, so it advertises itself as
@@ -281,6 +324,12 @@ export function LeftRail() {
         // no dialog semantics.
         role={drawerOpen ? "dialog" : undefined}
         aria-modal={drawerOpen ? true : undefined}
+        // Below `sm` the closed drawer is hidden only by `-translate-x-full`
+        // while still rendered, so without this it would linger in the a11y tree
+        // AND the tab order. When narrow AND closed, `inert` removes it from
+        // both. Gated on `isNarrow` so the persistent `sm+` rail is NEVER inert;
+        // `inert` is purely behavioral and changes no visuals.
+        inert={isNarrow && !drawerOpen}
         data-collapsed={isCollapsed ? "true" : undefined}
         className={cn(
           // Base: a subtly-tinted panel column (bg-panel ≈ #fafafa, dark-mode
@@ -451,26 +500,32 @@ function NavMode({
           onNavigate={onNavigate}
         />
 
-        {/* Projects. */}
-        <RailSectionLabel collapsed={collapsed}>Projects</RailSectionLabel>
-        {orderedProjects.map((project) => (
-          <RailLink
-            key={project.id}
-            href={`/p/${project.id}`}
-            icon={
-              <span
-                aria-hidden="true"
-                className="inline-flex size-4 items-center justify-center rounded-[4px] bg-panel text-[0.625rem] font-medium text-text-tertiary"
-              >
-                {project.name.slice(0, 1).toUpperCase()}
-              </span>
-            }
-            label={project.name}
-            collapsed={collapsed}
-            active={project.id === currentProjectId}
-            onNavigate={onNavigate}
-          />
-        ))}
+        {/* Projects. Wrapped in a `display:contents` group so the boundary
+            survives a COLLAPSE (where the visible "Projects" label is replaced
+            by a bare divider): the group keeps a stable `aria-label="Projects"`
+            for screen readers. `contents` means the wrapper box is not rendered,
+            so the links stay direct flex children — no layout/visual shift. */}
+        <div role="group" aria-label="Projects" className="contents">
+          <RailSectionLabel collapsed={collapsed}>Projects</RailSectionLabel>
+          {orderedProjects.map((project) => (
+            <RailLink
+              key={project.id}
+              href={`/p/${project.id}`}
+              icon={
+                <span
+                  aria-hidden="true"
+                  className="inline-flex size-4 items-center justify-center rounded-[4px] bg-panel text-[0.625rem] font-medium text-text-tertiary"
+                >
+                  {project.name.slice(0, 1).toUpperCase()}
+                </span>
+              }
+              label={project.name}
+              collapsed={collapsed}
+              active={project.id === currentProjectId}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
 
         {/* Inbox — switches the rail into inbox mode (does not navigate). It
             toggles the rail's inbox panel, so it advertises that disclosure
@@ -757,6 +812,11 @@ export function RailEdgeToggle() {
       type="button"
       onClick={toggle}
       aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+      // This control collapses/expands the primary `<nav>` it points at, so it
+      // advertises the disclosure relationship: `aria-controls` targets the rail
+      // and `aria-expanded` reflects its width state (expanded = not collapsed).
+      aria-expanded={!isCollapsed}
+      aria-controls={RAIL_NAV_ID}
       className={cn(
         // A floating control pinned to the content column's left edge (the
         // rail/content boundary), vertically near the top. `hidden sm:inline-flex`

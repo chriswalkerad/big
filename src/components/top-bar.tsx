@@ -62,7 +62,7 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
         <div className="flex min-w-0 items-center gap-2.5">
           <Link
             href="/"
-            aria-label="Creative Review home"
+            aria-label="Big Review home"
             className={cn(
               "inline-flex shrink-0 items-center rounded-control",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",

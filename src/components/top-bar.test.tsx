@@ -37,7 +37,7 @@ describe("TopBar", () => {
   it("renders a banner with the brand home link", () => {
     renderTopBar();
     expect(screen.getByRole("banner")).toBeInTheDocument();
-    const home = screen.getByRole("link", { name: /creative review home/i });
+    const home = screen.getByRole("link", { name: /big review home/i });
     expect(home).toHaveAttribute("href", "/");
   });
 
@@ -53,7 +53,7 @@ describe("TopBar", () => {
   it("renders with no breadcrumb (just the brand on the left)", () => {
     renderTopBar();
     expect(screen.getByRole("banner")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /creative review home/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /big review home/i })).toBeInTheDocument();
     expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
   });
 

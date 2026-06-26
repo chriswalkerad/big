@@ -62,29 +62,49 @@ export function ReviewInbox({ projectId, queue, owner }: ReviewInboxProps) {
             </p>
           ) : (
             <ul className="flex flex-col">
-              {queue.map((doc) => (
-                <li key={doc.id}>
-                  <Link
-                    href={`/p/${projectId}/d/${doc.id}/review`}
-                    role="menuitem"
-                    onClick={close}
-                    className={cn(
-                      "flex flex-col gap-0.5 rounded-control px-2.5 py-2 transition-colors",
-                      "hover:bg-panel",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
-                    )}
-                  >
-                    <span className="truncate text-body-emphasis text-text-primary">
-                      {doc.title || "Untitled"}
-                    </span>
-                    <span className="text-label-sm text-text-tertiary">
-                      {owner ? `Owner · ${owner.name} · ` : ""}
-                      Reviewer · {doc.reviewer ? doc.reviewer.name : "—"} ·{" "}
-                      {STATUS_LABELS[doc.status]} · {relativeTime(doc.updatedAt)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
+              {queue.map((doc) => {
+                const title = doc.title || "Untitled";
+                const reviewerName = doc.reviewer ? doc.reviewer.name : "none";
+                // The visible meta is a "·"-separated run, which a screen reader
+                // reads as one undifferentiated string ("Owner · Ada · Reviewer
+                // · …"). Compose a clean, labelled accessible name on the row and
+                // mark the visible meta `aria-hidden` so it is not re-announced.
+                // Visible text is unchanged.
+                const ownerPart = owner ? `Owner ${owner.name}. ` : "";
+                const accessibleName =
+                  `${title}. ${ownerPart}Reviewer ${reviewerName}. ` +
+                  `${STATUS_LABELS[doc.status]}. Updated ${relativeTime(doc.updatedAt)}.`;
+                return (
+                  <li key={doc.id}>
+                    <Link
+                      href={`/p/${projectId}/d/${doc.id}/review`}
+                      role="menuitem"
+                      onClick={close}
+                      aria-label={accessibleName}
+                      className={cn(
+                        "flex flex-col gap-0.5 rounded-control px-2.5 py-2 transition-colors",
+                        "hover:bg-panel",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
+                      )}
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="truncate text-body-emphasis text-text-primary"
+                      >
+                        {title}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="text-label-sm text-text-tertiary"
+                      >
+                        {owner ? `Owner · ${owner.name} · ` : ""}
+                        Reviewer · {doc.reviewer ? doc.reviewer.name : "—"} ·{" "}
+                        {STATUS_LABELS[doc.status]} · {relativeTime(doc.updatedAt)}
+                      </span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

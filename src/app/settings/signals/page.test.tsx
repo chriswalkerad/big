@@ -37,7 +37,7 @@ describe("SignalsAdminPage", () => {
     ).toBeInTheDocument();
     // The TopBar's global-nav brand link is gone (the rail owns it now).
     expect(
-      screen.queryByRole("link", { name: "Creative Review home" }),
+      screen.queryByRole("link", { name: "Big Review home" }),
     ).not.toBeInTheDocument();
   });
 
