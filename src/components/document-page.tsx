@@ -41,7 +41,6 @@ import { ReviewerStatusControl } from '@/components/reviewer-status-control'
 import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
 import { ResultsPanel, ReviewStrip } from '@/components/results-panel'
-import { ReviewerPicker } from '@/components/reviewer-picker'
 import { FranchiseDetail } from '@/components/franchise-detail'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
@@ -111,10 +110,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [snapshot, setSnapshot] = useState<SubmittedSnapshot | undefined>(undefined)
   // The reviewer recorded on the document (set at submission; drafts have none).
   const [reviewer, setReviewer] = useState<Person | undefined>(undefined)
-
-  // The reviewer-picker dialog (step between confirm and commit). Open it from the
-  // ResultsPanel's Confirm button; choosing a reviewer there commits the submission.
-  const [reviewerPickerOpen, setReviewerPickerOpen] = useState(false)
 
   // Review state.
   const [reviewLoading, setReviewLoading] = useState(false)
@@ -425,15 +420,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
 
   // --- Confirm submission (step 2 of review-then-confirm) --------------------
   // Confirming the preview no longer commits immediately: the author must first pick WHO
-  // should review the document. The ResultsPanel's Confirm button opens the reviewer
-  // picker; `commitSubmission` (below) runs once a reviewer is chosen. A reviewer is
-  // REQUIRED to submit, so there is no commit path that skips this step.
-  const confirmSubmission = useCallback(() => {
-    const current = doc
-    if (!current || !pendingReview || pendingBody === null) return
-    setReviewerPickerOpen(true)
-  }, [doc, pendingReview, pendingBody])
-
+  // should review the document. "Confirm submission" in the ResultsPanel opens an
+  // IN-PANEL choose-reviewer view (no dialog); `commitSubmission` runs once a reviewer is
+  // chosen there. A reviewer is REQUIRED to submit, so there is no commit path that skips
+  // this step.
+  //
   // Commit the pending preview WITH the chosen reviewer: build the working doc from live
   // fields with the exact reviewed body, apply the submit transition (sets/replaces the
   // snapshot, records the reviewer, prefills, advances the status), persist, render
@@ -465,7 +456,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
       setPendingReview(null)
       setPendingBody(null)
-      setReviewerPickerOpen(false)
     },
     [doc, pendingReview, pendingBody, title, subtype, subtypeSource, status, commitDoc, inlineIds],
   )
@@ -791,7 +781,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               focusedSignalId={focusedSignalId}
               pending={!isRead && pendingReview !== null}
               onRetry={() => void runReview()}
-              onConfirm={confirmSubmission}
+              people={people}
+              currentReviewer={reviewer}
+              onConfirmReviewer={commitSubmission}
               onPhraseClick={handlePhraseClick}
               onFranchiseClick={() => setFranchiseOpen(true)}
               onApplyPrompt={isRead ? undefined : handleApplyPrompt}
@@ -801,14 +793,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           </div>
         ) : null}
       </div>
-
-      <ReviewerPicker
-        open={reviewerPickerOpen}
-        people={people}
-        current={reviewer}
-        onClose={() => setReviewerPickerOpen(false)}
-        onConfirm={commitSubmission}
-      />
 
       <FranchiseDetail project={project} open={franchiseOpen} onClose={() => setFranchiseOpen(false)} />
     </div>

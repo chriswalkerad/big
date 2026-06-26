@@ -91,12 +91,14 @@ describe('DocumentPage edit mode — submit flow', () => {
     expect(previewed?.title).toBe('')
     expect(previewed?.subtype).toBe('story_premise')
 
-    // Step 2: confirm submission opens the reviewer picker (it does NOT commit yet).
+    // Step 2: confirm submission opens the IN-PANEL choose-reviewer view (no dialog);
+    // it does NOT commit yet.
     const confirm = screen.getByRole('button', { name: /confirm submission/i })
     fireEvent.click(confirm)
 
-    // The reviewer picker dialog appears; nothing is committed until a reviewer is chosen.
-    const picker = await screen.findByRole('dialog', { name: /choose a reviewer/i })
+    // The in-panel choose-reviewer view replaces the review; nothing is committed until a
+    // reviewer is chosen.
+    const picker = await screen.findByRole('region', { name: /choose a reviewer/i })
     expect(createStorageRepository().getDocument('doc-test')?.status).toBe('draft')
 
     // Step 3: pick a reviewer and submit → the old submit behaviour now commits, with the
@@ -383,8 +385,8 @@ describe('DocumentPage version drift (edit mode)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /confirm submission/i }))
 
-    // Choosing a reviewer in the picker commits the resubmit.
-    const picker = await screen.findByRole('dialog', { name: /choose a reviewer/i })
+    // Choosing a reviewer in the in-panel view commits the resubmit.
+    const picker = await screen.findByRole('region', { name: /choose a reviewer/i })
     fireEvent.click(within(picker).getByRole('button', { name: /submit for review/i }))
 
     await waitFor(() => {
