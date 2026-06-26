@@ -75,6 +75,18 @@ describe('requestReview', () => {
     if (!out.ok) expect(out.error.code).toBe('AI_BAD_JSON')
   })
 
+  it('falls back to a typed error when the success body has null data', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true, data: null }, 200))
+    const out = await requestReview({ text: 'hi', project: PROJECT, signals: SIGNALS, fetchImpl })
+    expect(out.ok).toBe(false)
+  })
+
+  it('falls back to a typed error when the success body data lacks signals/verdict shape', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ ok: true, data: { signals: 'nope' } }, 200))
+    const out = await requestReview({ text: 'hi', project: PROJECT, signals: SIGNALS, fetchImpl })
+    expect(out.ok).toBe(false)
+  })
+
   it('falls back to a typed error when the body is not a ReviewResponse', async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ unexpected: true }, 500))
     const out = await requestReview({ text: 'hi', project: PROJECT, signals: SIGNALS, fetchImpl })
