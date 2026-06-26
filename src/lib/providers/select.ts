@@ -58,25 +58,29 @@ export function resolveTranscribeConfig(env: TranscribeEnv = process.env): {
   model: string
   region: string
 } {
+  // Use `||` (not `??`) so an empty-but-present value (e.g. AZURE_SPEECH_KEY=
+  // left over from .env.example) falls through to the next candidate. With `??`
+  // an empty string is not nullish, so it would shadow valid legacy creds and
+  // the mic would never appear.
   const endpoint = (
-    env.AZURE_SPEECH_ENDPOINT ??
-    env.AZURE_OPENAI_TRANSCRIBE_ENDPOINT ??
-    env.AZURE_OPENAI_ENDPOINT ??
+    env.AZURE_SPEECH_ENDPOINT ||
+    env.AZURE_OPENAI_TRANSCRIBE_ENDPOINT ||
+    env.AZURE_OPENAI_ENDPOINT ||
     ''
   ).trim()
   const apiKey = (
-    env.AZURE_SPEECH_KEY ??
-    env.AZURE_OPENAI_TRANSCRIBE_API_KEY ??
-    env.AZURE_OPENAI_API_KEY ??
+    env.AZURE_SPEECH_KEY ||
+    env.AZURE_OPENAI_TRANSCRIBE_API_KEY ||
+    env.AZURE_OPENAI_API_KEY ||
     ''
   ).trim()
   const model = (
-    env.AZURE_SPEECH_TRANSCRIBE_MODEL ??
-    env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT ??
+    env.AZURE_SPEECH_TRANSCRIBE_MODEL ||
+    env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT ||
     ''
   ).trim()
   // Region has no legacy fallback — it's only needed by the streaming token path.
-  const region = (env.AZURE_SPEECH_REGION ?? '').trim()
+  const region = (env.AZURE_SPEECH_REGION || '').trim()
   return { endpoint, apiKey, model, region }
 }
 

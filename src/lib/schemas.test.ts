@@ -59,22 +59,36 @@ describe('signal score bounds (0–100)', () => {
     ).not.toThrow()
   })
 
-  it('rejects a score above 100', () => {
-    expect(() =>
-      reviewResultSchema.parse({
-        ...base,
-        signals: [{ signalId: 'clarity', score: 101, rationale: 'Too high.', issues: [] }],
-      }),
-    ).toThrow()
+  it('clamps a fractionally-too-high score (100.5) to 100 instead of rejecting', () => {
+    const result = reviewResultSchema.parse({
+      ...base,
+      signals: [{ signalId: 'clarity', score: 100.5, rationale: 'Too high.', issues: [] }],
+    })
+    expect(result.signals[0].score).toBe(100)
   })
 
-  it('rejects a negative score', () => {
-    expect(() =>
-      reviewResultSchema.parse({
-        ...base,
-        signals: [{ signalId: 'clarity', score: -1, rationale: 'Negative.', issues: [] }],
-      }),
-    ).toThrow()
+  it('clamps a way-too-high score (101) to 100', () => {
+    const result = reviewResultSchema.parse({
+      ...base,
+      signals: [{ signalId: 'clarity', score: 101, rationale: 'Too high.', issues: [] }],
+    })
+    expect(result.signals[0].score).toBe(100)
+  })
+
+  it('clamps a negative score (-1) to 0 instead of rejecting', () => {
+    const result = reviewResultSchema.parse({
+      ...base,
+      signals: [{ signalId: 'clarity', score: -1, rationale: 'Negative.', issues: [] }],
+    })
+    expect(result.signals[0].score).toBe(0)
+  })
+
+  it('rounds a fractional in-range score to an integer', () => {
+    const result = reviewResultSchema.parse({
+      ...base,
+      signals: [{ signalId: 'clarity', score: 73.4, rationale: 'Fractional.', issues: [] }],
+    })
+    expect(result.signals[0].score).toBe(73)
   })
 })
 
