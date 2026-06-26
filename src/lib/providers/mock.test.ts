@@ -198,8 +198,10 @@ describe('MockProvider applyEdit', () => {
     expect(typeof out).toBe('string')
     expect(out.length).toBeGreaterThan(0)
     expect(out).not.toBe(original)
-    // The original body survives (minus trimmed filler) under the new opening line.
-    expect(out).toContain('\n\n')
+    // The rewrite is a clean version of the author's own text: no prepended
+    // instruction line, no instruction-echo, no subject/title naming.
+    expect(out).not.toMatch(/so the intent is unmistakable on the first read\./)
+    expect(out.split('\n\n')[0]).not.toMatch(/^(Refocus|Tighten|Sharpen|Ground|Anchor|Revise) "/)
   })
 
   it('is deterministic: identical (text, instruction) yields identical output', async () => {
@@ -212,22 +214,35 @@ describe('MockProvider applyEdit', () => {
     expect(applyEditSync(input)).toBe(a)
   })
 
-  it('varies the opening verb with the instruction (guided, not echoed)', () => {
+  it('never prepends an instruction-shaped opening line to the body', () => {
+    const text = '# Eloise and the Great Snow-In\n\nWhen a blizzard traps everyone at the Plaza...'
+    for (const instruction of [
+      'Make this fully family-safe and on-brand.',
+      'Tighten this for clarity and concision.',
+      'Simplify this concept.',
+    ]) {
+      const out = applyEditSync(applyInputFor(text, instruction))
+      // No instruction echo, no "Verb \"Subject\" so the intent..." opener.
+      expect(out).not.toMatch(/so the intent is unmistakable on the first read\./)
+      expect(out).not.toMatch(/^(Refocus|Tighten|Sharpen|Ground|Anchor|Revise) "/)
+      // The author's own opening line is still the first thing in the rewrite.
+      expect(out.startsWith('# Eloise and the Great Snow-In')).toBe(true)
+    }
+  })
+
+  it('does not vary the rewrite with the instruction (content-only, not instruction-driven)', () => {
     const text = 'A short caper about a precocious kid at a grand hotel.'
     const safer = applyEditSync(applyInputFor(text, 'Make this fully family-safe and on-brand.'))
     const clearer = applyEditSync(applyInputFor(text, 'Tighten this for clarity and concision.'))
-    expect(safer.startsWith('Refocus')).toBe(true)
-    expect(clearer.startsWith('Tighten')).toBe(true)
-    expect(safer).not.toBe(clearer)
+    // The instruction never leaks into the output, so both rewrites are identical.
+    expect(safer).toBe(clearer)
   })
 
-  it('selects the "Tighten" verb for simplify-themed instructions', () => {
-    const text = 'A short caper about a precocious kid at a grand hotel.'
-    // `simplify`/`simple`/`simpler` must all route to "Tighten", not the default verb.
-    for (const instruction of ['Simplify this concept.', 'Make it simple.', 'Make it simpler.']) {
-      const out = applyEditSync(applyInputFor(text, instruction))
-      expect(out.startsWith('Tighten')).toBe(true)
-    }
+  it('tightens a redundant doubled intensifier as a visible, prose-level edit', () => {
+    const text = 'They met one very large, very hungry dog.'
+    const out = applyEditSync(applyInputFor(text))
+    expect(out).toContain('very large and hungry dog')
+    expect(out).not.toBe(text)
   })
 
   it('trims standalone intensifier filler from the body', () => {

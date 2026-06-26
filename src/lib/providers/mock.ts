@@ -492,11 +492,11 @@ export class MockProvider implements ReviewProvider {
 }
 
 // --- Deterministic "apply suggested prompt" edit -------------------------------
-// The mock has no LLM, so it makes a SMALL but VISIBLE, deterministic rewrite of the
-// author's text guided by the instruction: it trims hedging filler and prepends one
-// tightened clarifying opening line whose verb is chosen from the instruction. Same
-// (text, instruction) in → byte-identical text out. It is never a pure echo: the
-// opening line is always added, so the returned text differs from the input.
+// The mock has no LLM, so it makes a SMALL, deterministic, prose-level rewrite of the
+// author's text: it trims hedging filler and tightens a few redundant phrasings. The
+// result is a CLEAN rewrite of the author's own words — it never prepends an
+// instruction line, echoes the instruction, or names the subject/title. Same
+// (text, instruction) in → byte-identical text out.
 
 // Trimming filler is deliberately conservative: it must NEVER delete words from the
 // middle of the author's prose or dialogue, where words like "just", "really",
@@ -567,35 +567,44 @@ function tidyWhitespace(text: string): string {
 }
 
 /**
- * Choose a leading verb for the clarifying line from the instruction, so the edit
- * visibly reflects what was asked (e.g. "make it safer" → "Refocus"). Deterministic:
- * first matching rule in order wins, with a stable default.
+ * A small map of wordy phrasings and the tighter version that reads identically.
+ * Applied anywhere in the prose — these collapses never change meaning and never
+ * touch the author's nouns, names, or dialogue. Ordered so longer phrases win.
  */
-function clarifyingVerb(instruction: string): string {
-  const i = instruction.toLowerCase()
-  if (/\b(safe|family|brand|remove|replace)\b/.test(i)) return 'Refocus'
-  // `simpl\w*` (not `simpl\b`) so simplify/simple/simpler match — a trailing `\b`
-  // after `simpl` can never match because a letter always follows it.
-  if (/\b(?:clear|clarity|concise|tighten|simpl\w*)\b/.test(i)) return 'Tighten'
-  if (/\b(hook|open|grab|attention)\b/.test(i)) return 'Sharpen'
-  if (/\b(character|protagonist|hero|lead)\b/.test(i)) return 'Ground'
-  if (/\b(complete|detail|expand|flesh)\b/.test(i)) return 'Anchor'
-  return 'Revise'
+const REDUNDANT_PHRASES: Array<{ pattern: RegExp; replacement: string }> = [
+  { pattern: /\bat this point in time\b/gi, replacement: 'now' },
+  { pattern: /\bin order to\b/gi, replacement: 'to' },
+  { pattern: /\bdue to the fact that\b/gi, replacement: 'because' },
+  { pattern: /\bin the event that\b/gi, replacement: 'if' },
+  { pattern: /\ba number of\b/gi, replacement: 'several' },
+  { pattern: /\bthe fact that\b/gi, replacement: 'that' },
+]
+
+/**
+ * Tighten redundant phrasing at the content level — collapse wordy connectives and
+ * fold an adjacent repeated intensifier ("very X, very Y" → "very X and Y") into one
+ * cleaner clause. Reads as ordinary prose tightening; never an instruction, never a
+ * reference to the subject/title. Deterministic: same input → same output.
+ */
+function tightenPhrasing(text: string): string {
+  let out = text
+  for (const { pattern, replacement } of REDUNDANT_PHRASES) {
+    out = out.replace(pattern, replacement)
+  }
+  // Fold a doubled intensifier so the description carries one "very" instead of two.
+  out = out.replace(/\bvery (\w+), very (\w+)\b/gi, 'very $1 and $2')
+  return out
 }
 
 /**
- * Deterministic, LLM-free rewrite for the demo. Trims filler and prepends a single
- * tightened clarifying opening line derived from the instruction and the text's own
- * subject (its suggested title). Returns plain text; same input → same output.
+ * Deterministic, LLM-free rewrite for the demo. Trims hedging filler and tightens a
+ * few redundant phrasings, returning a clean rewrite of the author's own text. It
+ * never prepends an instruction line, echoes the instruction, or names the subject.
+ * Returns plain text; same input → same output.
  */
 export function applyEditSync(input: ApplyInput): string {
-  const { text, instruction } = input
-  const body = tidyWhitespace(trimFiller(text))
-  const subject = suggestTitle(body || text)
-  const verb = clarifyingVerb(instruction)
-  // One concrete clarifying line that names the subject and the asked-for direction.
-  const opener = `${verb} "${subject}" so the intent is unmistakable on the first read.`
-  return body.length > 0 ? `${opener}\n\n${body}` : opener
+  const { text } = input
+  return tidyWhitespace(tightenPhrasing(trimFiller(text)))
 }
 
 /** Pure, synchronous core — handy for tests that want a value without a promise. */
