@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Check, Loader2, Sparkles, X } from 'lucide-react'
+import { Check, Loader2, PanelRight, Sparkles, X } from 'lucide-react'
 import type {
   Document,
   Person,
@@ -645,6 +645,28 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           <span aria-hidden="true" className="text-text-tertiary">·</span>
           <StatusChip status={status} />
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
+
+          {/* Far-right panel toggle — shows/hides the inline review detail panel so the
+              author can re-open the review (e.g. before resubmitting) after it
+              auto-collapsed. Wired to the same `panelOpen` state. Disabled (with a
+              hint) until there is review content to show — the panel only mounts then. */}
+          <button
+            type="button"
+            onClick={() => setPanelOpen((open) => !open)}
+            disabled={!hasReviewContent}
+            aria-pressed={panelOpen}
+            aria-label={panelOpen ? 'Hide review panel' : 'Show review panel'}
+            title={hasReviewContent ? undefined : 'Run a review to see feedback'}
+            className={cn(
+              'ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-control text-text-secondary',
+              'transition-colors hover:bg-panel hover:text-text-primary',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+              'disabled:pointer-events-none disabled:opacity-40',
+              panelOpen && 'bg-panel text-text-primary',
+            )}
+          >
+            <PanelRight className="size-4" aria-hidden="true" />
+          </button>
         </div>
 
         {/* Title — the largest text on the page. Edit mode is a borderless

@@ -217,6 +217,37 @@ describe('DocumentPage edit mode — submit flow', () => {
     expect(await screen.findByRole('region', { name: 'Review results' })).toBeInTheDocument()
   })
 
+  it('toggles the review panel from the far-right type-row button (disabled until a review exists)', async () => {
+    seedDoc()
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
+    )
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    // No review yet → the toggle is present but disabled (its hint points the user to
+    // run a review first).
+    const toggle = await screen.findByRole('button', { name: /show review panel/i })
+    expect(toggle).toBeDisabled()
+    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+
+    // Run a review → the panel auto-opens and the toggle reflects the open state.
+    fireEvent.click(screen.getByRole('button', { name: /run review/i }))
+    await screen.findByRole('region', { name: 'Review results' })
+    const openToggle = screen.getByRole('button', { name: /hide review panel/i })
+    expect(openToggle).toBeEnabled()
+    expect(openToggle).toHaveAttribute('aria-pressed', 'true')
+
+    // Clicking it hides the panel (region leaves the a11y tree)…
+    fireEvent.click(openToggle)
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
+    })
+
+    // …and clicking again re-shows it — proving it can re-open an auto-collapsed panel.
+    fireEvent.click(screen.getByRole('button', { name: /show review panel/i }))
+    expect(await screen.findByRole('region', { name: 'Review results' })).toBeInTheDocument()
+  })
+
   it('renders a typed error in the panel when the review fails (retryable)', async () => {
     seedDoc()
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
