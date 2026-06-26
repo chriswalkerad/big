@@ -44,7 +44,7 @@ describe the app. The current behaviors the suites verify:
 - **One-step Submit → two-step Run review → Confirm submission.** "Run review" produces a
   **preview** (verdict header + six signal rows) without creating a snapshot or changing status;
   the panel then offers **"Confirm submission"**, which commits Draft → Submitted, applies the
-  prefill, and shows a GREENLIGHT celebration overlay (dismissable with Escape). Cmd/Ctrl+Enter
+  prefill. The reviewer is chosen via an in-panel picker (no celebration overlay). Cmd/Ctrl+Enter
   runs the *preview*, not the commit.
 - **Reviewer is chosen on submit** (`reviewer-choice.tsx`); the library doubles as a reviewer
   **inbox** over the review queue.
@@ -119,7 +119,7 @@ Each test runs in an isolated browser context, so `localStorage` starts empty an
 |---|---|
 | `library.spec.ts` | `/` → seeded library redirect; four seeded docs present; **search** by title and by body ("body count" → Haunted Elevator) with no-match empty state; **status filter** (Draft → Rooftop, Changes Requested → Haunted); Account breadcrumb opens the switcher stub dialog |
 | `submit.spec.ts` | Draft stub editable with empty results panel; **Run review** previews a verdict + exactly six signal rows while status stays **Draft**; **Confirm submission** commits Draft → Submitted; Cmd/Ctrl+Enter runs the preview; empty title is AI-prefilled only on confirm |
-| `drift.spec.ts` | Submit the stub (Run review → Confirm), dismiss the GREENLIGHT celebration; editing surfaces the **"Edited since submit"** drift status with Resubmit/Unsubmit; **Resubmit** re-previews then confirm keeps status Submitted and clears drift; **Unsubmit** empties the panel and returns to Draft |
+| `drift.spec.ts` | Submit the stub (Run review → Confirm); editing surfaces the **"Edited since submit"** drift status with Resubmit/Unsubmit; **Resubmit** re-previews then confirm keeps status Submitted and clears drift; **Unsubmit** empties the panel and returns to Draft |
 | `reviewer.spec.ts` | Read-mode review route: change status (Submitted → In Review); **Approve** opens the destination picker (default Digital Test), pick Animation → records "Routed to Animation"; Copy-link affordance present |
 | `squiggles.spec.ts` | Seeded Haunted Elevator review: **two `brand_safety` risk squiggles** ("they're never seen again", "a rising body count…") with `data-severity="risk"` + tooltip; squiggle click focuses its panel row (`data-focused`); panel phrase click emphasizes the matching squiggle (`--focus`) |
 | `signals.spec.ts` | Admin CRUD: lists the six seeded signals; **create** "Originality" persists across reload; **edit** Clarity threshold 7 → 9 persists; **delete** Franchise Fit only after a confirm dialog, stays gone after reload |
