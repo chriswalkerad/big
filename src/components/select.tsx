@@ -1,5 +1,6 @@
 'use client'
 
+import { useId } from 'react'
 import { Check, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Menu, MenuItem } from '@/components/menu'
@@ -29,6 +30,10 @@ interface SelectProps<T extends string> {
   disabled?: boolean
   /** Extra classes on the trigger. */
   triggerClassName?: string
+  /** Forwarded to the trigger for form/error wiring (3.3.1 / 3.3.2). */
+  'aria-invalid'?: boolean
+  'aria-describedby'?: string
+  'aria-labelledby'?: string
 }
 
 const triggerVariants: Record<SelectVariant, string> = {
@@ -43,11 +48,14 @@ const triggerVariants: Record<SelectVariant, string> = {
 }
 
 /**
- * Shared accessible dropdown built on the `Menu` primitive — the app-wide replacement
- * for native `<select>`. The trigger shows the selected option's label (or a muted
- * `placeholder` when `value` is `null`) and a chevron; the panel lists options as
- * menuitems with a check on the selected one. Disabled options are non-selectable.
- * Keyboard roving focus, Escape, outside-click, and type-ahead come from `Menu`.
+ * Shared accessible dropdown built on the `Menu` primitive in its `listbox` mode — the
+ * app-wide replacement for native `<select>`. The trigger is a value picker
+ * (`aria-haspopup="listbox"`, `aria-expanded`) whose accessible name is the selected
+ * option's label (or the muted `placeholder` when `value` is `null`); the panel is a
+ * `role="listbox"` of `role="option"` rows carrying `aria-selected`, with a check on the
+ * selected one. Disabled options are non-selectable. Keyboard roving focus, Escape,
+ * outside-click, type-ahead, and focus-return come from `Menu`. `aria-invalid`,
+ * `aria-describedby`, and `aria-labelledby` are forwarded to the trigger for form wiring.
  */
 export function Select<T extends string>({
   value,
@@ -59,15 +67,31 @@ export function Select<T extends string>({
   align = 'left',
   disabled,
   triggerClassName,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedby,
+  'aria-labelledby': ariaLabelledby,
 }: SelectProps<T>) {
   const selected = value !== null ? options.find((o) => o.value === value) ?? null : null
   const hasValue = selected !== null
+  const valueId = useId()
+  const labelId = useId()
+
+  // The trigger's accessible name is composed via `aria-labelledby` as "<field> <value>"
+  // — the native-select equivalent — so screen readers announce both the field and the
+  // current selection (WCAG 4.1.2). The field part is the caller's `aria-labelledby`
+  // (e.g. a visible form label) when given, else a visually-hidden node carrying
+  // `ariaLabel`. The value part is the trigger's own selected-label/placeholder text.
+  const fieldLabelledBy = ariaLabelledby ?? (ariaLabel ? labelId : undefined)
+  const labelledBy = cn(fieldLabelledBy, valueId) || undefined
 
   return (
     <Menu
+      variant="listbox"
       align={align}
       disabled={disabled}
-      ariaLabel={ariaLabel}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedby}
+      aria-labelledby={labelledBy}
       triggerClassName={cn(
         'inline-flex items-center justify-between',
         'text-text-secondary',
@@ -78,7 +102,15 @@ export function Select<T extends string>({
       )}
       label={
         <>
-          <span className={cn('truncate', hasValue ? 'text-text-primary' : 'text-text-tertiary')}>
+          {ariaLabel && !ariaLabelledby ? (
+            <span id={labelId} className="sr-only">
+              {ariaLabel}
+            </span>
+          ) : null}
+          <span
+            id={valueId}
+            className={cn('truncate', hasValue ? 'text-text-primary' : 'text-text-tertiary')}
+          >
             {hasValue ? selected.label : placeholder}
           </span>
           <ChevronDown className="size-3.5 shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -92,6 +124,7 @@ export function Select<T extends string>({
             return (
               <MenuItem
                 key={option.value}
+                role="option"
                 selected={isSelected}
                 disabled={option.disabled}
                 onClick={() => {

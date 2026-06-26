@@ -165,7 +165,9 @@ export function SignalForm({
             value={values.mode}
             onChange={(next) => set("mode", next)}
             options={modeOptions}
-            ariaLabel="Mode"
+            aria-labelledby={modeId}
+            aria-invalid={visible.mode ? true : undefined}
+            aria-describedby={visible.mode ? `${modeId}-error` : undefined}
             triggerClassName="w-full"
           />
           {visible.mode ? (
