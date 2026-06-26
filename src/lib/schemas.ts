@@ -60,8 +60,13 @@ export const signalIssueSchema: z.ZodType<SignalIssue> = z.object({
 
 export const signalResultSchema: z.ZodType<SignalResult> = z.object({
   signalId: z.string(),
-  // Signals score on a 0–100 scale.
-  score: z.number().min(0).max(100),
+  // Signals score on a 0–100 scale. A real model occasionally emits a value
+  // fractionally out of range (e.g. 100.5, -1) from rounding artifacts. Clamp
+  // into 0–100 (and round to an integer) rather than rejecting — throwing here
+  // would surface as AI_BAD_JSON and lose the entire review over one stray score.
+  score: z
+    .number()
+    .transform((v) => Math.round(Math.max(0, Math.min(100, v)))),
   rationale: z.string(),
   issues: z.array(signalIssueSchema),
 })

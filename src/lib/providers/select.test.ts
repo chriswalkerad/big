@@ -126,6 +126,26 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
     })
   })
 
+  it('falls through an empty-string primary to a legacy value (|| not ??)', () => {
+    // Empty-but-present AZURE_SPEECH_* (left from .env.example) must NOT shadow
+    // valid legacy creds — `??` would keep the '' and break transcription.
+    const env = {
+      AZURE_SPEECH_ENDPOINT: '',
+      AZURE_SPEECH_KEY: '',
+      AZURE_SPEECH_TRANSCRIBE_MODEL: '',
+      AZURE_OPENAI_TRANSCRIBE_ENDPOINT: 'https://legacy.api.cognitive.microsoft.com',
+      AZURE_OPENAI_TRANSCRIBE_API_KEY: 'legacy-key',
+      AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'mai-transcribe-1.5',
+    }
+    expect(resolveTranscribeConfig(env)).toEqual({
+      endpoint: 'https://legacy.api.cognitive.microsoft.com',
+      apiKey: 'legacy-key',
+      model: 'mai-transcribe-1.5',
+      region: '',
+    })
+    expect(hasTranscribeConfig(env)).toBe(true)
+  })
+
   it('falls back to the main AZURE_OPENAI_* endpoint/key', () => {
     const resolved = resolveTranscribeConfig({
       AZURE_OPENAI_ENDPOINT: 'https://main.api.cognitive.microsoft.com',
