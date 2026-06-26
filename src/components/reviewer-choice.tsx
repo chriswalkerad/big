@@ -66,7 +66,7 @@ export function ReviewerChoice({ people, current, onBack, onConfirm }: ReviewerC
                 'flex cursor-pointer items-center gap-2.5 rounded-card border px-3 py-2.5 text-label-sm transition-colors',
                 'focus-within:outline-none focus-within:ring-2 focus-within:ring-focus',
                 isSelected
-                  ? 'border-accent bg-panel text-text-primary'
+                  ? 'border-text-primary bg-panel text-text-primary'
                   : 'border-border bg-surface text-text-secondary hover:bg-panel',
               )}
             >
@@ -76,7 +76,7 @@ export function ReviewerChoice({ people, current, onBack, onConfirm }: ReviewerC
                 value={person.id}
                 checked={isSelected}
                 onChange={() => setSelectedId(person.id)}
-                className="size-3.5 shrink-0 accent-[var(--accent)] focus:outline-none"
+                className="size-3.5 shrink-0 accent-[var(--text-primary)] focus:outline-none"
               />
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-body-emphasis text-text-primary">{person.name}</span>

@@ -3,7 +3,6 @@
 import { ArrowLeft } from 'lucide-react'
 import type { SignalDef } from '@/types'
 import { cn } from '@/lib/utils'
-import { BAR_TONE_BG, type BarTone } from '@/lib/doc-page'
 
 interface ScoreExplanationProps {
   /** The signal definitions — names, prompts, modes, thresholds drive the copy. */
@@ -22,13 +21,6 @@ const BRAND_SAFETY_ID = /brand[\s_-]?safety|safety/
 function isBrandSafety(id: string): boolean {
   return BRAND_SAFETY_ID.test(id.toLowerCase())
 }
-
-/** One legend row describing a bar tone, sourced from `barTone`/`BAR_TONE_BG`. */
-const BAR_TONE_LEGEND: ReadonlyArray<{ tone: BarTone; label: string; detail: string }> = [
-  { tone: 'pass', label: 'Green', detail: 'at or above the threshold — this signal passes.' },
-  { tone: 'minor', label: 'Amber', detail: 'up to 20 points below the threshold — a minor miss.' },
-  { tone: 'risk', label: 'Red', detail: 'more than 20 points below the threshold — a real risk.' },
-]
 
 /**
  * Methodology panel that REPLACES the signal-row score view in the results drawer.
@@ -88,26 +80,6 @@ export function ScoreExplanation({ signals, onBack }: ScoreExplanationProps) {
                   ? 'Inline: judges specific phrases and marks them in the text.'
                   : 'Document-level: judges the whole concept, not individual phrases.'}
               </p>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <h3 className="text-body-emphasis text-text-primary">What the bar colors mean</h3>
-        <p className="text-body text-text-secondary">
-          Each signal&rsquo;s bar is colored relative to its own pass threshold:
-        </p>
-        <ul className="flex flex-col gap-1.5">
-          {BAR_TONE_LEGEND.map(({ tone, label, detail }) => (
-            <li key={tone} data-tone={tone} className="flex items-center gap-2.5">
-              <span
-                aria-hidden="true"
-                className={cn('h-1.5 w-8 shrink-0 rounded-pill', BAR_TONE_BG[tone])}
-              />
-              <span className="text-body text-text-secondary">
-                <span className="text-text-primary">{label}</span> — {detail}
-              </span>
             </li>
           ))}
         </ul>

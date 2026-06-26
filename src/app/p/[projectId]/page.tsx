@@ -79,7 +79,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
         href={`/p/${projectId}/d/new`}
         aria-label="New document"
         title="New document"
-        className={buttonClass("ink", "px-2")}
+        className={buttonClass("ghost", "px-2")}
       >
         <SquarePen className="size-4" aria-hidden="true" />
       </Link>
