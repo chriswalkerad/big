@@ -34,9 +34,12 @@
   /* Warm near-black ink (Notion's text color). */
   --text-primary: #37352f;
   /* Calm muted grays. `--text-secondary` (#6b6a64) clears 4.5:1 on white/panel
-     for meta copy; `--text-tertiary` (#91908b) is decoration/non-text only. */
+     for meta copy; `--text-tertiary` (#737269) is also used as real text
+     (placeholders, badges, breadcrumb, eyebrow labels, meta), so it is darkened
+     to clear WCAG 2.1 AA 4.5:1 against bg/surface (#fff, 4.84:1) and panel
+     (#fafafa, 4.64:1), while staying a touch lighter than `--text-secondary`. */
   --text-secondary: #6b6a64;
-  --text-tertiary: #91908b;
+  --text-tertiary: #737269;
   /* Brand yellow — used sparingly (small accents). */
   --accent: #facc15;
   /* Focus ring — a calm neutral gray (NOT the brand yellow). */
@@ -62,48 +65,48 @@
 
      EYEBROW / SECTION header (e.g. "REVIEW"): 11px UPPERCASE, tracking .06em,
      tertiary — `label-xs`. Small labels / meta-on-control: 12px — `label-sm`. */
-  --font-size-label-xs: 11px;
-  --line-height-label-xs: 16px;
+  --font-size-label-xs: 0.6875rem;
+  --line-height-label-xs: 1rem;
   --font-weight-label-xs: 600;
   --letter-spacing-label-xs: 0.06em;
 
-  --font-size-label-sm: 12px;
-  --line-height-label-sm: 16px;
+  --font-size-label-sm: 0.75rem;
+  --line-height-label-sm: 1rem;
   --font-weight-label-sm: 500;
 
   /* Body / meta — 13px muted secondary copy. */
-  --font-size-body: 13px;
-  --line-height-body: 20px;
+  --font-size-body: 0.8125rem;
+  --line-height-body: 1.25rem;
   --font-weight-body: 400;
 
-  --font-size-body-emphasis: 14px;
-  --line-height-body-emphasis: 20px;
+  --font-size-body-emphasis: 0.875rem;
+  --line-height-body-emphasis: 1.25rem;
   --font-weight-body-emphasis: 500;
 
   /* Title — quiet section title. */
-  --font-size-title: 16px;
-  --line-height-title: 24px;
+  --font-size-title: 1rem;
+  --line-height-title: 1.5rem;
   --font-weight-title: 600;
 
-  --font-size-heading: 22px;
-  --line-height-heading: 30px;
+  --font-size-heading: 1.375rem;
+  --line-height-heading: 1.875rem;
   --font-weight-heading: 600;
   --letter-spacing-heading: -0.015em;
 
   /* Display — large, airy page title (matches the mockup): 36px / 700 / -0.02em. */
-  --font-size-display: 36px;
-  --line-height-display: 44px;
+  --font-size-display: 2.25rem;
+  --line-height-display: 2.75rem;
   --font-weight-display: 700;
   --letter-spacing-display: -0.02em;
 
   /* Type scale — document content.
      Document body: ~16px with generous 1.75 rhythm, calm and readable. */
-  --font-size-doc-body: 16px;
-  --line-height-doc-body: 28px;
+  --font-size-doc-body: 1rem;
+  --line-height-doc-body: 1.75rem;
   --font-weight-doc-body: 400;
 
-  --font-size-doc-title: 36px;
-  --line-height-doc-title: 44px;
+  --font-size-doc-title: 2.25rem;
+  --line-height-doc-title: 2.75rem;
   --font-weight-doc-title: 700;
   --letter-spacing-doc-title: -0.02em;
 
@@ -135,8 +138,10 @@
 .dark {
   /* Neutrals — dark (Notion-dark twin).
      Page ~#191919; surfaces lift slightly; light text on hairline borders.
-     `--text-tertiary` (#7f7f78) is decoration/non-text; `--text-secondary`
-     (#9b9b95) clears 4.5:1 on every dark surface for meta copy. */
+     `--text-tertiary` (#909089) is also used as real text, so it is lightened to
+     clear WCAG 2.1 AA 4.5:1 against bg (#191919, 5.47:1), surface (#202020,
+     5.07:1) and panel (#262625, 4.72:1), while staying a touch lower-contrast
+     than `--text-secondary` (#9b9b95) for meta copy. */
   --bg: #191919;
   --surface: #202020;
   --panel: #262625;
@@ -145,7 +150,7 @@
   --border: #333230;
   --text-primary: #ededeb;
   --text-secondary: #9b9b95;
-  --text-tertiary: #7f7f78;
+  --text-tertiary: #909089;
   /* Brand yellow stays as the sparing accent in dark too. */
   --accent: #facc15;
   /* Focus ring — calm neutral gray (dark theme). */
