@@ -30,7 +30,6 @@ import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
 import { LoadingState } from "@/components/loading-state";
 import { SignalForm } from "@/components/signal-form";
-import { TopBar } from "@/components/top-bar";
 import { cn } from "@/lib/utils";
 import { useFocusTrap } from "@/lib/use-focus-trap";
 
@@ -128,113 +127,107 @@ export default function SignalsAdminPage() {
   }
 
   return (
-    // Break out of the AppShell `<main>` measure + padding using the SAME
-    // full-bleed technique as the document page (`mx-[calc(50%-50vw)]` spans the
-    // full viewport width; `-my-6` cancels the shell's vertical padding) so the
-    // slim TopBar sits flush to the top and spans the FULL viewport width —
-    // pixel-consistent with the document page's bar. The page re-applies its own
-    // measure (max-w-3xl) + padding below, so the forms keep their current width.
-    <div className="mx-[calc(50%-50vw)] -my-6">
-      <TopBar
-        actions={
-          <Button variant="ink" onClick={openCreate}>
-            <Plus className="size-4" aria-hidden="true" />
-            New Signal
-          </Button>
-        }
-      />
-
-      <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
-        <div className="flex flex-col gap-8">
-          <header className="flex flex-col gap-1.5">
+    // The persistent left-rail now owns global nav (brand, projects, inbox,
+    // Account/Settings/Theme), so this page drops its full-bleed TopBar chrome
+    // and renders as plain content in the app-shell `<main>` column — normal
+    // flow, no `mx-[calc(50%-50vw)]` breakout. It keeps its own measure
+    // (max-w-3xl) so the list and forms hold their width.
+    <div className="mx-auto w-full max-w-3xl">
+      <div className="flex flex-col gap-8">
+        <header className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
             <h1 className="text-heading text-text-primary">Signals</h1>
             <p className="text-body text-text-secondary">
               Define what every review checks. This set is the single source the
               review reads at submit time.
             </p>
-          </header>
+          </div>
+          <Button variant="ink" onClick={openCreate} className="shrink-0">
+            <Plus className="size-4" aria-hidden="true" />
+            New Signal
+          </Button>
+        </header>
 
-          {error ? (
-            <ErrorState
-              error={error}
-              onRetry={
-                error.retryable
-                  ? () => {
-                      setError(null);
-                      try {
-                        refresh();
-                      } catch (e) {
-                        setError(toAppError(e));
-                      }
+        {error ? (
+          <ErrorState
+            error={error}
+            onRetry={
+              error.retryable
+                ? () => {
+                    setError(null);
+                    try {
+                      refresh();
+                    } catch (e) {
+                      setError(toAppError(e));
                     }
-                  : undefined
-              }
-            />
-          ) : null}
+                  }
+                : undefined
+            }
+          />
+        ) : null}
 
-          {!mounted ? (
-            <LoadingState rows={6} label="Loading signals…" />
-          ) : signals.length === 0 ? (
-            <EmptyState
-              title="No signals yet"
-              description="Add a signal to start reviewing documents against it."
-              action={
-                <Button variant="ink" onClick={openCreate}>
-                  <Plus className="size-4" aria-hidden="true" />
-                  New Signal
-                </Button>
-              }
-            />
-          ) : (
-            <ul
-              className="flex flex-col border-t border-border"
-              aria-label="Signals"
-            >
-              {signals.map((signal) => (
-                <li
-                  key={signal.id}
-                  className="group flex items-center gap-3 border-b border-border py-3 transition-colors hover:bg-panel/60"
+        {!mounted ? (
+          <LoadingState rows={6} label="Loading signals…" />
+        ) : signals.length === 0 ? (
+          <EmptyState
+            title="No signals yet"
+            description="Add a signal to start reviewing documents against it."
+            action={
+              <Button variant="ink" onClick={openCreate}>
+                <Plus className="size-4" aria-hidden="true" />
+                New Signal
+              </Button>
+            }
+          />
+        ) : (
+          <ul
+            className="flex flex-col border-t border-border"
+            aria-label="Signals"
+          >
+            {signals.map((signal) => (
+              <li
+                key={signal.id}
+                className="group flex items-center gap-3 border-b border-border py-3 transition-colors hover:bg-panel/60"
+              >
+                <button
+                  type="button"
+                  onClick={() => openEdit(signal)}
+                  className={cn(
+                    "flex min-w-0 flex-1 items-center gap-3 rounded-control text-left",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                  )}
+                  aria-label={`Open ${signal.name}`}
                 >
-                  <button
-                    type="button"
+                  <span className="min-w-0 flex-1 truncate text-body-emphasis text-text-primary">
+                    {signal.name}
+                  </span>
+                  <ModeChip mode={signal.mode} />
+                  <span className="shrink-0 text-label-sm text-text-tertiary tabular-nums">
+                    threshold {signal.threshold}
+                  </span>
+                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button
+                    variant="ghost"
                     onClick={() => openEdit(signal)}
-                    className={cn(
-                      "flex min-w-0 flex-1 items-center gap-3 rounded-control text-left",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                    )}
-                    aria-label={`Open ${signal.name}`}
+                    aria-label={`Edit ${signal.name}`}
+                    className="px-1.5"
                   >
-                    <span className="min-w-0 flex-1 truncate text-body-emphasis text-text-primary">
-                      {signal.name}
-                    </span>
-                    <ModeChip mode={signal.mode} />
-                    <span className="shrink-0 text-label-sm text-text-tertiary tabular-nums">
-                      threshold {signal.threshold}
-                    </span>
-                  </button>
-                  <div className="flex shrink-0 items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      onClick={() => openEdit(signal)}
-                      aria-label={`Edit ${signal.name}`}
-                      className="px-1.5"
-                    >
-                      <Pencil className="size-4" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => setPendingDelete(signal)}
-                      aria-label={`Delete ${signal.name}`}
-                      className="px-1.5"
-                    >
-                      <Trash2 className="size-4" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+                    <Pencil className="size-4" aria-hidden="true" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    onClick={() => setPendingDelete(signal)}
+                    aria-label={`Delete ${signal.name}`}
+                    className="px-1.5"
+                  >
+                    <Trash2 className="size-4" aria-hidden="true" />
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {editor.kind !== "closed" ? (

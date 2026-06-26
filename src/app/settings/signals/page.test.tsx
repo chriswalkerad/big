@@ -24,6 +24,23 @@ function storeReader(): StorageRepository {
 }
 
 describe("SignalsAdminPage", () => {
+  it("renders the plain in-column page header (no global-nav chrome)", async () => {
+    render(<SignalsAdminPage />);
+    // The slim header keeps the page <h1> and the + New Signal action; the
+    // persistent left-rail (sibling work) now owns all global nav, so the page
+    // no longer renders a TopBar or breadcrumb.
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Signals" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "New Signal" }),
+    ).toBeInTheDocument();
+    // The TopBar's global-nav brand link is gone (the rail owns it now).
+    expect(
+      screen.queryByRole("link", { name: "Creative Review home" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows the six seeded signals on first load", async () => {
     render(<SignalsAdminPage />);
     const list = await screen.findByRole("list", { name: "Signals" });
