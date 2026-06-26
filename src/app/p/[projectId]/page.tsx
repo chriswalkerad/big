@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState } from "react";
 import Link from "next/link";
-import { Search, SquarePen } from "lucide-react";
+import { Search } from "lucide-react";
 import type { Document, Person } from "@/types";
 import {
   ALL_STATUSES,
@@ -11,9 +11,8 @@ import {
   type StatusFilter,
 } from "@/lib/library";
 import { useLibraryData } from "@/lib/use-library-data";
-import { Button, buttonClass } from "@/components/button";
+import { Button } from "@/components/button";
 import { Select, type SelectOption } from "@/components/select";
-import { Badge } from "@/components/badge";
 import { STATUS_LABELS, STATUS_ORDER } from "@/components/status-chip";
 import { SUBTYPE_LABELS } from "@/components/subtype-chip";
 import { EmptyState } from "@/components/empty-state";
@@ -57,8 +56,9 @@ export default function LibraryPage({
  * Global navigation — brand, project switching, the review inbox, and account
  * controls — lives in the persistent left rail provided by the app shell, so
  * this page renders plainly into the shell's `<main>` content column: a slim
- * header with the page's OWN title + actions (search, status filter, New) over
- * a hairline-divided document list. No full-bleed breakout, no top bar.
+ * header with the page's OWN title + actions (search, status filter) over a
+ * hairline-divided document list. Composing a new document now lives in the
+ * left rail's "Compose" item, not here. No full-bleed breakout, no top bar.
  */
 export function LibraryView({ projectId }: { projectId: string }) {
   const { snapshot, reload } = useLibraryData(projectId);
@@ -133,14 +133,6 @@ export function LibraryView({ projectId }: { projectId: string }) {
             align="right"
             triggerClassName="shrink-0"
           />
-          <Link
-            href={`/p/${projectId}/d/new`}
-            aria-label="New document"
-            title="New document"
-            className={buttonClass("ghost", "px-2")}
-          >
-            <SquarePen className="size-4" aria-hidden="true" />
-          </Link>
         </div>
       </header>
 
@@ -208,8 +200,11 @@ function DocumentRow({
         // on ≥sm keep the Created, Subtype, and Status columns lined up across
         // rows); the meta line (owner + reviewer + updated) spans the full width
         // beneath. Last two columns (subtype + status) are vertically centred.
+        // Subtype/status are plain single-line text (no pill) — the columns are
+        // wide enough to hold long labels ("Character Concept", "Changes
+        // Requested") on ONE line, truncating with an ellipsis past that.
         "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-3.5 transition-colors",
-        "sm:grid-cols-[minmax(0,1fr)_7rem_8.5rem_8rem]",
+        "sm:grid-cols-[minmax(0,1fr)_7rem_10rem_10rem]",
         "hover:bg-panel",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
       )}
@@ -222,31 +217,32 @@ function DocumentRow({
         {relativeTime(doc.createdAt)}
       </span>
       {/* Subtype is nullable: render a muted em dash when absent rather than
-          indexing SUBTYPE_LABELS with null. */}
-      <span className="hidden sm:block">
+          indexing SUBTYPE_LABELS with null. Plain single-line text (no pill),
+          truncated past the column width. */}
+      <span className="hidden min-w-0 truncate whitespace-nowrap text-label-sm text-text-secondary sm:block">
         {doc.subtype ? (
-          <Badge variant="subtype">{SUBTYPE_LABELS[doc.subtype]}</Badge>
+          SUBTYPE_LABELS[doc.subtype]
         ) : (
-          <span className="text-label-sm text-text-tertiary" aria-hidden="true">
+          <span className="text-text-tertiary" aria-hidden="true">
             —
           </span>
         )}
       </span>
-      <span className="hidden sm:block">
-        <Badge variant="status" dot>
-          {STATUS_LABELS[doc.status]}
-        </Badge>
+      <span className="hidden min-w-0 truncate whitespace-nowrap text-label-sm text-text-secondary sm:block">
+        {STATUS_LABELS[doc.status]}
       </span>
       <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary sm:col-span-4">
         {/* On mobile the dedicated columns are hidden, so surface subtype + status
             here too; ≥sm they live in their own columns above. */}
-        <span className="sm:hidden">
+        <span className="whitespace-nowrap sm:hidden">
           {doc.subtype ? SUBTYPE_LABELS[doc.subtype] : "—"}
         </span>
         <span className="sm:hidden" aria-hidden="true">
           ·
         </span>
-        <span className="sm:hidden">{STATUS_LABELS[doc.status]}</span>
+        <span className="whitespace-nowrap sm:hidden">
+          {STATUS_LABELS[doc.status]}
+        </span>
         <span className="sm:hidden" aria-hidden="true">
           ·
         </span>

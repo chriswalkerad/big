@@ -9,6 +9,12 @@ interface ThemeToggleProps {
   className?: string;
   /** Render as a full-width "<icon> Theme" menu row (matches the other overflow-menu items). */
   asMenuItem?: boolean;
+  /**
+   * Icon-only form of the menu row (only meaningful with `asMenuItem`): drops
+   * the "Theme" text label, leaving just the centered sun/moon icon. Used by the
+   * collapsed left rail (the label is supplied by the rail's hover tooltip).
+   */
+  collapsed?: boolean;
   /** Called after toggling when rendered as a menu item (e.g. to close the menu). */
   onSelect?: () => void;
 }
@@ -30,13 +36,20 @@ function useMounted(): boolean {
  * mounted to avoid a hydration mismatch, since the resolved theme is only
  * known on the client.
  */
-export function ThemeToggle({ className, asMenuItem = false, onSelect }: ThemeToggleProps) {
+export function ThemeToggle({
+  className,
+  asMenuItem = false,
+  collapsed = false,
+  onSelect,
+}: ThemeToggleProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const mounted = useMounted();
 
   const isDark = resolvedTheme === "dark";
 
-  // Overflow-menu row form: "<icon> Theme", styled identically to the Settings item.
+  // Overflow-menu row form: "<icon> Theme", styled identically to the Settings
+  // item. When `collapsed`, the text label is dropped (icon-only, centered) —
+  // the rail supplies the label via its hover tooltip.
   if (asMenuItem) {
     const menuClassName = cn(
       "flex w-full items-center gap-2 rounded-control px-2.5 py-1.5 text-left text-label-sm",
@@ -48,7 +61,7 @@ export function ThemeToggle({ className, asMenuItem = false, onSelect }: ThemeTo
       return (
         <button type="button" role="menuitem" className={menuClassName} aria-hidden="true" tabIndex={-1}>
           <Sun className="size-4" aria-hidden="true" />
-          <span>Theme</span>
+          {!collapsed ? <span>Theme</span> : null}
         </button>
       );
     }
@@ -68,7 +81,7 @@ export function ThemeToggle({ className, asMenuItem = false, onSelect }: ThemeTo
         ) : (
           <Moon className="size-4" aria-hidden="true" />
         )}
-        <span>Theme</span>
+        {!collapsed ? <span>Theme</span> : null}
       </button>
     );
   }

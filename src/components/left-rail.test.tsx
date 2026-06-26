@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "./theme-provider";
-import { LeftRail } from "./left-rail";
+import { LeftRail, RailEdgeToggle } from "./left-rail";
 
 // LeftRail reads the route via next/navigation; mock both hooks per test.
 const pathnameMock = vi.fn(() => "/p/proj-eloise");
@@ -37,6 +37,9 @@ function renderRail() {
   return render(
     <ThemeProvider>
       <LeftRail />
+      {/* The collapse toggle lives OUTSIDE the rail now (AppShell renders it as a
+          floating edge control); include it so its behavior can be exercised. */}
+      <RailEdgeToggle />
     </ThemeProvider>,
   );
 }
@@ -54,6 +57,11 @@ describe("LeftRail", () => {
       within(nav).getByRole("link", { name: /Eloise at The Plaza/ }),
     ).toBeInTheDocument();
     expect(within(nav).getByRole("button", { name: /Inbox/ })).toBeInTheDocument();
+    // Compose links to the new-document route (moved here from the library header).
+    expect(within(nav).getByRole("link", { name: "Compose" })).toHaveAttribute(
+      "href",
+      "/p/proj-eloise/d/new",
+    );
     expect(within(nav).getByRole("link", { name: "Settings" })).toHaveAttribute(
       "href",
       "/settings/signals",
@@ -95,23 +103,28 @@ describe("LeftRail", () => {
     ).toBeInTheDocument();
   });
 
-  it("collapse toggle flips state and persists to localStorage", async () => {
+  it("the external edge toggle flips collapsed state and persists to localStorage", async () => {
     const user = userEvent.setup();
     renderRail();
-    const nav = screen.getByRole("navigation", { name: "Primary" });
 
-    const collapse = within(nav).getByRole("button", {
-      name: "Collapse navigation",
-    });
+    // The collapse toggle is the floating edge control rendered OUTSIDE the rail
+    // (by AppShell), so it is queried at the document level, not within the nav.
+    const collapse = screen.getByRole("button", { name: "Collapse navigation" });
     await user.click(collapse);
 
     expect(window.localStorage.getItem(RAIL_KEY)).toBe("true");
     // Now collapsed: the toggle's label flips to "Expand navigation".
-    const expand = within(nav).getByRole("button", {
-      name: "Expand navigation",
-    });
+    const expand = screen.getByRole("button", { name: "Expand navigation" });
     await user.click(expand);
     expect(window.localStorage.getItem(RAIL_KEY)).toBe("false");
+  });
+
+  it("the edge toggle returns null on editor routes (no rail there)", () => {
+    pathnameMock.mockReturnValue("/p/proj-eloise/d/doc-1/review");
+    renderRail();
+    expect(
+      screen.queryByRole("button", { name: /navigation$/ }),
+    ).toBeNull();
   });
 
   it("reads a persisted collapsed value from localStorage on mount", () => {

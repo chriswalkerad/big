@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { LibraryView } from "./page";
 
 // The library page reads through StorageRepository, which seeds the four demo
@@ -45,12 +45,25 @@ describe("LibraryPage", () => {
     expect(draftRow).toHaveTextContent(/Reviewer: —/);
   });
 
-  it("links the New button to the new-document route", async () => {
+  it("no longer renders a New/Compose button in the page header (it moved to the left rail)", async () => {
     renderLibrary();
     await screen.findByText("Eloise and the Midnight Room-Service Caper");
-    // The New action is an icon-only ink button; its accessible name is "New document".
-    const newLink = screen.getByRole("link", { name: "New document" });
-    expect(newLink).toHaveAttribute("href", "/p/proj-eloise/d/new");
+    // Composing a new document now lives in the persistent left rail's "Compose"
+    // item, so the library header carries no New/Compose action.
+    expect(screen.queryByRole("link", { name: /new document/i })).toBeNull();
+    expect(screen.queryByRole("link", { name: /compose/i })).toBeNull();
+  });
+
+  it("renders subtype and status as plain single-line text, not pills/badges", async () => {
+    renderLibrary();
+    const caper = await screen.findByText("Eloise and the Midnight Room-Service Caper");
+    const row = caper.closest("a");
+    expect(row).not.toBeNull();
+    // The ≥sm status cell is plain text styled with text-label-sm/secondary and
+    // forced onto one line (whitespace-nowrap), no rounded pill.
+    const status = within(row as HTMLElement).getAllByText("Approved")[0];
+    expect(status.className).toContain("whitespace-nowrap");
+    expect(status.className).not.toContain("rounded-pill");
   });
 
   it("renders the project name as a plain page title", async () => {
