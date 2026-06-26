@@ -633,26 +633,8 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           ref={editorContainerRef}
           className="document-page-column flex min-w-0 flex-1 flex-col gap-5 px-5 py-8 sm:px-6 sm:py-12"
         >
-        {/* Title — the largest text on the page; it reads first. Edit mode is a
-            borderless large-text input; a clear placeholder signals it's editable. */}
-        {isRead ? (
-          <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
-        ) : (
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => persist({ title })}
-            placeholder="Untitled — add a title"
-            aria-label="Title"
-            className={cn(
-              'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
-              'focus:outline-none',
-            )}
-          />
-        )}
-
-        {/* Subtype + a calm meta line (project · audience · status). */}
+        {/* Subtype + a calm meta line (project · audience · status). Sits above the
+            title so the document's type/context/status reads before the heading. */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
           {isRead ? (
             <SubtypeChip subtype={subtype} />
@@ -674,6 +656,25 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           <StatusChip status={status} />
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
         </div>
+
+        {/* Title — the largest text on the page. Edit mode is a borderless
+            large-text input; a clear placeholder signals it's editable. */}
+        {isRead ? (
+          <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
+        ) : (
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onBlur={() => persist({ title })}
+            placeholder="Untitled — add a title"
+            aria-label="Title"
+            className={cn(
+              'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
+              'focus:outline-none',
+            )}
+          />
+        )}
 
         {/* People line — the project owner and (once submitted) the chosen reviewer,
             shown calmly beneath the status meta. */}

@@ -123,6 +123,26 @@ describe('DocumentPage edit mode — submit flow', () => {
     })
   })
 
+  it('orders the header as type/status row → title → owner/reviewer byline', async () => {
+    seedDoc({ title: 'A Concept' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    // Anchors: the type/status row owns the Subtype <select>; the title is the
+    // labelled input; the byline carries the "Owner" person note.
+    const subtypeRow = await screen.findByLabelText('Subtype')
+    const title = screen.getByLabelText('Title')
+    const byline = screen.getByText('Owner')
+
+    // type/status row precedes the title…
+    expect(
+      subtypeRow.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    // …and the title precedes the owner/reviewer byline.
+    expect(
+      title.compareDocumentPosition(byline) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
   it('exposes an Apply button in the suggested-prompt area of the review panel', async () => {
     seedDoc()
     const REVIEW_WITH_PROMPT: ReviewResult = {

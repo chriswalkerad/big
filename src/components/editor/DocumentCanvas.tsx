@@ -28,10 +28,14 @@ export type DocumentCanvasMode = 'edit' | 'read'
  *   edit"). It emits Tiptap's update event, so the parent's `onChange` fires with
  *   the new serialized HTML and the parent's body state stays in sync. Replacing
  *   the document also clears the signal-highlight overlay (any doc change does).
+ * - `insertText` inserts plain text at the current cursor/selection (e.g. a
+ *   voice-dictation transcript). It is a GENUINE author edit: it goes through the
+ *   normal command pipeline, fires `onUpdate` → the parent's `onChange` syncs body.
  */
 export interface DocumentCanvasHandle {
   setSignalHighlights: (issues: readonly SignalHighlightIssue[]) => void
   setContent: (html: string) => void
+  insertText: (text: string) => void
 }
 
 export interface DocumentCanvasProps {
@@ -131,6 +135,12 @@ function DocumentCanvasInner(
         // transaction `preventUpdate`, so `onUpdate` fires and the parent's
         // `onChange` receives the new serialized HTML — keeping body state in sync.
         editor?.commands.setContent(html, { emitUpdate: true })
+      },
+      insertText: (text) => {
+        // A genuine author edit at the caret/selection. `insertContent` runs through
+        // the normal command pipeline (no `programmaticContentRef` bypass), so
+        // `onUpdate` fires and the parent's `onChange` syncs the plain-text body.
+        editor?.commands.insertContent(text)
       },
     }),
     [editor],

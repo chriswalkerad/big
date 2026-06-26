@@ -105,6 +105,33 @@ describe('DocumentCanvas', () => {
     expect(onChange.mock.calls.at(-1)?.[0]).toContain('new text')
   })
 
+  it('inserts text at the caret via insertText and fires onChange', async () => {
+    const onChange = vi.fn()
+    const ref = createRef<DocumentCanvasHandle>()
+    // Seed the existing text via a first dictation chunk so the caret sits right
+    // after it (insertContent advances the selection past what it wrote). The next
+    // chunk then appends — a genuine author edit, exactly as voice dictation drives it.
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="" onChange={onChange} />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    ref.current!.insertText('Hello')
+    ref.current!.insertText(' world')
+
+    // The rendered editor reflects the inserted text...
+    await waitFor(() => {
+      const prose = container.querySelector<HTMLElement>('.ProseMirror')
+      expect(prose?.textContent).toContain('Hello world')
+    })
+
+    // ...and onChange fired with the new serialized HTML so the parent body syncs.
+    expect(onChange).toHaveBeenCalled()
+    expect(onChange.mock.calls.at(-1)?.[0]).toContain('Hello world')
+  })
+
   it('fires onHighlightClick with the data-signal-id on mousedown', async () => {
     const onHighlightClick = vi.fn()
     const ref = createRef<DocumentCanvasHandle>()
