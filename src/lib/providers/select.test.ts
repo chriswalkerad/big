@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   hasAzureConfig,
   hasGeminiKey,
+  hasSpeechTokenConfig,
   hasTranscribeConfig,
   resolveTranscribeConfig,
   selectProvider,
@@ -58,6 +59,7 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
     AZURE_SPEECH_ENDPOINT: 'https://eastus.api.cognitive.microsoft.com',
     AZURE_SPEECH_KEY: 'speech-key',
     AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5',
+    AZURE_SPEECH_REGION: 'eastus',
   }
 
   it('requires endpoint + key + model all present', () => {
@@ -89,6 +91,7 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
       endpoint: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
       apiKey: SPEECH_ENV.AZURE_SPEECH_KEY,
       model: 'mai-transcribe-1.5',
+      region: 'eastus',
     })
   })
 
@@ -103,6 +106,7 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
       endpoint: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
       apiKey: SPEECH_ENV.AZURE_SPEECH_KEY,
       model: 'mai-transcribe-1.5',
+      region: 'eastus',
     })
   })
 
@@ -117,6 +121,8 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
       endpoint: 'https://legacy.api.cognitive.microsoft.com',
       apiKey: 'legacy-key',
       model: 'mai-transcribe-1.5',
+      // Region has no legacy fallback, so it resolves empty here.
+      region: '',
     })
   })
 
@@ -130,6 +136,7 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
       endpoint: 'https://main.api.cognitive.microsoft.com',
       apiKey: 'main-key',
       model: 'mai-transcribe-1.5',
+      region: '',
     })
   })
 
@@ -138,11 +145,41 @@ describe('transcription config (Azure AI Speech fast transcription)', () => {
       AZURE_SPEECH_ENDPOINT: '  https://e.api.cognitive.microsoft.com  ',
       AZURE_SPEECH_KEY: '  key  ',
       AZURE_SPEECH_TRANSCRIBE_MODEL: '  mai-transcribe-1.5  ',
+      AZURE_SPEECH_REGION: '  eastus  ',
     })
     expect(resolved).toEqual({
       endpoint: 'https://e.api.cognitive.microsoft.com',
       apiKey: 'key',
       model: 'mai-transcribe-1.5',
+      region: 'eastus',
     })
+  })
+
+  it('hasSpeechTokenConfig requires endpoint + key + region (model not needed)', () => {
+    expect(hasSpeechTokenConfig({})).toBe(false)
+    // Endpoint + key but no region.
+    expect(
+      hasSpeechTokenConfig({
+        AZURE_SPEECH_ENDPOINT: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
+        AZURE_SPEECH_KEY: SPEECH_ENV.AZURE_SPEECH_KEY,
+      }),
+    ).toBe(false)
+    // Region present but blank/whitespace counts as unset.
+    expect(
+      hasSpeechTokenConfig({
+        AZURE_SPEECH_ENDPOINT: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
+        AZURE_SPEECH_KEY: SPEECH_ENV.AZURE_SPEECH_KEY,
+        AZURE_SPEECH_REGION: '  ',
+      }),
+    ).toBe(false)
+    // Endpoint + key + region, no model needed.
+    expect(
+      hasSpeechTokenConfig({
+        AZURE_SPEECH_ENDPOINT: SPEECH_ENV.AZURE_SPEECH_ENDPOINT,
+        AZURE_SPEECH_KEY: SPEECH_ENV.AZURE_SPEECH_KEY,
+        AZURE_SPEECH_REGION: 'eastus',
+      }),
+    ).toBe(true)
+    expect(hasSpeechTokenConfig(SPEECH_ENV)).toBe(true)
   })
 })
