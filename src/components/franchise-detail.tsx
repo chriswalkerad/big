@@ -61,7 +61,7 @@ export function FranchiseDetail({ project, open, onClose }: FranchiseDetailProps
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-control p-1 text-text-tertiary transition-colors hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+            className="inline-flex size-7 shrink-0 items-center justify-center rounded-control text-text-tertiary transition-colors hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
           >
             <X className="size-4" aria-hidden="true" />
           </button>

@@ -642,3 +642,33 @@ describe('DocumentPage read mode — reviewer actions', () => {
     })
   })
 })
+
+describe('DocumentPage — WCAG semantics', () => {
+  it('gives edit mode a visually-hidden h1 from the title', async () => {
+    seedDoc({ title: 'Eloise Pitch' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    expect(await screen.findByRole('heading', { level: 1, name: 'Eloise Pitch' })).toBeInTheDocument()
+  })
+
+  it('sets the document title from the doc title', async () => {
+    seedDoc({ title: 'Eloise Pitch' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    await waitFor(() => expect(document.title).toBe('Eloise Pitch — Big Review'))
+  })
+
+  it('announces the review verdict + flag count via a polite status region', async () => {
+    seedDoc()
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
+      new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
+    )
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+    fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
+    await waitFor(() => {
+      expect(
+        screen.getByText('Review complete: Needs work, 1 of 6 need attention.'),
+      ).toBeInTheDocument()
+    })
+    const status = screen.getByText('Review complete: Needs work, 1 of 6 need attention.')
+    expect(status).toHaveAttribute('aria-live', 'polite')
+  })
+})

@@ -75,6 +75,10 @@
   text-decoration-skip-ink: none;
   cursor: pointer;
   border-radius: 2px;
+  /* The squiggle is a scroll target (panel phrase click → scrollIntoView). Reserve the
+     sticky TopBar's height above it so it clears the bar instead of hiding behind it
+     (2.4.11 — focus not obscured). */
+  scroll-margin-top: var(--doc-topbar-height);
   transition:
     text-decoration-thickness 120ms ease-out,
     background-color 120ms ease-out;

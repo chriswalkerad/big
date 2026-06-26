@@ -205,6 +205,10 @@ function DocumentCanvasInner(
     editorProps: {
       attributes: {
         class: 'document-canvas-prose',
+        // The contenteditable surface is a multi-line text field; give it an
+        // accessible name and announce its multi-line nature (4.1.2).
+        'aria-label': 'Document body',
+        'aria-multiline': 'true',
       },
       handleDOMEvents: {
         mousedown: handleHighlightMouseDown,

@@ -39,6 +39,11 @@
   --text-tertiary: #91908b;
   /* Brand yellow — used sparingly (small accents). */
   --accent: #facc15;
+  /* Readable label/icon color ON the brand yellow. `--accent` is the SAME yellow in
+     both themes, so this stays a near-black in both: `--text-primary` (light) reads on
+     yellow at AA but flips near-white in dark, and `--bg` flips white in light — neither
+     works in both. This dedicated token is dark in BOTH themes (≥4.5:1 on `--accent`). */
+  --on-accent: #37352f;
   /* Focus ring — a calm neutral gray (NOT the brand yellow). */
   --focus: #6b6a64;
 
@@ -148,6 +153,8 @@
   --text-tertiary: #7f7f78;
   /* Brand yellow stays as the sparing accent in dark too. */
   --accent: #facc15;
+  /* Same near-black label on the (identical) yellow — dark in both themes. */
+  --on-accent: #191919;
   /* Focus ring — calm neutral gray (dark theme). */
   --focus: #9b9b95;
 
