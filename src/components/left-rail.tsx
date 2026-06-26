@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useId,
   useMemo,
   useState,
@@ -32,6 +33,59 @@ import { cn } from "@/lib/utils";
 /** The seeded project the app opens inside (mirrors src/app/page.tsx). */
 const SEEDED_PROJECT_ID = "proj-eloise";
 
+/**
+ * localStorage key holding the LAST project the rail was inside. Namespaced
+ * under the app's `bsp:ui:` UI-preferences prefix (mirrors `bsp:ui:rail-collapsed`
+ * in `use-rail-state.ts`). Persisting it lets routes WITHOUT a project id (e.g.
+ * `/settings/*`) keep reflecting the project you were last in, rather than
+ * silently snapping back to the seeded default.
+ */
+const LAST_PROJECT_KEY = "bsp:ui:last-project";
+
+/**
+ * Module-level listener set so every mounted `useCurrentProjectId` consumer
+ * re-reads after any of them persists a new last-project — `useSyncExternalStore`'s
+ * `subscribe` wires React to this. We also listen to the cross-tab `storage`
+ * event so a change in one tab propagates. (Same pattern as `useRailState`.)
+ */
+const lastProjectListeners = new Set<() => void>();
+
+function emitLastProject(): void {
+  for (const listener of lastProjectListeners) listener();
+}
+
+function subscribeLastProject(onStoreChange: () => void): () => void {
+  lastProjectListeners.add(onStoreChange);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === LAST_PROJECT_KEY) onStoreChange();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    lastProjectListeners.delete(onStoreChange);
+    window.removeEventListener("storage", onStorage);
+  };
+}
+
+function readLastProject(): string | null {
+  try {
+    return window.localStorage.getItem(LAST_PROJECT_KEY);
+  } catch {
+    // localStorage can throw (private mode, disabled); fall back to no value.
+    return null;
+  }
+}
+
+function writeLastProject(projectId: string): void {
+  try {
+    if (window.localStorage.getItem(LAST_PROJECT_KEY) === projectId) return;
+    window.localStorage.setItem(LAST_PROJECT_KEY, projectId);
+  } catch {
+    // Persistence is best-effort; ignore write failures.
+    return;
+  }
+  emitLastProject();
+}
+
 /** Stable empty snapshots for the server / first client render (no read loop). */
 const NO_PROJECTS: Project[] = [];
 const NO_DOCS: Document[] = [];
@@ -48,15 +102,47 @@ function isEditorPath(pathname: string): boolean {
   return /^\/p\/[^/]+\/d\//.test(pathname);
 }
 
-/** Pull the current project id from `/p/{id}/…`, else the seeded fallback. */
+/**
+ * The current project the rail reflects (Home link, highlighted project, Inbox
+ * count). Resolution order:
+ *
+ *   1. The project id in the route (`/p/{id}/…`). When present it is also
+ *      PERSISTED as the last active project (see {@link LAST_PROJECT_KEY}).
+ *   2. On routes WITHOUT a project id (e.g. `/settings/*`), the persisted last
+ *      project — so the rail keeps reflecting the project you were last in.
+ *   3. The seeded default, only if nothing has been persisted yet.
+ *
+ * SSR/hydration-safe: the persisted value is read via `useSyncExternalStore`
+ * whose server snapshot is `null`, so the server and first client paint both
+ * resolve to the seeded default; the persisted value is applied only after
+ * hydration (mirrors `useRailState`'s mount gate).
+ */
 function useCurrentProjectId(): string {
   const params = useParams<{ projectId?: string }>();
   const pathname = usePathname();
-  return useMemo(() => {
+
+  const routeProjectId = useMemo(() => {
     if (params?.projectId) return params.projectId;
     const match = pathname.match(/^\/p\/([^/]+)/);
-    return match?.[1] ?? SEEDED_PROJECT_ID;
+    return match?.[1] ?? null;
   }, [params?.projectId, pathname]);
+
+  // Persist the route's project id as the last active project once we are on a
+  // client (post-mount), so settings/no-id routes can fall back to it.
+  useEffect(() => {
+    if (routeProjectId) writeLastProject(routeProjectId);
+  }, [routeProjectId]);
+
+  // Persisted last project. Server snapshot is `null` so SSR/first paint use the
+  // seeded default and the stored value is applied only after hydration.
+  const lastProjectId = useSyncExternalStore(
+    subscribeLastProject,
+    readLastProject,
+    () => null,
+  );
+
+  if (routeProjectId) return routeProjectId;
+  return lastProjectId ?? SEEDED_PROJECT_ID;
 }
 
 /** Read the project list from storage (mirrors ProjectSwitcher's pattern). */
