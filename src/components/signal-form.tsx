@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Button } from "@/components/button";
 import { Select } from "@/components/select";
 import { cn } from "@/lib/utils";
@@ -50,6 +50,7 @@ export function SignalForm({
 }: SignalFormProps) {
   const baseId = useId();
   const [showErrors, setShowErrors] = useState(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
   const errors = validateSignalForm(values);
   const visible = showErrors ? errors : {};
@@ -62,6 +63,17 @@ export function SignalForm({
     event.preventDefault();
     if (Object.keys(errors).length > 0) {
       setShowErrors(true);
+      // #12 (WCAG 3.3.1 / 2.4.3): on a failed submit, move focus off Save to the
+      // FIRST invalid control so its label + error are read together, rather than
+      // leaving the user on Save while up to four context-free role="alert"s fire
+      // in one tick. We focus in DOM (== field) order via aria-invalid, set after
+      // this render flushes the alerts.
+      requestAnimationFrame(() => {
+        const firstInvalid = formRef.current?.querySelector<HTMLElement>(
+          '[aria-invalid="true"]',
+        );
+        firstInvalid?.focus();
+      });
       return;
     }
     onSubmit(values);
@@ -79,6 +91,7 @@ export function SignalForm({
 
   return (
     <form
+      ref={formRef}
       onSubmit={handleSubmit}
       noValidate
       className={cn("flex flex-col gap-4", className)}
@@ -102,6 +115,7 @@ export function SignalForm({
         />
         {visible.name ? (
           <p id={`${nameId}-error`} role="alert" className={fieldErrorClass}>
+            <span className="sr-only">Name: </span>
             {visible.name}
           </p>
         ) : null}
@@ -125,6 +139,7 @@ export function SignalForm({
         />
         {visible.prompt ? (
           <p id={`${promptId}-error`} role="alert" className={fieldErrorClass}>
+            <span className="sr-only">Prompt: </span>
             {visible.prompt}
           </p>
         ) : null}
@@ -152,6 +167,7 @@ export function SignalForm({
           />
           {visible.threshold ? (
             <p id={`${thresholdId}-error`} role="alert" className={fieldErrorClass}>
+              <span className="sr-only">Threshold: </span>
               {visible.threshold}
             </p>
           ) : null}
@@ -172,6 +188,7 @@ export function SignalForm({
           />
           {visible.mode ? (
             <p id={`${modeId}-error`} role="alert" className={fieldErrorClass}>
+              <span className="sr-only">Mode: </span>
               {visible.mode}
             </p>
           ) : null}
