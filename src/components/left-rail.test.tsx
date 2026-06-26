@@ -199,4 +199,56 @@ describe("LeftRail", () => {
     // Collapsed: labels are dropped, so Home is reachable by its aria-label only.
     expect(within(nav).getByRole("link", { name: "Home" })).toBeInTheDocument();
   });
+
+  it("Compose is not current on a normal library route (1.3.1)", () => {
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const compose = within(nav).getByRole("link", { name: "Compose" });
+    expect(compose).not.toHaveAttribute("aria-current");
+  });
+
+  it("the Inbox button advertises its disclosure state via aria-expanded (1.3.1)", () => {
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(within(nav).getByRole("button", { name: /Inbox/ })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+  });
+
+  describe("mobile drawer (modal)", () => {
+    it("opening the drawer makes the rail a modal dialog and Escape closes it", async () => {
+      const user = userEvent.setup();
+      renderRail();
+
+      const hamburger = screen.getByRole("button", { name: "Open navigation" });
+      await user.click(hamburger);
+
+      // While open the rail advertises itself as a modal dialog.
+      const dialog = screen.getByRole("dialog", { name: "Primary" });
+      expect(dialog).toHaveAttribute("aria-modal", "true");
+
+      // Escape closes it and returns focus to the hamburger.
+      await user.keyboard("{Escape}");
+      expect(screen.queryByRole("dialog", { name: "Primary" })).toBeNull();
+      expect(hamburger).toHaveFocus();
+    });
+
+    it("renders a backdrop that closes the drawer and restores focus to the hamburger", async () => {
+      const user = userEvent.setup();
+      renderRail();
+
+      const hamburger = screen.getByRole("button", { name: "Open navigation" });
+      await user.click(hamburger);
+
+      // The open drawer is a labelled modal dialog with a dismiss backdrop.
+      expect(screen.getByRole("dialog", { name: "Primary" })).toBeInTheDocument();
+
+      // The backdrop button closes the drawer and restores focus to the hamburger
+      // (focus return is wired via the focus trap's cleanup).
+      await user.click(screen.getByRole("button", { name: "Close navigation" }));
+      expect(screen.queryByRole("dialog", { name: "Primary" })).toBeNull();
+      expect(hamburger).toHaveFocus();
+    });
+  });
 });
