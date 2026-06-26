@@ -14,6 +14,15 @@ export type ProviderEnv = {
   AZURE_OPENAI_API_KEY?: string
   AZURE_OPENAI_ENDPOINT?: string
   AZURE_OPENAI_DEPLOYMENT?: string
+  AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT?: string
+} & Record<string, string | undefined>
+
+/** Env needed for Azure speech-to-text (a subset of ProviderEnv). The index
+ * signature keeps `process.env` assignable, matching ProviderEnv's shape. */
+export type TranscribeEnv = {
+  AZURE_OPENAI_API_KEY?: string
+  AZURE_OPENAI_ENDPOINT?: string
+  AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT?: string
 } & Record<string, string | undefined>
 
 /** True when a usable Gemini key is configured. */
@@ -31,6 +40,26 @@ export function hasAzureConfig(env: ProviderEnv = process.env): boolean {
     key.trim().length > 0 &&
     typeof endpoint === 'string' &&
     endpoint.trim().length > 0
+  )
+}
+
+/**
+ * True when Azure speech-to-text is fully configured: endpoint + key + a
+ * transcription deployment must all be present. Unlike the chat deployment (which
+ * has a sensible default), transcription has no fallback model, so the deployment
+ * name is required.
+ */
+export function hasTranscribeConfig(env: TranscribeEnv = process.env): boolean {
+  const key = env.AZURE_OPENAI_API_KEY
+  const endpoint = env.AZURE_OPENAI_ENDPOINT
+  const deployment = env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT
+  return (
+    typeof key === 'string' &&
+    key.trim().length > 0 &&
+    typeof endpoint === 'string' &&
+    endpoint.trim().length > 0 &&
+    typeof deployment === 'string' &&
+    deployment.trim().length > 0
   )
 }
 

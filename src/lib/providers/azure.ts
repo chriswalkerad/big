@@ -7,9 +7,10 @@
 // Failures map to typed AppErrors. The system/user prompt is shared with the
 // Gemini provider so both real providers review against the identical rules.
 
-import OpenAI from 'openai'
+import OpenAI, { toFile } from 'openai'
 import type { ReviewResult } from '@/types'
 import { appError, toAppError } from '@/lib/errors'
+import { hasTranscribeConfig, type TranscribeEnv } from './select'
 import type { ApplyInput, ReviewInput, ReviewProvider } from './interface'
 import {
   buildApplyPrompt,
@@ -162,5 +163,60 @@ export class AzureProvider implements ReviewProvider {
     } catch (e) {
       throw toAppError(e)
     }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Speech-to-text (voice dictation). Azure-only, and intentionally NOT part of the
+// ReviewProvider interface: it has nothing to do with reviewing text, and the mock /
+// Gemini providers don't offer it. It reuses the same OpenAI-compatible client as
+// AzureProvider but targets the audio transcriptions endpoint with a separate
+// deployment (AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT, e.g. gpt-4o-transcribe / whisper).
+
+/** Transcription deployments are speech models, not gpt-5-class reasoning ones. */
+const TRANSCRIBE_TIMEOUT_MS = 60_000
+
+/**
+ * Transcribe an audio clip (typically webm/opus from MediaRecorder) to plain text
+ * via the Azure OpenAI-compatible transcriptions endpoint. SERVER-ONLY. Throws a
+ * typed AppError on any failure; the route catches and serializes it. Assumes the
+ * caller has already checked {@link hasTranscribeConfig}.
+ */
+export async function transcribeAudio(
+  audio: Blob | File,
+  env: TranscribeEnv = process.env,
+): Promise<string> {
+  try {
+    if (!hasTranscribeConfig(env)) {
+      // Defensive: the route short-circuits before calling, but never assume.
+      throw appError('AI_UNAVAILABLE', 'Speech-to-text is not configured.')
+    }
+    const endpoint = env.AZURE_OPENAI_ENDPOINT!.trim()
+    const apiKey = env.AZURE_OPENAI_API_KEY!.trim()
+    const model = env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT!.trim()
+
+    const client = new OpenAI({ baseURL: endpoint, apiKey })
+
+    // The API needs a named File with an extension so it can sniff the format.
+    // MediaRecorder produces webm/opus, so default the name/type accordingly while
+    // honoring an explicit type when one is present on the incoming Blob/File.
+    const type = audio.type && audio.type.trim() ? audio.type : 'audio/webm'
+    const name = audio instanceof File && audio.name ? audio.name : 'audio.webm'
+    const file = await toFile(audio, name, { type })
+
+    const transcription = await client.audio.transcriptions.create(
+      { file, model, response_format: 'json' },
+      { timeout: TRANSCRIBE_TIMEOUT_MS },
+    )
+
+    const text = transcription.text
+    if (typeof text !== 'string' || !text.trim()) {
+      throw appError('AI_BAD_JSON', 'The transcription came back empty.')
+    }
+    return text.trim()
+  } catch (e) {
+    // Maps timeouts -> AI_TIMEOUT, 429 -> AI_RATE_LIMIT, 5xx -> AI_UNAVAILABLE,
+    // offline -> NETWORK_OFFLINE, and passes AppErrors through unchanged.
+    throw toAppError(e)
   }
 }

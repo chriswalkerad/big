@@ -147,3 +147,18 @@ export interface ApplyResult {
 export type ApplyResponse =
   | { ok: true; data: ApplyResult }
   | { ok: false; error: import('@/lib/errors').AppError }
+
+/** Successful payload from POST /api/transcribe: the transcribed text. */
+export interface TranscribeResult {
+  text: string
+}
+
+/** Discriminated response from POST /api/transcribe (voice dictation). */
+export type TranscribeResponse =
+  | { ok: true; data: TranscribeResult }
+  | { ok: false; error: import('@/lib/errors').AppError }
+
+/** Response from GET /api/transcribe — whether speech-to-text is configured. */
+export interface TranscribeAvailability {
+  available: boolean
+}
