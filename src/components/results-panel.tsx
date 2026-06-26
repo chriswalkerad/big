@@ -4,7 +4,7 @@ import { forwardRef, useEffect, useMemo, useRef, useState, type Ref } from 'reac
 import { motion, useReducedMotion } from 'motion/react'
 import { Check, ChevronRight, HelpCircle, Loader2, Sparkles, X } from 'lucide-react'
 import type { AppError } from '@/lib/errors'
-import type { ReviewResult, SignalDef } from '@/types'
+import type { Person, ReviewResult, SignalDef } from '@/types'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/button'
 import {
@@ -16,6 +16,7 @@ import {
 } from '@/lib/doc-page'
 import { SignalRow } from '@/components/signal-row'
 import { ScoreExplanation } from '@/components/score-explanation'
+import { ReviewerChoice } from '@/components/reviewer-choice'
 import { LoadingState } from '@/components/loading-state'
 import { ErrorState } from '@/components/error-state'
 
@@ -38,8 +39,17 @@ interface ResultsPanelProps {
   pending?: boolean
   /** Retry the review (only meaningful with a retryable error). */
   onRetry?: () => void
-  /** Commit the previewed review (only meaningful while `pending`). */
-  onConfirm?: () => void
+  /** The roster to choose a reviewer from in the in-panel choose-reviewer view. */
+  people?: readonly Person[]
+  /** The reviewer chosen last time, if any (pre-selects the choose-reviewer view). */
+  currentReviewer?: Person
+  /**
+   * Commit the previewed review WITH the chosen reviewer (only meaningful while
+   * `pending`). "Confirm submission" now opens an in-panel choose-reviewer view (no
+   * dialog); selecting a reviewer there and submitting calls this. Omitted → no confirm
+   * affordance.
+   */
+  onConfirmReviewer?: (reviewer: Person) => void
   /** Click a flagged phrase → focus its squiggle in the canvas. */
   onPhraseClick?: (signalId: string, quote: string) => void
   /** Open the franchise detail (from the Franchise Fit row). */
@@ -84,7 +94,9 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
     focusedSignalId,
     pending,
     onRetry,
-    onConfirm,
+    people,
+    currentReviewer,
+    onConfirmReviewer,
     onPhraseClick,
     onFranchiseClick,
     onApplyPrompt,
@@ -104,9 +116,14 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
   // review force it closed below.
   const [explaining, setExplaining] = useState(false)
 
+  // The in-panel choose-reviewer view ("Confirm submission" → pick a reviewer) replaces
+  // the score view in the body while open, exactly like `explaining`. It's only
+  // meaningful for a settled preview awaiting commit, so the guards below force it closed.
+  const [choosingReviewer, setChoosingReviewer] = useState(false)
+
   // The confirm bar shows only for a settled preview review (not loading/error) that
   // has a confirm handler — i.e. a review-then-confirm preview awaiting commit.
-  const showConfirm = Boolean(pending && onConfirm && review && !loading && !error)
+  const showConfirm = Boolean(pending && onConfirmReviewer && review && !loading && !error)
 
   // Hide the entire review section until there is something to show: a review (live
   // preview OR submitted snapshot), an in-flight run, or an error.
@@ -121,13 +138,27 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
   if (explaining && !canExplain) setExplaining(false)
   const showExplanation = explaining && canExplain
 
+  // The choose-reviewer view only applies while the confirm affordance is available.
+  if (choosingReviewer && !showConfirm) setChoosingReviewer(false)
+  // Explaining and choosing are mutually exclusive body states; explaining wins if both
+  // were somehow set (it can't be entered while the reviewer view is open and vice versa).
+  const showReviewerChoice = choosingReviewer && showConfirm && !showExplanation
+
   // The header toggle, so "Back to results" can return focus to it.
   const explainToggleRef = useRef<HTMLButtonElement | null>(null)
+  // The footer "Confirm submission" button, so "Back to review" can restore focus to it.
+  const confirmButtonRef = useRef<HTMLButtonElement | null>(null)
 
   function closeExplanation() {
     setExplaining(false)
     // Return focus to the toggle that opened the panel.
     explainToggleRef.current?.focus()
+  }
+
+  function closeReviewerChoice() {
+    setChoosingReviewer(false)
+    // Return focus to the footer button that opened the view.
+    confirmButtonRef.current?.focus()
   }
 
   // Respect the OS reduce-motion preference: render instantly (no transforms),
@@ -173,6 +204,13 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
             <ErrorState error={error} onRetry={onRetry} title="Review failed" />
           ) : showExplanation ? (
             <ScoreExplanation signals={signals} onBack={closeExplanation} />
+          ) : showReviewerChoice ? (
+            <ReviewerChoice
+              people={people ?? []}
+              current={currentReviewer}
+              onBack={closeReviewerChoice}
+              onConfirm={(reviewer) => onConfirmReviewer?.(reviewer)}
+            />
           ) : review ? (
             <div className="flex flex-col gap-3">
               {review.summary ? (
@@ -216,14 +254,20 @@ export const ResultsPanel = forwardRef<HTMLElement, ResultsPanelProps>(function 
           ) : null}
         </div>
 
-        {showConfirm ? (
+        {showConfirm && !showReviewerChoice ? (
           // Sticky to the bottom of the panel scroll so "Confirm submission" is always
-          // reachable while the body scrolls past it.
+          // reachable while the body scrolls past it. It now ENTERS the in-panel
+          // choose-reviewer view (no dialog); a reviewer is chosen there before commit.
           <footer className="sticky bottom-0 z-10 flex flex-col gap-2 border-t border-border bg-surface px-4 py-3">
             <p className="text-label-sm text-text-secondary">
               Review preview — not submitted yet. Edit to revise, or confirm to submit.
             </p>
-            <Button variant="ink" onClick={onConfirm} className="w-full">
+            <Button
+              ref={confirmButtonRef}
+              variant="ink"
+              onClick={() => setChoosingReviewer(true)}
+              className="w-full"
+            >
               <Check className="size-3.5" aria-hidden="true" />
               Confirm submission
             </Button>

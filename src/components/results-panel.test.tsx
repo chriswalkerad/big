@@ -265,18 +265,46 @@ describe('ResultsPanel hide-until-review', () => {
   })
 })
 
+const PEOPLE = [
+  { id: 'person-a', name: 'Anna Avery', role: 'Lead Animator' },
+  { id: 'person-b', name: 'Bruno Beck', role: 'Art Director' },
+]
+
 describe('ResultsPanel confirm submission (review-then-confirm)', () => {
-  it('shows a Confirm submission button for a pending preview and fires onConfirm', () => {
-    const onConfirm = vi.fn()
-    renderPanel({ pending: true, onConfirm })
-    const confirm = screen.getByRole('button', { name: /confirm submission/i })
-    expect(confirm).toBeInTheDocument()
-    fireEvent.click(confirm)
-    expect(onConfirm).toHaveBeenCalled()
+  it('shows a Confirm submission button for a pending preview', () => {
+    renderPanel({ pending: true, people: PEOPLE, onConfirmReviewer: vi.fn() })
+    expect(screen.getByRole('button', { name: /confirm submission/i })).toBeInTheDocument()
+  })
+
+  it('opens the in-panel choose-reviewer view (no dialog) and commits with the chosen reviewer', () => {
+    const onConfirmReviewer = vi.fn()
+    renderPanel({ pending: true, people: PEOPLE, onConfirmReviewer })
+
+    // Confirm enters the in-panel choose-reviewer view (replacing the review) — no dialog.
+    fireEvent.click(screen.getByRole('button', { name: /confirm submission/i }))
+    const picker = screen.getByRole('region', { name: /choose a reviewer/i })
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    // The review body is replaced while choosing.
+    expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+
+    // Picking a reviewer and submitting commits with that Person.
+    fireEvent.click(within(picker).getByLabelText(/bruno beck/i))
+    fireEvent.click(within(picker).getByRole('button', { name: /submit for review/i }))
+    expect(onConfirmReviewer).toHaveBeenCalledWith(PEOPLE[1])
+  })
+
+  it('Back to review returns to the review without submitting', () => {
+    const onConfirmReviewer = vi.fn()
+    renderPanel({ pending: true, people: PEOPLE, onConfirmReviewer })
+    fireEvent.click(screen.getByRole('button', { name: /confirm submission/i }))
+    fireEvent.click(screen.getByRole('button', { name: /back to review/i }))
+    // The confirm footer is back; nothing was committed.
+    expect(screen.getByRole('button', { name: /confirm submission/i })).toBeInTheDocument()
+    expect(onConfirmReviewer).not.toHaveBeenCalled()
   })
 
   it('pins the confirm footer to the bottom of the drawer scroll (sticky)', () => {
-    renderPanel({ pending: true, onConfirm: () => {} })
+    renderPanel({ pending: true, people: PEOPLE, onConfirmReviewer: () => {} })
     const footer = screen
       .getByRole('button', { name: /confirm submission/i })
       .closest('footer')
@@ -287,16 +315,22 @@ describe('ResultsPanel confirm submission (review-then-confirm)', () => {
   })
 
   it('hides Confirm submission for an already-submitted snapshot (not pending)', () => {
-    renderPanel({ onConfirm: () => {} })
+    renderPanel({ people: PEOPLE, onConfirmReviewer: () => {} })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
   })
 
   it('does not show Confirm submission while loading or on error', () => {
-    const onConfirm = vi.fn()
-    renderPanel({ pending: true, loading: true, review: null, onConfirm })
+    const onConfirmReviewer = vi.fn()
+    renderPanel({ pending: true, loading: true, review: null, people: PEOPLE, onConfirmReviewer })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
     cleanup()
-    renderPanel({ pending: true, error: appError('AI_RATE_LIMIT'), review: null, onConfirm })
+    renderPanel({
+      pending: true,
+      error: appError('AI_RATE_LIMIT'),
+      review: null,
+      people: PEOPLE,
+      onConfirmReviewer,
+    })
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
   })
 })
