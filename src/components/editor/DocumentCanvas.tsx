@@ -291,56 +291,57 @@ function DocumentCanvasInner(
         if (!editor) return
         const tracked = interimRangeRef.current
         const anchor = interimAnchorRef.current
-        // No-op when no interim is active (nothing tracked and no anchor remembered).
-        if (!tracked && anchor === null) return
         const { state } = editor.view
         const markType = state.schema.marks[DICTATION_INTERIM_MARK_NAME]
         // Tracking ends here regardless of which branch runs below.
         interimRangeRef.current = null
         interimAnchorRef.current = null
-        if (!markType) return
 
         const docSize = state.doc.content.size
         const range = clampInterimRange(tracked, docSize)
 
         if (finalText === undefined) {
-          // No settled text supplied: just un-ghost the interim in place. This is a
-          // genuine author edit (undoable, fires onChange).
-          if (!range || range.to <= range.from) return
-          // Not tagged interim → `onUpdate` fires `onChange` once for this commit.
+          // No settled text supplied: just un-ghost the interim in place (needs an
+          // active interim). A genuine author edit (undoable, fires onChange).
+          if (!markType || !range || range.to <= range.from) return
           const tr = state.tr.removeMark(range.from, range.to, markType)
           editor.view.dispatch(tr)
           return
         }
 
-        // Replace the provisional range with the SETTLED text. Anchor at the tracked
-        // ghost range if still valid, else fall back to the remembered start anchor so
-        // the text lands where the ghost was shown — never at a moved live caret.
+        // Settle the final text into the doc. Anchor at the tracked ghost range if
+        // still valid, else the remembered start anchor, else the LIVE caret — the
+        // last covers a short utterance that fired `recognized` with no preceding
+        // `recognizing` (no interim was ever shown), so the text still lands.
         const fallback = anchor === null ? null : Math.max(0, Math.min(anchor, docSize))
-        const from = range ? range.from : fallback
-        const to = range ? range.to : fallback
-        if (from === null || to === null) return
+        const caret = state.selection.from
+        const from = range ? range.from : fallback ?? caret
+        const to = range ? range.to : fallback ?? caret
 
         // Inter-utterance spacing: trim the settled text, then prefix a single space
         // only when the preceding char is not already whitespace and not the doc start.
         const trimmed = finalText.trim()
+        if (trimmed.length === 0) {
+          // Nothing to insert; drop any ghost that was tracked.
+          if (markType && range && range.to > range.from) {
+            editor.view.dispatch(state.tr.delete(range.from, range.to))
+          }
+          return
+        }
         const prevChar = from > 0 ? state.doc.textBetween(from - 1, from) : undefined
         const insertText = isWhitespaceOrStart(prevChar) ? trimmed : ` ${trimmed}`
 
         // A SINGLE undoable step (default addToHistory) and NOT tagged interim, so it
         // fires onChange exactly once via onUpdate. Insert as plain text (no ghost mark).
         const tr = state.tr
-        const node = insertText.length > 0 ? state.schema.text(insertText) : null
-        if (to > from) {
-          if (node) tr.replaceWith(from, to, node)
-          else tr.delete(from, to)
-        } else if (node) {
-          tr.insert(from, node)
-        }
+        const node = state.schema.text(insertText)
+        if (to > from) tr.replaceWith(from, to, node)
+        else tr.insert(from, node)
         // Ensure no ghost mark survives across the touched span.
-        const end = from + insertText.length
-        if (end > from) tr.removeMark(from, end, markType)
-        // Not tagged interim → `onUpdate` fires `onChange` once for this commit.
+        if (markType) {
+          const end = from + insertText.length
+          if (end > from) tr.removeMark(from, end, markType)
+        }
         editor.view.dispatch(tr)
       },
       clearInterim: () => {
