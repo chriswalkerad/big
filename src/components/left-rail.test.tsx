@@ -103,6 +103,43 @@ describe("LeftRail", () => {
     ).toBeInTheDocument();
   });
 
+  it("expands the rail when Inbox is clicked while collapsed", async () => {
+    const user = userEvent.setup();
+    window.localStorage.setItem(RAIL_KEY, "true");
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(nav).toHaveAttribute("data-collapsed", "true");
+
+    await user.click(within(nav).getByRole("button", { name: /Inbox/ }));
+
+    // The rail expands so the inbox rows are readable, and the expanded width
+    // is persisted; the inbox view (Back control) is now shown.
+    expect(nav).not.toHaveAttribute("data-collapsed");
+    expect(window.localStorage.getItem(RAIL_KEY)).toBe("false");
+    expect(
+      await within(nav).findByRole("button", { name: "Back to navigation" }),
+    ).toBeInTheDocument();
+  });
+
+  it("returns to nav mode when the rail is collapsed while in inbox", async () => {
+    const user = userEvent.setup();
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+
+    // Open the inbox.
+    await user.click(within(nav).getByRole("button", { name: /Inbox/ }));
+    expect(
+      await within(nav).findByRole("button", { name: "Back to navigation" }),
+    ).toBeInTheDocument();
+
+    // Collapsing drops back to nav mode: Home returns, the inbox Back is gone.
+    await user.click(screen.getByRole("button", { name: "Collapse navigation" }));
+    expect(
+      within(nav).queryByRole("button", { name: "Back to navigation" }),
+    ).toBeNull();
+    expect(within(nav).getByRole("link", { name: "Home" })).toBeInTheDocument();
+  });
+
   it("the external edge toggle flips collapsed state and persists to localStorage", async () => {
     const user = userEvent.setup();
     renderRail();

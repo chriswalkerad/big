@@ -168,6 +168,19 @@ html {
   animation: skeleton-shimmer 1.6s ease-in-out infinite;
 }
 
+/* Ease the light↔dark theme swap. Only color properties animate, so layout is
+   never affected; the prefers-reduced-motion block below neutralizes this for
+   users who opt out. `*` has zero specificity, so elements with their own
+   `transition-colors` (rail rows, buttons, hovers) keep their faster timing. */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke,
+    outline-color;
+  transition-duration: 200ms;
+  transition-timing-function: ease;
+}
+
 /* One place that honors prefers-reduced-motion for the whole app: neutralize
    long transitions, looping animations, and smooth scrolling so individual
    components don't each have to guard. */

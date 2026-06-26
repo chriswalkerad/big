@@ -119,20 +119,33 @@ type RailMode = "nav" | "inbox";
 export function LeftRail() {
   const pathname = usePathname();
   const currentProjectId = useCurrentProjectId();
-  const { collapsed, mounted } = useRailState();
+  const { collapsed, expand, mounted } = useRailState();
 
   const [mode, setMode] = useState<RailMode>("nav");
   const [accountOpen, setAccountOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Until hydration, render the rail at its default (expanded) width so the
+  // server and first client render agree; the persisted collapsed value is
+  // applied once `mounted` is true. Computed before the early return so the
+  // collapse→nav effect below sees it (hook order must stay stable).
+  const isCollapsed = mounted && collapsed;
+
+  // Collapsing the rail always returns it to nav mode. The inbox panel is only
+  // legible at the expanded width, so a collapse (via the edge toggle, or a
+  // cross-tab change) drops any open inbox back to the default nav list —
+  // re-expanding then shows nav, not the inbox we just walked away from.
+  // Detected as a render-time state adjustment on the collapsed transition,
+  // React's endorsed alternative to an effect (no extra render pass).
+  const [wasCollapsed, setWasCollapsed] = useState(isCollapsed);
+  if (isCollapsed !== wasCollapsed) {
+    setWasCollapsed(isCollapsed);
+    if (isCollapsed && mode === "inbox") setMode("nav");
+  }
+
   // Editor routes own the viewport — no rail. Checked AFTER hooks so the hook
   // order is stable across renders.
   if (isEditorPath(pathname)) return null;
-
-  // Until hydration, render the rail at its default (expanded) width so the
-  // server and first client render agree; the persisted collapsed value is
-  // applied once `mounted` is true.
-  const isCollapsed = mounted && collapsed;
 
   const closeDrawer = () => setDrawerOpen(false);
 
@@ -175,7 +188,12 @@ export function LeftRail() {
             collapsed={isCollapsed}
             currentProjectId={currentProjectId}
             pathname={pathname}
-            onOpenInbox={() => setMode("inbox")}
+            onOpenInbox={() => {
+              // Collapsed → expand first so the inbox rows (dropped at icon
+              // width) are readable; then switch the rail into inbox mode.
+              if (isCollapsed) expand();
+              setMode("inbox");
+            }}
             onOpenAccount={() => {
               closeDrawer();
               setAccountOpen(true);

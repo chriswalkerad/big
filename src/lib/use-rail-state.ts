@@ -51,6 +51,8 @@ export interface RailState {
   collapsed: boolean;
   /** Toggle collapsed ⇄ expanded and persist the new value. */
   toggle: () => void;
+  /** Force the rail expanded and persist it (no-op if already expanded). */
+  expand: () => void;
   /**
    * False during SSR/first client render, true after hydration. Use it to
    * render a stable placeholder and avoid a hydration mismatch from the
@@ -88,5 +90,14 @@ export function useRailState(): RailState {
     emit();
   }, []);
 
-  return { collapsed, toggle, mounted };
+  const expand = useCallback(() => {
+    try {
+      window.localStorage.setItem(RAIL_COLLAPSED_KEY, "false");
+    } catch {
+      // Persistence is best-effort; ignore write failures.
+    }
+    emit();
+  }, []);
+
+  return { collapsed, toggle, expand, mounted };
 }
