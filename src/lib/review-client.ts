@@ -58,7 +58,13 @@ export async function requestReview({
 function isReviewResponse(value: unknown): value is ReviewResponse {
   if (typeof value !== 'object' || value === null || !('ok' in value)) return false
   const ok = (value as { ok: unknown }).ok
-  if (ok === true) return 'data' in value
+  if (ok === true) {
+    if (!('data' in value)) return false
+    const data = (value as { data: unknown }).data
+    if (typeof data !== 'object' || data === null) return false
+    const { signals, verdict } = data as { signals: unknown; verdict: unknown }
+    return Array.isArray(signals) && typeof verdict === 'object' && verdict !== null
+  }
   if (ok === false) return 'error' in value && isAppError((value as { error: unknown }).error)
   return false
 }
