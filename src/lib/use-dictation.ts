@@ -23,6 +23,12 @@ export interface UseDictationOptions {
   onInterim: (text: string) => void
   /** A finalized utterance: the settled text for one recognized phrase. */
   onFinal: (text: string) => void
+  /**
+   * A recognized result that settled with NO usable text (e.g. `ResultReason.NoMatch`
+   * from noise/mumble). Nothing commits, so the consumer must DROP the preceding interim
+   * ghost — otherwise the last hypothesis stays in the doc and serializes as real content.
+   */
+  onClearInterim: () => void
 }
 
 export interface UseDictation {
@@ -41,7 +47,11 @@ type SpeechSdk = typeof import('microsoft-cognitiveservices-speech-sdk')
 type SpeechRecognizer = InstanceType<SpeechSdk['SpeechRecognizer']>
 type AudioConfig = InstanceType<SpeechSdk['AudioConfig']>
 
-export function useDictation({ onInterim, onFinal }: UseDictationOptions): UseDictation {
+export function useDictation({
+  onInterim,
+  onFinal,
+  onClearInterim,
+}: UseDictationOptions): UseDictation {
   const [status, setStatus] = useState<DictationStatus>('idle')
   const [error, setError] = useState<AppError | null>(null)
 
@@ -66,12 +76,16 @@ export function useDictation({ onInterim, onFinal }: UseDictationOptions): UseDi
   // Keep the latest callbacks without re-creating start/stop.
   const onInterimRef = useRef(onInterim)
   const onFinalRef = useRef(onFinal)
+  const onClearInterimRef = useRef(onClearInterim)
   useEffect(() => {
     onInterimRef.current = onInterim
   }, [onInterim])
   useEffect(() => {
     onFinalRef.current = onFinal
   }, [onFinal])
+  useEffect(() => {
+    onClearInterimRef.current = onClearInterim
+  }, [onClearInterim])
 
   // Tear down every SDK resource and the refresh timer. Safe to call repeatedly.
   // `keepStarting` leaves the in-flight latch set so a restart can rebuild without a
@@ -171,11 +185,16 @@ export function useDictation({ onInterim, onFinal }: UseDictationOptions): UseDi
         if (e.result.text) onInterimRef.current(e.result.text)
       }
 
-      // A finalized utterance.
+      // A finalized utterance. A RecognizedSpeech result with text commits as authored
+      // text. ANY other settled result (e.g. ResultReason.NoMatch from noise/mumble, or a
+      // RecognizedSpeech that carries no text) means nothing commits — so the preceding
+      // interim ghost must be DROPPED, or it would linger and serialize as real content.
       recognizer.recognized = (_, e) => {
         if (stoppedRef.current) return
         if (e.result.reason === ResultReason.RecognizedSpeech && e.result.text) {
           onFinalRef.current(e.result.text)
+        } else {
+          onClearInterimRef.current()
         }
       }
 

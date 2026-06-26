@@ -22,14 +22,28 @@ vi.mock('@/lib/speech-token-client', () => ({
 type Cb = (text: string) => void
 let lastOnInterim: Cb | null = null
 let lastOnFinal: Cb | null = null
+let lastOnClearInterim: (() => void) | null = null
+// Setter into the fake hook's status, captured so a test can drive the 'error' transition
+// (a non-auth mic/network cancellation jumps status straight to 'error' in the real hook).
+let setDictationStatus: ((s: 'idle' | 'listening' | 'error') => void) | null = null
 const startSpy = vi.fn()
 const stopSpy = vi.fn()
 
 vi.mock('@/lib/use-dictation', () => ({
-  useDictation: ({ onInterim, onFinal }: { onInterim: Cb; onFinal: Cb }) => {
+  useDictation: ({
+    onInterim,
+    onFinal,
+    onClearInterim,
+  }: {
+    onInterim: Cb
+    onFinal: Cb
+    onClearInterim: () => void
+  }) => {
     lastOnInterim = onInterim
     lastOnFinal = onFinal
+    lastOnClearInterim = onClearInterim
     const [status, setStatus] = useState<'idle' | 'listening' | 'error'>('idle')
+    setDictationStatus = setStatus
     return {
       status,
       error: null,
@@ -78,6 +92,8 @@ beforeEach(() => {
   window.localStorage.clear()
   lastOnInterim = null
   lastOnFinal = null
+  lastOnClearInterim = null
+  setDictationStatus = null
   getSpeechAvailable.mockReset()
   startSpy.mockReset()
   stopSpy.mockReset()
@@ -187,6 +203,66 @@ describe('DocumentPage voice dictation', () => {
     await waitFor(() => {
       const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
       expect(editor?.textContent ?? '').toContain('this is dictated')
+    })
+  })
+
+  it('drops the interim ghost when dictation ERRORS (no leftover ghost text in the doc)', async () => {
+    getSpeechAvailable.mockResolvedValue(true)
+    seedDoc({ body: 'Hello world' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    const mic = await screen.findByRole('button', { name: /start voice dictation/i })
+    fireEvent.click(mic)
+    await screen.findByRole('button', { name: /stop voice dictation/i })
+    expect(lastOnInterim).not.toBeNull()
+
+    // A hypothesis is streaming as a ghost when the mic/network dies.
+    act(() => {
+      lastOnInterim?.('half spoken')
+    })
+    await waitFor(() => {
+      const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+      expect(editor?.textContent ?? '').toContain('half spoken')
+    })
+
+    // A non-auth cancellation jumps status straight to 'error' (the hook tears down; the
+    // stop-on-toggle path never runs). The error-transition effect must clear the ghost.
+    act(() => {
+      setDictationStatus?.('error')
+    })
+    await waitFor(() => {
+      const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+      expect(editor?.textContent ?? '').not.toContain('half spoken')
+      // The original authored content is untouched.
+      expect(editor?.textContent ?? '').toContain('Hello world')
+    })
+  })
+
+  it('drops the interim ghost on a NoMatch (onClearInterim) without authoring it', async () => {
+    getSpeechAvailable.mockResolvedValue(true)
+    seedDoc({ body: 'Hello world' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    await screen.findByRole('button', { name: /start voice dictation/i })
+    expect(lastOnClearInterim).not.toBeNull()
+
+    act(() => {
+      lastOnInterim?.('mumble noise')
+    })
+    await waitFor(() => {
+      const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+      expect(editor?.textContent ?? '').toContain('mumble noise')
+    })
+
+    // The utterance settled with no usable text (NoMatch): the hook calls onClearInterim,
+    // which clears the canvas ghost — nothing is committed as authored content.
+    act(() => {
+      lastOnClearInterim?.()
+    })
+    await waitFor(() => {
+      const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+      expect(editor?.textContent ?? '').not.toContain('mumble noise')
+      expect(editor?.textContent ?? '').toContain('Hello world')
     })
   })
 
