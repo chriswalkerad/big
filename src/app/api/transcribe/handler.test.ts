@@ -4,9 +4,9 @@ import { appError } from '@/lib/errors'
 import type { TranscribeEnv } from '@/lib/providers/select'
 
 const CONFIGURED: TranscribeEnv = {
-  AZURE_OPENAI_ENDPOINT: 'https://x.services.ai.azure.com/openai/v1',
-  AZURE_OPENAI_API_KEY: 'key',
-  AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT: 'gpt-4o-transcribe',
+  AZURE_SPEECH_ENDPOINT: 'https://eastus.api.cognitive.microsoft.com',
+  AZURE_SPEECH_KEY: 'key',
+  AZURE_SPEECH_TRANSCRIBE_MODEL: 'mai-transcribe-1.5',
 }
 
 function formWithAudio(bytes = 16, type = 'audio/webm'): FormData {

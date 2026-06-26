@@ -14,39 +14,64 @@ export type ProviderEnv = {
   AZURE_OPENAI_API_KEY?: string
   AZURE_OPENAI_ENDPOINT?: string
   AZURE_OPENAI_DEPLOYMENT?: string
+  // Azure AI Speech "fast transcription" (model MAI-Transcribe-1.5).
+  AZURE_SPEECH_ENDPOINT?: string
+  AZURE_SPEECH_KEY?: string
+  AZURE_SPEECH_TRANSCRIBE_MODEL?: string
+  // Legacy OpenAI-compatible transcription names, kept only as fallbacks.
   AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT?: string
   AZURE_OPENAI_TRANSCRIBE_ENDPOINT?: string
   AZURE_OPENAI_TRANSCRIBE_API_KEY?: string
 } & Record<string, string | undefined>
 
-/** Env needed for Azure speech-to-text (a subset of ProviderEnv). The index
- * signature keeps `process.env` assignable, matching ProviderEnv's shape.
+/** Env needed for Azure AI Speech "fast transcription" (a subset of ProviderEnv).
+ * The index signature keeps `process.env` assignable, matching ProviderEnv's shape.
  *
- * Transcription models (e.g. a Foundry/HF-hosted Whisper deployment like
- * openai--whisper-large-v3-turbo) can live on a DIFFERENT inference endpoint than
- * the main chat one, so the endpoint and key are independently overridable and fall
- * back to the main AZURE_OPENAI_* values when unset. */
+ * The Speech resource is a distinct service from the chat model, so it has its own
+ * endpoint/key/model. The legacy AZURE_OPENAI_TRANSCRIBE_* (and the main
+ * AZURE_OPENAI_*) names are honored as fallbacks so existing deployments keep
+ * working, but the AZURE_SPEECH_* names are primary. */
 export type TranscribeEnv = {
+  /** Speech resource base URL, e.g. https://<region>.api.cognitive.microsoft.com. */
+  AZURE_SPEECH_ENDPOINT?: string
+  /** Ocp-Apim-Subscription-Key for the Speech resource. */
+  AZURE_SPEECH_KEY?: string
+  /** Fast-transcription model, e.g. mai-transcribe-1.5. */
+  AZURE_SPEECH_TRANSCRIBE_MODEL?: string
+  // Legacy fallbacks (deprecated; OpenAI-compatible transcriptions path).
   AZURE_OPENAI_API_KEY?: string
   AZURE_OPENAI_ENDPOINT?: string
   AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT?: string
-  /** Base URL for the transcription client; defaults to AZURE_OPENAI_ENDPOINT. */
   AZURE_OPENAI_TRANSCRIBE_ENDPOINT?: string
-  /** Auth key for the transcription client; defaults to AZURE_OPENAI_API_KEY. */
   AZURE_OPENAI_TRANSCRIBE_API_KEY?: string
 } & Record<string, string | undefined>
 
-/** Resolve the effective transcription endpoint/key/deployment, applying the
- * fallbacks to the main Azure values. Returns trimmed strings, possibly empty. */
+/** Resolve the effective Speech endpoint/key/model. The AZURE_SPEECH_* names are
+ * primary; the legacy AZURE_OPENAI_TRANSCRIBE_* / AZURE_OPENAI_* names are honored
+ * as fallbacks. Returns trimmed strings, possibly empty. */
 export function resolveTranscribeConfig(env: TranscribeEnv = process.env): {
   endpoint: string
   apiKey: string
-  deployment: string
+  model: string
 } {
-  const endpoint = (env.AZURE_OPENAI_TRANSCRIBE_ENDPOINT ?? env.AZURE_OPENAI_ENDPOINT ?? '').trim()
-  const apiKey = (env.AZURE_OPENAI_TRANSCRIBE_API_KEY ?? env.AZURE_OPENAI_API_KEY ?? '').trim()
-  const deployment = (env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT ?? '').trim()
-  return { endpoint, apiKey, deployment }
+  const endpoint = (
+    env.AZURE_SPEECH_ENDPOINT ??
+    env.AZURE_OPENAI_TRANSCRIBE_ENDPOINT ??
+    env.AZURE_OPENAI_ENDPOINT ??
+    ''
+  ).trim()
+  const apiKey = (
+    env.AZURE_SPEECH_KEY ??
+    env.AZURE_OPENAI_TRANSCRIBE_API_KEY ??
+    env.AZURE_OPENAI_API_KEY ??
+    ''
+  ).trim()
+  const model = (
+    env.AZURE_SPEECH_TRANSCRIBE_MODEL ??
+    env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT ??
+    ''
+  ).trim()
+  return { endpoint, apiKey, model }
 }
 
 /** True when a usable Gemini key is configured. */
@@ -68,15 +93,14 @@ export function hasAzureConfig(env: ProviderEnv = process.env): boolean {
 }
 
 /**
- * True when Azure speech-to-text is fully configured: a transcription endpoint
- * (its own, or the main one as a fallback) + a key (its own, or the main one) + a
- * transcription deployment must all be present. Unlike the chat deployment (which
- * has a sensible default), transcription has no fallback model, so the deployment
- * name is required.
+ * True when Azure AI Speech fast transcription is fully configured: a Speech
+ * endpoint + key + model must all be present (each resolved with the legacy
+ * fallbacks). Unlike the chat deployment (which has a sensible default),
+ * transcription has no fallback model, so the model name is required.
  */
 export function hasTranscribeConfig(env: TranscribeEnv = process.env): boolean {
-  const { endpoint, apiKey, deployment } = resolveTranscribeConfig(env)
-  return endpoint.length > 0 && apiKey.length > 0 && deployment.length > 0
+  const { endpoint, apiKey, model } = resolveTranscribeConfig(env)
+  return endpoint.length > 0 && apiKey.length > 0 && model.length > 0
 }
 
 /** Select the review provider based on the environment (Azure > Gemini > mock). */
