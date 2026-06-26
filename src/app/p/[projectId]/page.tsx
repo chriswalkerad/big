@@ -72,6 +72,25 @@ export function LibraryView({ projectId }: { projectId: string }) {
     [documents, query, status],
   );
 
+  const isFiltering = query.trim().length > 0 || status !== ALL_STATUSES;
+
+  // #17: the result-count live region must stay silent on initial load and not
+  // fire once per keystroke. The announcement is only set — after a short typing
+  // pause — once the user has actually filtered; while not filtering it renders
+  // empty (see below) so it never re-announces the full unfiltered list. The
+  // effect therefore only ever schedules a non-empty update on a timer, never a
+  // synchronous setState.
+  const [announcement, setAnnouncement] = useState("");
+  useEffect(() => {
+    if (!isFiltering) return;
+    const count = filtered.length;
+    const noun = count === 1 ? "document" : "documents";
+    const id = window.setTimeout(() => {
+      setAnnouncement(`${count} ${noun} match your search and filter.`);
+    }, 400);
+    return () => window.clearTimeout(id);
+  }, [isFiltering, filtered.length]);
+
   // WCAG 2.4.2 (Page Titled): give this route its own descriptive document
   // title once the project loads. Data is client-side localStorage, so the
   // title is synced in an effect rather than via server `generateMetadata`.
@@ -102,7 +121,6 @@ export function LibraryView({ projectId }: { projectId: string }) {
   }
 
   const { project } = snapshot.data;
-  const isFiltering = query.trim().length > 0 || status !== ALL_STATUSES;
 
   return (
     <div className="flex flex-col gap-8">
@@ -147,13 +165,13 @@ export function LibraryView({ projectId }: { projectId: string }) {
       </header>
 
       <div className="flex flex-col gap-4">
-        {/* Announce the filtered result count to assistive tech as the user types
-            or changes the status filter (search results are an async-feeling
-            update). */}
+        {/* Announce the filtered result count to assistive tech once the user
+            has filtered (search results are an async-feeling update). The text
+            stays empty on load and is updated after a typing pause (see the
+            debounced effect above), so it neither announces on first paint nor
+            fires once per keystroke. */}
         <p aria-live="polite" className="sr-only">
-          {isFiltering
-            ? `${filtered.length} ${filtered.length === 1 ? "document" : "documents"} match your search and filter.`
-            : `${filtered.length} ${filtered.length === 1 ? "document" : "documents"}.`}
+          {isFiltering ? announcement : ""}
         </p>
 
         {filtered.length === 0 ? (
@@ -202,9 +220,28 @@ function DocumentRow({
   doc: Document;
   owner: Person;
 }) {
+  const title = doc.title || "Untitled";
+  const subtypeLabel = doc.subtype ? SUBTYPE_LABELS[doc.subtype] : "none";
+  const statusLabel = STATUS_LABELS[doc.status];
+  // #15 (WCAG 4.1.2): the row is a single <Link> whose accessible name would
+  // otherwise be the bare concatenation of its columns ("…Character Concept
+  // Changes Requested…") with no clue which token is the type, status, or date.
+  // Compose an explicit, field-labelled accessible name so each value is heard
+  // with its role; this overrides the visual text for assistive tech.
+  const rowLabel = [
+    title,
+    `type ${subtypeLabel}`,
+    `status ${statusLabel}`,
+    `owner ${owner.name}`,
+    `reviewer ${doc.reviewer ? doc.reviewer.name : "none"}`,
+    `created ${relativeTime(doc.createdAt)}`,
+    `updated ${relativeTime(doc.updatedAt)}`,
+  ].join(", ");
+
   return (
     <Link
       href={`/p/${projectId}/d/${doc.id}`}
+      aria-label={rowLabel}
       className={cn(
         // Title / Created / Subtype / Status as four aligned columns (fixed widths
         // on ≥sm keep the Created, Subtype, and Status columns lined up across

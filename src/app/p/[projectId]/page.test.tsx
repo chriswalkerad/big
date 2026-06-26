@@ -138,6 +138,35 @@ describe("LibraryPage", () => {
     expect(row).toHaveTextContent(/Created /);
   });
 
+  it("gives each row a composed, field-labelled accessible name (#15)", async () => {
+    renderLibrary();
+    // The row is a single <Link>; its accessible name spells out each column's
+    // role (type/status/owner/reviewer/created/updated) so a screen reader user
+    // can tell which token is which, instead of a bare concatenation.
+    const caperLink = await screen.findByRole("link", {
+      name: /Eloise and the Midnight Room-Service Caper, type .*, status Approved, owner Maya Kambe/i,
+    });
+    expect(caperLink).toBeInTheDocument();
+  });
+
+  it("keeps the result-count live region empty until the user filters (#17)", async () => {
+    const { container } = renderLibrary();
+    await screen.findByText("Eloise and the Midnight Room-Service Caper");
+
+    const liveRegion = container.querySelector("[aria-live=polite]");
+    expect(liveRegion).not.toBeNull();
+    // Silent on load — no announcement of the full unfiltered list.
+    expect(liveRegion).toHaveTextContent("");
+
+    const search = screen.getByRole("searchbox", { name: /search documents/i });
+    fireEvent.change(search, { target: { value: "bellhop" } });
+
+    // Debounced: the count appears only after the typing pause.
+    await waitFor(() =>
+      expect(liveRegion).toHaveTextContent(/1 document match your search and filter\./i),
+    );
+  });
+
   it("shows an error state for an unknown project", async () => {
     renderLibrary("proj-does-not-exist");
     expect(await screen.findByRole("alert")).toHaveTextContent(
