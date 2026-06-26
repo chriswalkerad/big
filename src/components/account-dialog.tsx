@@ -93,7 +93,7 @@ export function AccountDialog({ open, onClose }: AccountDialogProps) {
         </div>
         <p id={descriptionId} className="mt-2 text-body text-text-secondary">
           This would let you switch projects or manage the account. It is a stub
-          for this build — there is only one seeded project right now.
+          for this build.
         </p>
         <div className="mt-5 flex justify-end">
           <Button variant="ink" onClick={onClose}>
