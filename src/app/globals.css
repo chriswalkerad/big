@@ -27,6 +27,8 @@
   --color-text-secondary: var(--text-secondary);
   --color-text-tertiary: var(--text-tertiary);
   --color-accent: var(--accent);
+  /* Readable label/icon color on the brand yellow (dark in both themes). */
+  --color-on-accent: var(--on-accent);
   --color-focus: var(--focus);
 
   /* Inverse ink — the charcoal/near-white primary button surface + its label. */

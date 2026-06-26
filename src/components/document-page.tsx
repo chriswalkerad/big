@@ -23,11 +23,13 @@ import { htmlToText, textToHtml } from '@/lib/doc-body'
 import { reviewQueue } from '@/lib/library'
 import {
   ROUTING_LABELS,
+  VERDICT_LABELS,
   applyApprove,
   applyManualSubtype,
   applyReviewerStatus,
   applySubmit,
   applyUnsubmit,
+  formatFlagCount,
   hasDrift,
   inlineSignalIdSet,
   toHighlightIssues,
@@ -121,6 +123,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // Review state.
   const [reviewLoading, setReviewLoading] = useState(false)
   const [reviewError, setReviewError] = useState<AppError | null>(null)
+  // A polite, visually-hidden announcement of the Run-review LIFECYCLE: set to a
+  // "started" message when a run kicks off and to the verdict + flag count when it
+  // settles (or an error). Read by SRs via the aria-live region below (4.1.3) — the
+  // squiggles/panel changes are otherwise silent to assistive tech.
+  const [reviewStatus, setReviewStatus] = useState('')
   const [focusedSignalId, setFocusedSignalId] = useState<string | null>(null)
   const [franchiseOpen, setFranchiseOpen] = useState(false)
   // The expandable review detail panel. Minimal by default (false) — the slim strip
@@ -185,6 +192,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setLoaded(true)
   }, [docId, projectId, mode])
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  // Keep the browser/tab title in sync with the document title (2.4.2 — pages must have
+  // a descriptive title). Runs client-side only; falls back to "Untitled" before load.
+  useEffect(() => {
+    document.title = `${title || 'Untitled'} — Big Review`
+  }, [title])
 
   const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
 
@@ -424,6 +437,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     const text = body
     setReviewError(null)
     setReviewLoading(true)
+    setReviewStatus('Running review…')
     setFocusedSignalId(null)
     // Auto-open the detail panel so the run's loading state — then the result — is
     // visible the moment it lands.
@@ -433,11 +447,20 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     if (!result.ok) {
       setReviewError(result.error)
       setReviewLoading(false)
+      setReviewStatus('Review failed.')
       return
     }
 
     const review = result.data
     setReviewLoading(false)
+    // Announce the settled verdict + flag count, e.g. "Review complete: Needs work,
+    // 2 of 6 need attention."
+    setReviewStatus(
+      `Review complete: ${VERDICT_LABELS[review.verdict.label]}, ${formatFlagCount(
+        review.verdict.flagCount,
+        review.signals.length,
+      )}.`,
+    )
     // Hold the preview (result + exact reviewed body); nothing is committed yet.
     setPendingReview(review)
     setPendingBody(text)
@@ -683,6 +706,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     // Break OUT of the app shell's centered max-w-5xl so the page is a continuous
     // full-bleed white surface with its own slim TopBar action line.
     <div className="mx-[calc(50%-50vw)] -my-6 flex min-h-[calc(100vh-46px)] flex-col bg-bg">
+      {/* Visually-hidden polite live region announcing the Run-review lifecycle (start →
+          verdict + flag count, or failure) so SR users aren't left guessing (4.1.3). */}
+      <span role="status" aria-live="polite" className="sr-only">
+        {reviewStatus}
+      </span>
       <TopBar
         actions={
           <>
@@ -769,23 +797,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               author can re-open the review (e.g. before resubmitting) after it
               auto-collapsed. Wired to the same `panelOpen` state. Disabled (with a
               hint) until there is review content to show — the panel only mounts then. */}
-          <button
-            type="button"
-            onClick={() => setPanelOpen((open) => !open)}
-            disabled={!hasReviewContent}
-            aria-pressed={panelOpen}
-            aria-label={panelOpen ? 'Hide review panel' : 'Show review panel'}
-            title={hasReviewContent ? undefined : 'Run a review to see feedback'}
-            className={cn(
-              'ml-auto inline-flex size-7 shrink-0 items-center justify-center rounded-control text-text-secondary',
-              'transition-colors hover:bg-panel hover:text-text-primary',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
-              'disabled:pointer-events-none disabled:opacity-40',
-              panelOpen && 'bg-panel text-text-primary',
-            )}
-          >
-            <PanelRight className="size-4" aria-hidden="true" />
-          </button>
+          <PanelToggle
+            panelOpen={panelOpen}
+            hasReviewContent={hasReviewContent}
+            onToggle={() => setPanelOpen((open) => !open)}
+          />
         </div>
 
         {/* Title — the largest text on the page. Edit mode is a borderless
@@ -793,18 +809,24 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
         {isRead ? (
           <h1 className="text-doc-title text-text-primary">{title || 'Untitled'}</h1>
         ) : (
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            onBlur={() => persist({ title })}
-            placeholder="Untitled — add a title"
-            aria-label="Title"
-            className={cn(
-              'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
-              'focus:outline-none',
-            )}
-          />
+          <>
+            {/* Edit mode's title is an <input>, so the page would otherwise have NO
+                <h1>. A visually-hidden heading gives the page a programmatic top-level
+                heading (1.3.1 / 2.4.6) without changing the visual layout. */}
+            <h1 className="sr-only">{title || 'Untitled'}</h1>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              onBlur={() => persist({ title })}
+              placeholder="Untitled — add a title"
+              aria-label="Title"
+              className={cn(
+                'w-full bg-transparent text-doc-title text-text-primary placeholder:text-text-tertiary',
+                'focus:outline-none',
+              )}
+            />
+          </>
         )}
 
         {/* People line — the project owner and (once submitted) the chosen reviewer,
@@ -992,6 +1014,66 @@ function DictationControl({
       {!listening && error ? (
         <span className="text-label-sm text-risk-text" role="alert">
           {error.message}
+        </span>
+      ) : null}
+    </span>
+  )
+}
+
+/**
+ * The far-right review-panel toggle. When there is no review content yet it is disabled
+ * and explains why via a STYLED tooltip (not a native `title`, which is unstyled and
+ * inaccessible to many users). The tooltip lives on the wrapping `group` span so it still
+ * appears on hover even though the button itself is disabled (pointer-events-none); the
+ * disabled state is also conveyed in the accessible name so it isn't tooltip-only.
+ */
+function PanelToggle({
+  panelOpen,
+  hasReviewContent,
+  onToggle,
+}: {
+  panelOpen: boolean
+  hasReviewContent: boolean
+  onToggle: () => void
+}) {
+  const hint = 'Run a review to see feedback'
+  return (
+    <span className="group relative ml-auto inline-flex">
+      <button
+        type="button"
+        onClick={onToggle}
+        disabled={!hasReviewContent}
+        aria-pressed={panelOpen}
+        aria-label={
+          hasReviewContent
+            ? panelOpen
+              ? 'Hide review panel'
+              : 'Show review panel'
+            : `Show review panel — ${hint}`
+        }
+        className={cn(
+          'inline-flex size-7 shrink-0 items-center justify-center rounded-control text-text-secondary',
+          'transition-colors hover:bg-panel hover:text-text-primary',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
+          'disabled:pointer-events-none disabled:opacity-40',
+          panelOpen && 'bg-panel text-text-primary',
+        )}
+      >
+        <PanelRight className="size-4" aria-hidden="true" />
+      </button>
+      {!hasReviewContent ? (
+        <span
+          role="tooltip"
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute right-0 top-full z-50 mt-2',
+            'whitespace-nowrap rounded-control bg-ink px-2 py-1 text-label-sm text-ink-foreground shadow-sm',
+            'opacity-0 transition-opacity duration-150',
+            'group-hover:opacity-100 group-focus-within:opacity-100',
+            'motion-reduce:transition-none',
+          )}
+        >
+          {hint}
         </span>
       ) : null}
     </span>

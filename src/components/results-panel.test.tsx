@@ -65,12 +65,11 @@ describe('ResultsPanel header', () => {
 
 describe('ResultsPanel body', () => {
   it('renders a row per signal with name and score', () => {
-    renderPanel()
+    const { container } = renderPanel()
     expect(screen.getByText('Clarity')).toBeInTheDocument()
     expect(screen.getByText('Franchise Fit')).toBeInTheDocument()
-    // Six rows, six meters.
-    const meters = screen.getAllByRole('meter')
-    expect(meters).toHaveLength(6)
+    // Six rows, six score bars (the bar is decorative/aria-hidden, identified by data-tone).
+    expect(container.querySelectorAll('[data-tone]')).toHaveLength(6)
   })
 
   it('renders NOTHING when there is no review, run, or error (hide-until-review)', () => {
@@ -79,7 +78,7 @@ describe('ResultsPanel body', () => {
     // until a review exists. The drawer above it still shows metadata + Run review.
     expect(container).toBeEmptyDOMElement()
     expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-tone]')).toBeNull()
     expect(screen.queryByText('No review yet.')).not.toBeInTheDocument()
   })
 
@@ -209,13 +208,13 @@ describe('ResultsPanel score explanation', () => {
   })
 
   it('replaces the signal rows with the explanation when toggled on', () => {
-    renderPanel()
-    // Rows visible first (one meter per signal).
-    expect(screen.getAllByRole('meter')).toHaveLength(6)
+    const { container } = renderPanel()
+    // Rows visible first (one score bar per signal).
+    expect(container.querySelectorAll('[data-tone]')).toHaveLength(6)
     fireEvent.click(toggle())
-    // Explanation panel is shown; the score-bar meters are gone.
+    // Explanation panel is shown; the score bars are gone.
     expect(screen.getByRole('region', { name: /how the score is calculated/i })).toBeInTheDocument()
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-tone]')).toBeNull()
     // Toggle reflects the open state.
     expect(toggle()).toHaveAttribute('aria-expanded', 'true')
   })
@@ -242,12 +241,12 @@ describe('ResultsPanel score explanation', () => {
   })
 
   it('"Back to results" restores the signal rows', () => {
-    renderPanel()
+    const { container } = renderPanel()
     fireEvent.click(toggle())
-    expect(screen.queryByRole('meter')).not.toBeInTheDocument()
+    expect(container.querySelector('[data-tone]')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: /back to results/i }))
     // Rows are back.
-    expect(screen.getAllByRole('meter')).toHaveLength(6)
+    expect(container.querySelectorAll('[data-tone]')).toHaveLength(6)
   })
 })
 

@@ -77,6 +77,11 @@ export const SignalRow = forwardRef<HTMLDivElement, SignalRowProps>(function Sig
                     issue.severity === 'risk' ? 'text-risk' : 'text-minor',
                   )}
                 >
+                  {/* The tier is otherwise color-only (risk red / minor amber); a
+                      visually-hidden marker distinguishes them without color (1.3.1). */}
+                  <span className="sr-only">
+                    {issue.severity === 'risk' ? 'Risk: ' : 'Suggestion: '}
+                  </span>
                   “{issue.quote}”
                 </span>
                 <span className="text-label-sm text-text-secondary">{issue.message}</span>

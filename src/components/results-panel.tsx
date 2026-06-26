@@ -358,7 +358,7 @@ export function ReviewStrip({
           type="button"
           onClick={onView}
           className={cn(
-            'ml-auto inline-flex shrink-0 items-center gap-1 rounded-control px-1.5 py-1 text-label-sm text-text-secondary',
+            'ml-auto inline-flex min-h-6 shrink-0 items-center gap-1 rounded-control px-2 py-1 text-label-sm text-text-secondary',
             'transition-colors hover:bg-surface hover:text-text-primary',
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
           )}
