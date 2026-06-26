@@ -17,7 +17,7 @@ import { type AppError, appError } from '@/lib/errors'
 import { createStorageRepository, type StorageRepository } from '@/lib/storage'
 import { requestReview } from '@/lib/review-client'
 import { requestApply } from '@/lib/apply-client'
-import { getTranscribeAvailable } from '@/lib/transcribe-client'
+import { getSpeechAvailable } from '@/lib/speech-token-client'
 import { useDictation } from '@/lib/use-dictation'
 import { htmlToText, textToHtml } from '@/lib/doc-body'
 import { reviewQueue } from '@/lib/library'
@@ -549,45 +549,62 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   }, [])
 
   // --- Voice dictation -------------------------------------------------------
-  // A mic that records the author's speech, transcribes it phrase-by-phrase via the
-  // Azure-backed /api/transcribe, and inserts each phrase at the caret. The control is
-  // only rendered when transcription is configured on the server (capability gate) and
-  // only in edit mode. A transcribed phrase is a GENUINE edit — inserting it clears any
-  // pending review preview, which is the intended behaviour.
-  const [transcribeAvailable, setTranscribeAvailable] = useState(false)
+  // A mic that STREAMS the author's speech through the Azure real-time Speech SDK. Interim
+  // hypotheses render live as ghosted provisional text at the caret (`setInterim` — the
+  // SDK interim is the FULL current hypothesis for the utterance, so the canvas replaces
+  // it in place), and each finalized utterance commits to solid authored text. The control
+  // is only rendered when streaming speech is configured on the server (capability gate)
+  // and only in edit mode. A committed utterance is a GENUINE edit — it clears any pending
+  // review preview, which is the intended behaviour.
+  const [speechAvailable, setSpeechAvailable] = useState(false)
   useEffect(() => {
     let alive = true
-    void getTranscribeAvailable().then((ok) => {
-      if (alive) setTranscribeAvailable(ok)
+    void getSpeechAvailable().then((ok) => {
+      if (alive) setSpeechAvailable(ok)
     })
     return () => {
       alive = false
     }
   }, [])
 
-  // Insert a transcribed phrase at the caret, normalizing leading whitespace so phrases
-  // don't run into the preceding text. `insertText` fires onChange (a real edit).
-  const handlePhrase = useCallback((text: string) => {
-    canvasRef.current?.insertText(normalizeSpacing(text, bodyRef.current))
+  // Live interim: the full current hypothesis for the in-progress utterance. The canvas
+  // ghosts it and replaces the prior interim in place.
+  const handleInterim = useCallback((text: string) => {
+    canvasRef.current?.setInterim(text)
   }, [])
 
-  const dictation = useDictation({ onPhrase: handlePhrase })
+  // A finalized utterance: replace the last interim with the settled text plus a trailing
+  // space (so consecutive utterances stay space-separated), then commit it to solid text.
+  const handleFinal = useCallback((text: string) => {
+    canvasRef.current?.setInterim(`${text} `)
+    canvasRef.current?.commitInterim()
+  }, [])
+
+  const dictation = useDictation({ onInterim: handleInterim, onFinal: handleFinal })
   const { stop: stopDictation } = dictation
-  const dictationActive = dictation.status === 'listening' || dictation.status === 'transcribing'
+  const dictationActive = dictation.status === 'listening'
+
+  // Stop streaming + drop any uncommitted interim ghost. Used when the surface stops being
+  // an editable edit-mode canvas (read mode / an AI rewrite locks the editor) and on the
+  // mic toggle off.
+  const endDictation = useCallback(() => {
+    stopDictation()
+    canvasRef.current?.clearInterim()
+  }, [stopDictation])
 
   // Stop dictation whenever the surface stops being an editable edit-mode canvas — when
   // the doc enters read mode or an AI rewrite locks the editor.
   useEffect(() => {
-    if ((isRead || applying) && dictationActive) stopDictation()
-  }, [isRead, applying, dictationActive, stopDictation])
-  // Stop on unmount only. Held via a ref so a change in `stopDictation`'s identity does
+    if ((isRead || applying) && dictationActive) endDictation()
+  }, [isRead, applying, dictationActive, endDictation])
+  // Stop on unmount only. Held via a ref so a change in `endDictation`'s identity does
   // NOT re-run the cleanup (which would stop an active session mid-render); the empty
   // dep array means the cleanup fires exactly once, when the page unmounts.
-  const stopDictationRef = useRef(stopDictation)
+  const endDictationRef = useRef(endDictation)
   useEffect(() => {
-    stopDictationRef.current = stopDictation
-  }, [stopDictation])
-  useEffect(() => () => stopDictationRef.current(), [])
+    endDictationRef.current = endDictation
+  }, [endDictation])
+  useEffect(() => () => endDictationRef.current(), [])
 
   // --- Keyboard: Cmd/Ctrl+Enter = Run review; Esc = close panel --------------
   useEffect(() => {
@@ -714,9 +731,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           <span aria-hidden="true" className="text-text-tertiary">·</span>
           <StatusChip status={status} />
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
-          {/* Voice dictation mic (edit mode, only when transcription is configured). */}
-          {!isRead && transcribeAvailable ? (
-            <DictationControl dictation={dictation} disabled={applying} />
+          {/* Voice dictation mic (edit mode, only when streaming speech is configured). */}
+          {!isRead && speechAvailable ? (
+            <DictationControl dictation={dictation} onStop={endDictation} disabled={applying} />
           ) : null}
 
           {/* Far-right panel toggle — shows/hides the inline review detail panel so the
@@ -895,27 +912,30 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
 }
 
 /**
- * The voice-dictation mic in the type/status row. A ghost icon button toggles
- * recording; while active it shows a stop icon, a pulsing "live" dot, and a
- * "Listening…" label (the dot's pulse yields to prefers-reduced-motion via the
- * global motion-reduce rule). A failed transcription or blocked mic surfaces a brief
- * inline message. The audio internals live entirely in `useDictation`.
+ * The voice-dictation mic in the type/status row. A ghost icon button toggles streaming
+ * recognition; while active it shows a stop icon, a pulsing "live" dot, and a
+ * "Listening…" label (the dot's pulse yields to prefers-reduced-motion via the global
+ * motion-reduce rule). A token/recognizer failure or blocked mic surfaces a brief inline
+ * message. Stopping clears any uncommitted interim ghost (via `onStop`). The SDK internals
+ * live entirely in `useDictation`.
  */
 function DictationControl({
   dictation,
+  onStop,
   disabled,
 }: {
   dictation: ReturnType<typeof useDictation>
+  onStop: () => void
   disabled: boolean
 }) {
-  const { status, error, start, stop } = dictation
-  const listening = status === 'listening' || status === 'transcribing'
+  const { status, error, start } = dictation
+  const listening = status === 'listening'
 
   return (
     <span className="inline-flex items-center gap-1.5">
       <Button
         variant="ghost"
-        onClick={() => (listening ? stop() : void start())}
+        onClick={() => (listening ? onStop() : void start())}
         disabled={disabled}
         aria-pressed={listening}
         aria-label={listening ? 'Stop voice dictation' : 'Start voice dictation'}
@@ -937,7 +957,7 @@ function DictationControl({
             aria-hidden="true"
             className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse"
           />
-          {status === 'transcribing' ? 'Transcribing…' : 'Listening…'}
+          Listening…
         </span>
       ) : null}
       {!listening && error ? (
@@ -947,18 +967,6 @@ function DictationControl({
       ) : null}
     </span>
   )
-}
-
-/**
- * Normalize a transcribed phrase for insertion at the caret: collapse leading/trailing
- * whitespace to a single space, and ensure ONE leading space when the body doesn't
- * already end with whitespace, so consecutive phrases don't run together.
- */
-function normalizeSpacing(text: string, currentBody: string): string {
-  const trimmed = text.trim()
-  if (!trimmed) return ''
-  const needsLeadingSpace = currentBody.length > 0 && !/\s$/.test(currentBody)
-  return needsLeadingSpace ? ` ${trimmed}` : trimmed
 }
 
 /** A calm "Owner · Maya Kambe" / "Reviewer · Luigi Lucarelli" meta note. */

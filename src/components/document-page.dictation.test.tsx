@@ -5,30 +5,31 @@ import type { Document } from '@/types'
 import { createStorageRepository } from '@/lib/storage'
 
 // --- Mocks ------------------------------------------------------------------
-// The capability gate and the dictation hook are mocked so the mic UI can be tested
-// without touching MediaRecorder/getUserMedia (absent in jsdom). The real
-// DocumentCanvas still mounts, so insertText genuinely edits the editor.
+// The capability gate and the streaming dictation hook are mocked so the mic UI can be
+// tested without the Speech SDK / microphone (absent in jsdom). The real DocumentCanvas
+// still mounts, so setInterim/commitInterim genuinely drive the editor.
 
-const getTranscribeAvailable = vi.fn<() => Promise<boolean>>()
-vi.mock('@/lib/transcribe-client', () => ({
-  getTranscribeAvailable: () => getTranscribeAvailable(),
-  // requestTranscribe is unused here (the hook is mocked) but exported for completeness.
-  requestTranscribe: vi.fn(),
+const getSpeechAvailable = vi.fn<() => Promise<boolean>>()
+vi.mock('@/lib/speech-token-client', () => ({
+  getSpeechAvailable: () => getSpeechAvailable(),
+  // requestSpeechToken is unused here (the hook is mocked) but exported for completeness.
+  requestSpeechToken: vi.fn(),
 }))
 
-// A controllable fake of useDictation. It is a REAL tiny hook with its own local state
-// (no cross-component shared store), so start()/stop() drive a status the host re-renders
-// from naturally. It captures the latest onPhrase into a module ref so a test can fire a
-// phrase as the audio pipeline would.
-type Phrase = (text: string) => void
-let lastOnPhrase: Phrase | null = null
+// A controllable fake of useDictation. It is a REAL tiny hook with its own local state, so
+// start()/stop() drive a status the host re-renders from naturally. It captures the latest
+// onInterim/onFinal into module refs so a test can fire them as the SDK would.
+type Cb = (text: string) => void
+let lastOnInterim: Cb | null = null
+let lastOnFinal: Cb | null = null
 const startSpy = vi.fn()
 const stopSpy = vi.fn()
 
 vi.mock('@/lib/use-dictation', () => ({
-  useDictation: ({ onPhrase }: { onPhrase: Phrase }) => {
-    lastOnPhrase = onPhrase
-    const [status, setStatus] = useState<'idle' | 'listening' | 'transcribing' | 'error'>('idle')
+  useDictation: ({ onInterim, onFinal }: { onInterim: Cb; onFinal: Cb }) => {
+    lastOnInterim = onInterim
+    lastOnFinal = onFinal
+    const [status, setStatus] = useState<'idle' | 'listening' | 'error'>('idle')
     return {
       status,
       error: null,
@@ -75,8 +76,9 @@ function seedDoc(overrides: Partial<Document> = {}): Document {
 
 beforeEach(() => {
   window.localStorage.clear()
-  lastOnPhrase = null
-  getTranscribeAvailable.mockReset()
+  lastOnInterim = null
+  lastOnFinal = null
+  getSpeechAvailable.mockReset()
   startSpy.mockReset()
   stopSpy.mockReset()
 })
@@ -87,8 +89,8 @@ afterEach(() => {
 })
 
 describe('DocumentPage voice dictation', () => {
-  it('renders the mic in edit mode when transcription is available', async () => {
-    getTranscribeAvailable.mockResolvedValue(true)
+  it('renders the mic in edit mode when streaming speech is available', async () => {
+    getSpeechAvailable.mockResolvedValue(true)
     seedDoc()
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
 
@@ -97,23 +99,21 @@ describe('DocumentPage voice dictation', () => {
     ).toBeInTheDocument()
   })
 
-  it('does NOT render the mic when transcription is unavailable', async () => {
-    getTranscribeAvailable.mockResolvedValue(false)
+  it('does NOT render the mic when streaming speech is unavailable', async () => {
+    getSpeechAvailable.mockResolvedValue(false)
     seedDoc()
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
 
     // Let the capability check resolve, then assert the mic is absent.
     await screen.findByRole('button', { name: /run review/i })
-    await waitFor(() =>
-      expect(getTranscribeAvailable).toHaveBeenCalled(),
-    )
+    await waitFor(() => expect(getSpeechAvailable).toHaveBeenCalled())
     expect(
       screen.queryByRole('button', { name: /voice dictation/i }),
     ).not.toBeInTheDocument()
   })
 
   it('does NOT render the mic in read mode even when available', async () => {
-    getTranscribeAvailable.mockResolvedValue(true)
+    getSpeechAvailable.mockResolvedValue(true)
     seedDoc({
       status: 'submitted',
       title: 'A Concept',
@@ -138,7 +138,7 @@ describe('DocumentPage voice dictation', () => {
   })
 
   it('toggles recording state and shows the Listening indicator', async () => {
-    getTranscribeAvailable.mockResolvedValue(true)
+    getSpeechAvailable.mockResolvedValue(true)
     seedDoc()
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
 
@@ -158,21 +158,28 @@ describe('DocumentPage voice dictation', () => {
     await screen.findByRole('button', { name: /start voice dictation/i })
   })
 
-  it('routes a transcribed phrase into the editor at the caret', async () => {
-    getTranscribeAvailable.mockResolvedValue(true)
+  it('streams an interim hypothesis into the editor then commits the final utterance', async () => {
+    getSpeechAvailable.mockResolvedValue(true)
     seedDoc({ body: 'Hello world' })
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
 
     await screen.findByRole('button', { name: /start voice dictation/i })
-    // The hook captured the onPhrase wiring; fire a phrase as the hook would. This calls
-    // canvasRef.insertText, a genuine editor edit (state update) — wrap it in act.
-    expect(lastOnPhrase).not.toBeNull()
+    expect(lastOnInterim).not.toBeNull()
+    expect(lastOnFinal).not.toBeNull()
+
+    // Interim hypothesis renders as ghosted text (the canvas replaces it in place).
     act(() => {
-      lastOnPhrase?.('this is dictated')
+      lastOnInterim?.('this is dicta')
+    })
+    await waitFor(() => {
+      const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+      expect(editor?.textContent ?? '').toContain('this is dicta')
     })
 
-    // insertText placed the phrase into the live editor (with a normalized leading
-    // space so it doesn't run into the existing body).
+    // The final utterance commits to solid text (with a trailing space).
+    act(() => {
+      lastOnFinal?.('this is dictated')
+    })
     await waitFor(() => {
       const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
       expect(editor?.textContent ?? '').toContain('this is dictated')
