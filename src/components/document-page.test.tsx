@@ -86,12 +86,15 @@ describe('DocumentPage edit mode — submit flow', () => {
     })
     expect(within(region).getByText('1 of 6 need attention')).toBeInTheDocument()
 
-    // The preview did NOT submit: still draft, no snapshot, title/subtype untouched.
+    // The preview did NOT submit: still draft, no snapshot, title untouched. The
+    // detected subtype IS applied at preview time (source stays 'auto') — adopting the
+    // review's `detectedSubtype` so the type row reflects it before submission.
     const previewed = createStorageRepository().getDocument('doc-test')
     expect(previewed?.status).toBe('draft')
     expect(previewed?.submittedSnapshot).toBeUndefined()
     expect(previewed?.title).toBe('')
-    expect(previewed?.subtype).toBe('story_premise')
+    expect(previewed?.subtype).toBe('character_concept')
+    expect(previewed?.subtypeSource).toBe('auto')
 
     // Step 2: confirm submission opens the IN-PANEL choose-reviewer view (no dialog);
     // it does NOT commit yet.
@@ -271,6 +274,57 @@ describe('DocumentPage edit mode — submit flow', () => {
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument()
     // A failed preview offers no confirm affordance.
     expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+  })
+})
+
+describe('DocumentPage — UX pass (subtype / star / copy-link / breadcrumb)', () => {
+  it('shows a "Choose a type…" placeholder for a null-subtype draft (edit mode)', async () => {
+    seedDoc({ subtype: null })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    // The bare Select trigger (labelled "Subtype") shows the muted placeholder.
+    const subtypeTrigger = await screen.findByLabelText('Subtype')
+    expect(subtypeTrigger).toHaveTextContent(/choose a type…/i)
+  })
+
+  it('renders a null subtype as a muted dash (read mode), not a chip', async () => {
+    seedDoc({
+      subtype: null,
+      status: 'submitted',
+      title: 'A Concept',
+      submittedSnapshot: { body: 'snapshot body', review: REVIEW, submittedAt: 'T1' },
+    })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="read" />)
+
+    expect(await screen.findByLabelText('No type')).toBeInTheDocument()
+  })
+
+  it('renders the submit star in white (text-ink-foreground), not the accent', async () => {
+    seedDoc()
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    const runReview = await screen.findByRole('button', { name: /run review/i })
+    const star = runReview.querySelector('svg')
+    expect(star).not.toBeNull()
+    expect(star).toHaveClass('text-ink-foreground')
+    expect(star).not.toHaveClass('text-accent')
+  })
+
+  it('offers a copy-link affordance in EDIT mode too', async () => {
+    seedDoc()
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    expect(await screen.findByRole('button', { name: /copy link/i })).toBeInTheDocument()
+  })
+
+  it('does not render a breadcrumb / project name in the TopBar', async () => {
+    seedDoc({ title: 'A Concept' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    await screen.findByRole('button', { name: /run review/i })
+    // The project-name breadcrumb is gone; the brand-mark home link remains.
+    expect(screen.queryByRole('navigation', { name: /breadcrumb/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /creative review home/i })).toBeInTheDocument()
   })
 })
 

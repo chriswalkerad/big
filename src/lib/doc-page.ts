@@ -150,7 +150,7 @@ export function statusAfterSubmit(current: SubmissionStatus): SubmissionStatus {
 
 export interface PrefillResult {
   title: string
-  subtype: TextSubtype
+  subtype: TextSubtype | null
   subtypeSource: 'auto' | 'user'
 }
 

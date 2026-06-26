@@ -33,13 +33,13 @@ import {
   toHighlightIssues,
 } from '@/lib/doc-page'
 import { cn } from '@/lib/utils'
-import { AppBreadcrumb } from '@/components/app-breadcrumb'
+import { Badge } from '@/components/badge'
 import { Button } from '@/components/button'
+import { Select, type SelectOption } from '@/components/select'
 import { TopBar } from '@/components/top-bar'
 import { ReviewInbox } from '@/components/review-inbox'
-import { StatusChip } from '@/components/status-chip'
-import { SubtypeChip } from '@/components/subtype-chip'
-import { SubtypeSelect } from '@/components/subtype-select'
+import { STATUS_LABELS } from '@/components/status-chip'
+import { SUBTYPE_LABELS, SUBTYPE_ORDER } from '@/components/subtype-chip'
 import { ReviewerStatusControl } from '@/components/reviewer-status-control'
 import { CopyLinkButton } from '@/components/copy-link-button'
 import { DriftIndicator } from '@/components/drift-indicator'
@@ -110,7 +110,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // Live working state (edit mode mutates these before persisting on key events).
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('') // plain text
-  const [subtype, setSubtype] = useState<TextSubtype>('story_premise')
+  const [subtype, setSubtype] = useState<TextSubtype | null>(null)
   const [subtypeSource, setSubtypeSource] = useState<'auto' | 'user'>('auto')
   const [status, setStatus] = useState<SubmissionStatus>('draft')
   const [routing, setRouting] = useState<RoutingDestination | undefined>(undefined)
@@ -187,6 +187,13 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
+
+  // The doc-type options for the bare Select (label per SUBTYPE_ORDER). Static, but
+  // memoized so the array identity is stable across renders.
+  const subtypeOptions = useMemo<SelectOption<TextSubtype>[]>(
+    () => SUBTYPE_ORDER.map((s) => ({ value: s, label: SUBTYPE_LABELS[s] })),
+    [],
+  )
 
   // The reviewer inbox for THIS project: its documents awaiting review. The currently
   // open document is merged in from live state (`doc`) so the badge/count stay accurate
@@ -436,9 +443,23 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setPendingReview(review)
     setPendingBody(text)
 
+    // Detection-apply: a review carries a `detectedSubtype`. While the doc has no subtype
+    // yet (null) or the source is still 'auto', adopt it so the type row shows the
+    // detected type immediately — without locking the source (stays 'auto', so a later
+    // review may re-detect, and a manual pick still flips it to 'user'). A user-chosen
+    // subtype is never overwritten. Persisted so it survives a reload/navigate. This is
+    // the preview-time twin of the submit-time prefill in `applyPrefill`.
+    if (subtypeSource === 'auto' || subtype === null) {
+      const detected = review.detectedSubtype
+      if (detected !== subtype) {
+        setSubtype(detected)
+        persist({ subtype: detected, subtypeSource: 'auto' })
+      }
+    }
+
     // Render inline squiggles for the previewed body.
     canvasRef.current?.setSignalHighlights(toHighlightIssues(review.signals, inlineIds))
-  }, [body, doc, project, signals, inlineIds])
+  }, [body, doc, project, signals, inlineIds, subtype, subtypeSource, persist])
 
   // --- Confirm submission (step 2 of review-then-confirm) --------------------
   // Confirming the preview no longer commits immediately: the author must first pick WHO
@@ -651,51 +672,37 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     // full-bleed white surface with its own slim TopBar action line.
     <div className="mx-[calc(50%-50vw)] -my-6 flex min-h-[calc(100vh-46px)] flex-col bg-bg">
       <TopBar
-        breadcrumb={
-          <AppBreadcrumb
-            segments={[{ label: project.name, current: true }]}
-            className="min-w-0"
-          />
-        }
         actions={
           <>
+            <ReviewInbox
+              projectId={projectId}
+              queue={inboxQueue}
+              owner={project.owner}
+            />
             {!isRead ? (
-              <>
-                <ReviewInbox
-                  projectId={projectId}
-                  queue={inboxQueue}
-                  owner={project.owner}
-                />
-                <Button
-                  variant="ink"
-                  onClick={() => void runReview()}
-                  disabled={reviewLoading}
-                  aria-busy={reviewLoading ? true : undefined}
-                >
-                  {reviewLoading ? (
-                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                  ) : (
-                    <Sparkles className="size-3.5 text-accent" aria-hidden="true" />
-                  )}
-                  {reviewLoading ? 'Reviewing…' : status === 'draft' ? 'Run review' : 'Resubmit'}
-                </Button>
-              </>
+              <Button
+                variant="ink"
+                onClick={() => void runReview()}
+                disabled={reviewLoading}
+                aria-busy={reviewLoading ? true : undefined}
+              >
+                {reviewLoading ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles className="size-3.5 text-ink-foreground" aria-hidden="true" />
+                )}
+                {reviewLoading ? 'Reviewing…' : status === 'draft' ? 'Run review' : 'Resubmit'}
+              </Button>
             ) : (
-              <>
-                <ReviewInbox
-                  projectId={projectId}
-                  queue={inboxQueue}
-                  owner={project.owner}
-                />
-                <ReviewerStatusControl
-                  status={status}
-                  routing={routing}
-                  onStatusChange={handleReviewerStatus}
-                  onApprove={handleApprove}
-                />
-                <CopyLinkButton url={reviewUrl} />
-              </>
+              <ReviewerStatusControl
+                status={status}
+                routing={routing}
+                onStatusChange={handleReviewerStatus}
+                onApprove={handleApprove}
+              />
             )}
+            {/* Copy the /review share link — available in BOTH edit and read modes. */}
+            <CopyLinkButton url={reviewUrl} />
           </>
         }
       />
@@ -715,10 +722,20 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
             title so the document's type/context/status reads before the heading. */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
           {isRead ? (
-            <SubtypeChip subtype={subtype} />
+            // A null subtype (never reviewed/chosen) shows a muted em dash, not a chip.
+            subtype ? (
+              <Badge variant="subtype">{SUBTYPE_LABELS[subtype]}</Badge>
+            ) : (
+              <span className="text-label-sm text-text-tertiary" aria-label="No type">—</span>
+            )
           ) : (
-            <SubtypeSelect
+            <Select
+              variant="bare"
               value={subtype}
+              options={subtypeOptions}
+              ariaLabel="Subtype"
+              placeholder="Choose a type…"
+              triggerClassName="uppercase"
               onChange={(next) => {
                 if (doc) {
                   commitDoc(
@@ -729,7 +746,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
             />
           )}
           <span aria-hidden="true" className="text-text-tertiary">·</span>
-          <StatusChip status={status} />
+          <Badge variant="status" dot>{STATUS_LABELS[status]}</Badge>
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
           {/* Voice dictation mic (edit mode, only when streaming speech is configured). */}
           {!isRead && speechAvailable ? (

@@ -54,7 +54,7 @@ export function NewDocumentRedirect({ projectId }: NewDocumentRedirectProps) {
       projectId,
       title: '',
       body: '',
-      subtype: 'story_premise',
+      subtype: null,
       subtypeSource: 'auto',
       status: 'draft',
       createdBy: NEW_DOC_AUTHOR,
