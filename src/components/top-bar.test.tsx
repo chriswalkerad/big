@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ThemeProvider } from "./theme-provider";
 import { TopBar } from "./top-bar";
@@ -50,22 +50,43 @@ describe("TopBar", () => {
     expect(screen.getByRole("button", { name: "Run review" })).toBeInTheDocument();
   });
 
+  it("renders with no breadcrumb (just the brand on the left)", () => {
+    renderTopBar();
+    expect(screen.getByRole("banner")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /creative review home/i })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "Breadcrumb" })).toBeNull();
+  });
+
   it("hides the overflow menu contents until opened", () => {
     renderTopBar();
     expect(screen.queryByRole("link", { name: /settings/i })).toBeNull();
   });
 
-  it("opens the overflow menu with Settings and the theme toggle", async () => {
+  it("opens the overflow menu with Account, Settings and the theme toggle", async () => {
     const user = userEvent.setup();
     renderTopBar();
 
     await user.click(screen.getByRole("button", { name: /more options/i }));
 
+    // Account is now a ⋯ menuitem (relocated from the breadcrumb).
+    expect(screen.getByRole("menuitem", { name: /account/i })).toBeInTheDocument();
     const settings = screen.getByRole("menuitem", { name: /settings/i });
     expect(settings).toHaveAttribute("href", "/settings/signals");
     // Theme is now a sibling "<icon> Theme" menuitem (same style as Settings).
     expect(
       await screen.findByRole("menuitem", { name: /switch to (light|dark) theme/i }),
     ).toBeInTheDocument();
+  });
+
+  it("opens the AccountDialog from the Account menuitem", async () => {
+    const user = userEvent.setup();
+    renderTopBar();
+
+    await user.click(screen.getByRole("button", { name: /more options/i }));
+    await user.click(screen.getByRole("menuitem", { name: /account/i }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("Account")).toBeInTheDocument();
   });
 });

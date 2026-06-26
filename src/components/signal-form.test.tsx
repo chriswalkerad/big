@@ -57,6 +57,26 @@ describe("SignalForm", () => {
     });
   });
 
+  it("picks the mode via the Select dropdown", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(<Harness initial={emptySignalForm()} mode="create" onSubmit={onSubmit} />);
+
+    // The mode picker is the shared Select (a button labelled "Mode"), defaulting to "Inline".
+    const modeTrigger = screen.getByRole("button", { name: "Mode" });
+    expect(modeTrigger).toHaveTextContent("Inline");
+
+    await user.click(modeTrigger);
+    await user.click(screen.getByRole("menuitem", { name: /document/i }));
+
+    await user.type(screen.getByLabelText("Name"), "Tone");
+    await user.type(screen.getByLabelText("Prompt"), "Judge the tone.");
+    await user.click(screen.getByRole("button", { name: "Create signal" }));
+
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ mode: "doc" });
+  });
+
   it("flags an out-of-range threshold", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
