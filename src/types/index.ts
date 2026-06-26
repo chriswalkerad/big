@@ -172,8 +172,16 @@ export interface SpeechTokenResult {
   region: string
 }
 
-/** Discriminated response from GET /api/speech-token (streaming voice dictation).
- * A successful mint doubles as the availability probe. */
+/** Response from GET /api/speech-token — whether streaming voice dictation is
+ * configured. Derived from config alone (endpoint + key + region present); no
+ * token is minted and Azure is never contacted, so a doc-page mount can probe
+ * availability cheaply. */
+export interface SpeechTokenAvailability {
+  available: boolean
+}
+
+/** Discriminated response from POST /api/speech-token (streaming voice dictation):
+ * a freshly minted short-lived token, served over a no-store response. */
 export type SpeechTokenResponse =
   | { ok: true; data: SpeechTokenResult }
   | { ok: false; error: import('@/lib/errors').AppError }

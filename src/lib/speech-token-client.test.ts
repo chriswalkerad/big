@@ -10,7 +10,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 describe('requestSpeechToken', () => {
-  it('GETs /api/speech-token and parses { token, region }', async () => {
+  it('POSTs /api/speech-token and parses { token, region }', async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () =>
       jsonResponse({ ok: true, data: { token: 'tok', region: 'eastus' } }),
     )
@@ -19,7 +19,7 @@ describe('requestSpeechToken', () => {
 
     const [url, init] = fetchImpl.mock.calls[0]
     expect(url).toBe('/api/speech-token')
-    expect(init?.method).toBe('GET')
+    expect(init?.method).toBe('POST')
   })
 
   it('passes through a typed error response', async () => {
@@ -68,17 +68,17 @@ describe('requestSpeechToken', () => {
 })
 
 describe('getSpeechAvailable', () => {
-  it('returns true when a token mint succeeds', async () => {
-    const fetchImpl = vi.fn<typeof fetch>(async () =>
-      jsonResponse({ ok: true, data: { token: 'tok', region: 'eastus' } }),
-    )
+  it('GETs the cheap availability probe and returns true when available (no mint)', async () => {
+    const fetchImpl = vi.fn<typeof fetch>(async () => jsonResponse({ available: true }))
     expect(await getSpeechAvailable(fetchImpl)).toBe(true)
+
+    const [url, init] = fetchImpl.mock.calls[0]
+    expect(url).toBe('/api/speech-token')
+    expect(init?.method).toBe('GET')
   })
 
-  it('returns false when the mint reports a typed error', async () => {
-    const fetchImpl = vi.fn(async () =>
-      jsonResponse({ ok: false, error: appError('AI_UNAVAILABLE') }, 503),
-    )
+  it('returns false when the probe reports unavailable', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ available: false }))
     expect(await getSpeechAvailable(fetchImpl)).toBe(false)
   })
 
@@ -86,6 +86,11 @@ describe('getSpeechAvailable', () => {
     const fetchImpl = vi.fn(async () => {
       throw new TypeError('Failed to fetch')
     })
+    expect(await getSpeechAvailable(fetchImpl)).toBe(false)
+  })
+
+  it('returns false when the body is not an availability shape', async () => {
+    const fetchImpl = vi.fn(async () => jsonResponse({ unexpected: true }))
     expect(await getSpeechAvailable(fetchImpl)).toBe(false)
   })
 })
