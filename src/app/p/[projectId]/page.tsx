@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState, type ReactNode } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search, SquarePen } from "lucide-react";
 import type { Document, Person } from "@/types";
@@ -8,13 +8,9 @@ import {
   ALL_STATUSES,
   filterDocuments,
   relativeTime,
-  reviewQueue,
   type StatusFilter,
 } from "@/lib/library";
 import { useLibraryData } from "@/lib/use-library-data";
-import { ProjectSwitcher } from "@/components/project-switcher";
-import { TopBar } from "@/components/top-bar";
-import { ReviewInbox } from "@/components/review-inbox";
 import { Button, buttonClass } from "@/components/button";
 import { Select, type SelectOption } from "@/components/select";
 import { Badge } from "@/components/badge";
@@ -58,10 +54,11 @@ export default function LibraryPage({
  * `useLibraryData` (a `useSyncExternalStore` wrapper), which renders a loading
  * snapshot on the server / first client paint and the real data after mount.
  *
- * Chrome is the shared minimal/Notion frame: the slim white `<TopBar>` carries
- * the breadcrumb (with the project switcher) on the left and the **New** ink
- * button on the right; the page body is an all-white column with a large quiet
- * title and a hairline-divided document list (no boxy cards).
+ * Global navigation — brand, project switching, the review inbox, and account
+ * controls — lives in the persistent left rail provided by the app shell, so
+ * this page renders plainly into the shell's `<main>` content column: a slim
+ * header with the page's OWN title + actions (search, status filter, New) over
+ * a hairline-divided document list. No full-bleed breakout, no top bar.
  */
 export function LibraryView({ projectId }: { projectId: string }) {
   const { snapshot, reload } = useLibraryData(projectId);
@@ -70,54 +67,27 @@ export function LibraryView({ projectId }: { projectId: string }) {
   const [status, setStatus] = useState<StatusFilter>(ALL_STATUSES);
 
   const documents = snapshot.status === "ready" ? snapshot.data.documents : null;
-  const owner = snapshot.status === "ready" ? snapshot.data.project.owner : null;
   const filtered = useMemo(
     () => (documents ? filterDocuments(documents, { query, status }) : []),
     [documents, query, status],
   );
-  // The reviewer inbox = this project's docs awaiting review (submitted/in_review
-  // with a reviewer). Empty until data is ready, so the button shows no badge then.
-  const queue = useMemo(
-    () => (documents ? reviewQueue(documents) : []),
-    [documents],
-  );
-
-  // The TopBar actions slot, stable across every state so the chrome doesn't jump:
-  // the reviewer INBOX (left) then the icon-only ink "New" pencil (compose a doc).
-  const actions = (
-    <>
-      <ReviewInbox projectId={projectId} queue={queue} owner={owner} />
-      <Link
-        href={`/p/${projectId}/d/new`}
-        aria-label="New document"
-        title="New document"
-        className={buttonClass("ghost", "px-2")}
-      >
-        <SquarePen className="size-4" aria-hidden="true" />
-      </Link>
-    </>
-  );
 
   if (snapshot.status === "loading") {
     return (
-      <LibraryShell topBar={<TopBar actions={actions} />}>
-        <div className="flex flex-col gap-4">
-          <LoadingState rows={2} label="Loading library…" />
-          <LoadingState rows={5} className="mt-4" label="Loading documents…" />
-        </div>
-      </LibraryShell>
+      <div className="flex flex-col gap-4">
+        <LoadingState rows={2} label="Loading library…" />
+        <LoadingState rows={5} className="mt-4" label="Loading documents…" />
+      </div>
     );
   }
 
   if (snapshot.status === "error") {
     return (
-      <LibraryShell topBar={<TopBar actions={actions} />}>
-        <ErrorState
-          error={snapshot.error}
-          title="Couldn't open the library"
-          onRetry={reload}
-        />
-      </LibraryShell>
+      <ErrorState
+        error={snapshot.error}
+        title="Couldn't open the library"
+        onRetry={reload}
+      />
     );
   }
 
@@ -125,117 +95,97 @@ export function LibraryView({ projectId }: { projectId: string }) {
   const isFiltering = query.trim().length > 0 || status !== ALL_STATUSES;
 
   return (
-    <LibraryShell topBar={<TopBar actions={actions} />}>
-      <div className="flex flex-col gap-8">
-        <header className="flex flex-col gap-1.5">
-          {/* The page title IS the project switcher: the big project name doubles
-              as the trigger that opens the project list. */}
-          <h1 className="text-display text-text-primary">
-            <ProjectSwitcher currentProjectId={projectId} variant="title" />
-          </h1>
+    <div className="flex flex-col gap-8">
+      {/* Slim page header in the content column: the page's own plain title +
+          audience subtitle, then the row of the page's own actions. Global nav
+          (brand, project switcher, inbox, account) lives in the left rail. */}
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <h1 className="text-display text-text-primary">{project.name}</h1>
           <p className="text-body text-text-secondary">{project.audience}</p>
-        </header>
+        </div>
 
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="relative min-w-0 flex-1">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary"
-                aria-hidden="true"
-              />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Find anything in this project…"
-                aria-label="Search documents"
-                className={cn(
-                  "h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3",
-                  "text-body text-text-primary placeholder:text-text-tertiary",
-                  "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                )}
-              />
-            </div>
-            <Select
-              value={status}
-              onChange={setStatus}
-              options={STATUS_FILTER_OPTIONS}
-              variant="bordered"
-              ariaLabel="Filter by status"
-              align="right"
-              triggerClassName="shrink-0"
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-text-tertiary"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Find anything in this project…"
+              aria-label="Search documents"
+              className={cn(
+                "h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3",
+                "text-body text-text-primary placeholder:text-text-tertiary",
+                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+              )}
             />
           </div>
-
-          {/* Announce the filtered result count to assistive tech as the user types
-              or changes the status filter (search results are an async-feeling
-              update). */}
-          <p aria-live="polite" className="sr-only">
-            {isFiltering
-              ? `${filtered.length} ${filtered.length === 1 ? "document" : "documents"} match your search and filter.`
-              : `${filtered.length} ${filtered.length === 1 ? "document" : "documents"}.`}
-          </p>
-
-          {filtered.length === 0 ? (
-            <EmptyState
-              title="No matching documents"
-              description={
-                isFiltering
-                  ? "No documents match your search and filter. Try clearing them."
-                  : "This project has no documents yet."
-              }
-              action={
-                isFiltering ? (
-                  <Button
-                    variant="default"
-                    onClick={() => {
-                      setQuery("");
-                      setStatus(ALL_STATUSES);
-                    }}
-                  >
-                    Clear filters
-                  </Button>
-                ) : undefined
-              }
-            />
-          ) : (
-            // Clean rows separated by hairline dividers — no boxy card frame.
-            <ul className="flex flex-col border-t border-border">
-              {filtered.map((doc) => (
-                <li key={doc.id} className="border-b border-border">
-                  <DocumentRow projectId={projectId} doc={doc} owner={project.owner} />
-                </li>
-              ))}
-            </ul>
-          )}
+          <Select
+            value={status}
+            onChange={setStatus}
+            options={STATUS_FILTER_OPTIONS}
+            variant="bordered"
+            ariaLabel="Filter by status"
+            align="right"
+            triggerClassName="shrink-0"
+          />
+          <Link
+            href={`/p/${projectId}/d/new`}
+            aria-label="New document"
+            title="New document"
+            className={buttonClass("ghost", "px-2")}
+          >
+            <SquarePen className="size-4" aria-hidden="true" />
+          </Link>
         </div>
-      </div>
-    </LibraryShell>
-  );
-}
+      </header>
 
-/**
- * Page frame for the library. Breaks OUT of the AppShell `<main>` measure +
- * padding using the SAME full-bleed technique as the document page
- * (`mx-[calc(50%-50vw)]` spans the full viewport width; `-my-6` cancels the
- * shell's vertical padding) so the slim `<TopBar>` sits flush to the top and
- * spans the FULL viewport width — pixel-consistent with the document page's
- * bar. The page's own measure (`max-w-5xl`) + horizontal padding + a top
- * measure are then re-applied to the content BELOW the bar, so the document
- * list keeps its current width.
- */
-function LibraryShell({
-  topBar,
-  children,
-}: {
-  topBar: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <div className="mx-[calc(50%-50vw)] -my-6">
-      {topBar}
-      <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6">
-        {children}
+      <div className="flex flex-col gap-4">
+        {/* Announce the filtered result count to assistive tech as the user types
+            or changes the status filter (search results are an async-feeling
+            update). */}
+        <p aria-live="polite" className="sr-only">
+          {isFiltering
+            ? `${filtered.length} ${filtered.length === 1 ? "document" : "documents"} match your search and filter.`
+            : `${filtered.length} ${filtered.length === 1 ? "document" : "documents"}.`}
+        </p>
+
+        {filtered.length === 0 ? (
+          <EmptyState
+            title="No matching documents"
+            description={
+              isFiltering
+                ? "No documents match your search and filter. Try clearing them."
+                : "This project has no documents yet."
+            }
+            action={
+              isFiltering ? (
+                <Button
+                  variant="default"
+                  onClick={() => {
+                    setQuery("");
+                    setStatus(ALL_STATUSES);
+                  }}
+                >
+                  Clear filters
+                </Button>
+              ) : undefined
+            }
+          />
+        ) : (
+          // Clean rows separated by hairline dividers — no boxy card frame.
+          <ul className="flex flex-col border-t border-border">
+            {filtered.map((doc) => (
+              <li key={doc.id} className="border-b border-border">
+                <DocumentRow projectId={projectId} doc={doc} owner={project.owner} />
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
