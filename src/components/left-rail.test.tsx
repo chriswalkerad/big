@@ -216,6 +216,84 @@ describe("LeftRail", () => {
     );
   });
 
+  it("the edge toggle advertises the nav it controls via aria-controls + aria-expanded (#5)", async () => {
+    const user = userEvent.setup();
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const navId = nav.getAttribute("id");
+    expect(navId).toBeTruthy();
+
+    // Expanded → aria-expanded reflects "true" and points at the rail.
+    const collapse = screen.getByRole("button", { name: "Collapse navigation" });
+    expect(collapse).toHaveAttribute("aria-controls", navId);
+    expect(collapse).toHaveAttribute("aria-expanded", "true");
+
+    // Collapsing flips aria-expanded to "false" while still controlling the rail.
+    await user.click(collapse);
+    const expand = screen.getByRole("button", { name: "Expand navigation" });
+    expect(expand).toHaveAttribute("aria-controls", navId);
+    expect(expand).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("wraps the project links in a stable 'Projects' group (#16)", () => {
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    const group = within(nav).getByRole("group", { name: "Projects" });
+    expect(
+      within(group).getByRole("link", { name: /Eloise at The Plaza/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("the 'Projects' group label survives a collapse (#16)", () => {
+    window.localStorage.setItem(RAIL_KEY, "true");
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(nav).toHaveAttribute("data-collapsed", "true");
+    // Collapsed → the visible "Projects" heading is replaced by a divider, but
+    // the group keeps its accessible boundary.
+    expect(
+      within(nav).getByRole("group", { name: "Projects" }),
+    ).toBeInTheDocument();
+  });
+
+  it("the persistent sm+ rail is never inert (#6)", () => {
+    // Default matchMedia mock reports `matches: false` → sm+, so the closed
+    // in-flow rail must stay in the a11y tree (not inert).
+    renderRail();
+    const nav = screen.getByRole("navigation", { name: "Primary" });
+    expect(nav).not.toHaveAttribute("inert");
+  });
+
+  it("the closed drawer is inert below sm, and active once opened (#6)", async () => {
+    const user = userEvent.setup();
+    // Report the narrow (<sm) query as matching so the rail is the off-canvas
+    // drawer rather than the persistent column.
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes("max-width"),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+    );
+    const { container } = renderRail();
+    const nav = container.querySelector("nav");
+    expect(nav).not.toBeNull();
+    // Closed drawer on a phone → removed from the a11y tree + tab order.
+    expect(nav).toHaveAttribute("inert");
+
+    // Opening the drawer makes it active again (a focusable modal dialog).
+    await user.click(screen.getByRole("button", { name: "Open navigation" }));
+    expect(screen.getByRole("dialog", { name: "Primary" })).not.toHaveAttribute(
+      "inert",
+    );
+  });
+
   describe("mobile drawer (modal)", () => {
     it("opening the drawer makes the rail a modal dialog and Escape closes it", async () => {
       const user = userEvent.setup();
