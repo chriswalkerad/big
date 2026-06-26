@@ -65,13 +65,8 @@ export async function handleTranscribe(
     return { ok: false, error: toAppError(e) }
   }
 
-  // 5. Guard against an empty transcript slipping through.
-  if (text.trim().length === 0) {
-    return {
-      ok: false,
-      error: appError('AI_BAD_JSON', 'The transcription came back empty.'),
-    }
-  }
-
+  // 5. An empty/whitespace transcript is a VALID result, not an error: a silent or
+  // no-speech clip (the user paused to think) has nothing to transcribe. Return it
+  // as success; the client treats empty text as a benign no-op.
   return { ok: true, data: { text } }
 }

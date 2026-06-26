@@ -150,10 +150,10 @@ describe('transcribeAudio (Azure AI Speech fast transcription)', () => {
     })
   })
 
-  it('throws AI_BAD_JSON on an empty transcript', async () => {
+  it('returns an empty string (success, not an error) for a silent / no-speech clip', async () => {
+    // An empty transcript is a VALID success: a near-silent clip has nothing to
+    // transcribe. The client treats '' as a benign no-op.
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ combinedPhrases: [{ text: '' }] }))
-    await expect(transcribeAudio(audioBlob(), CONFIGURED)).rejects.toMatchObject({
-      code: 'AI_BAD_JSON',
-    })
+    expect(await transcribeAudio(audioBlob(), CONFIGURED)).toBe('')
   })
 })
