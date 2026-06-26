@@ -11,6 +11,12 @@ import { cn } from "@/lib/utils";
 interface ProjectSwitcherProps {
   /** The project currently being viewed; rendered as the trigger and disabled in the list. */
   currentProjectId: string;
+  /**
+   * `title` renders the trigger at the page-title (`text-display`) scale so the
+   * switcher can BE the page `<h1>`; `breadcrumb` (default) is the compact
+   * `text-label-sm` trail variant.
+   */
+  variant?: "breadcrumb" | "title";
 }
 
 /** An empty list used for the server render and the first client render. */
@@ -28,7 +34,11 @@ const NO_PROJECTS: Project[] = [];
  * mount — so there is no hydration mismatch and no `setState`-in-effect. Navigation
  * uses `next/link` rows, so it works without JS and is straightforward to test.
  */
-export function ProjectSwitcher({ currentProjectId }: ProjectSwitcherProps) {
+export function ProjectSwitcher({
+  currentProjectId,
+  variant = "breadcrumb",
+}: ProjectSwitcherProps) {
+  const isTitle = variant === "title";
   // Compute the client snapshot once. Memoising the VALUE keeps `getSnapshot`
   // referentially stable, which `useSyncExternalStore` requires to avoid a read loop.
   const clientProjects = useMemo(() => createStorageRepository().listProjects(), []);
@@ -49,14 +59,21 @@ export function ProjectSwitcher({ currentProjectId }: ProjectSwitcherProps) {
       align="left"
       ariaLabel="Switch project"
       triggerClassName={cn(
-        "inline-flex max-w-full items-center gap-1 rounded-control text-label-sm text-text-primary",
+        "inline-flex max-w-full items-center rounded-control text-text-primary",
         "transition-colors hover:text-text-primary",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+        isTitle ? "gap-2 text-display text-left" : "gap-1 text-label-sm",
       )}
       label={
         <>
           <span className="truncate">{currentName ?? "Project"}</span>
-          <ChevronDown className="size-3.5 shrink-0 text-text-tertiary" aria-hidden="true" />
+          <ChevronDown
+            className={cn(
+              "shrink-0 text-text-tertiary",
+              isTitle ? "size-6" : "size-3.5",
+            )}
+            aria-hidden="true"
+          />
         </>
       }
     >

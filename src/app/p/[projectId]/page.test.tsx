@@ -53,13 +53,22 @@ describe("LibraryPage", () => {
     expect(newLink).toHaveAttribute("href", "/p/proj-eloise/d/new");
   });
 
-  it("renders the project name as the page title", async () => {
+  it("renders the project name as the page title, which doubles as the project switcher", async () => {
     renderLibrary();
     const title = await screen.findByRole("heading", {
       level: 1,
       name: "Eloise at The Plaza",
     });
     expect(title).toBeInTheDocument();
+    // The h1 contains the switcher trigger: clicking it opens the project list.
+    const switcher = within(title).getByRole("button", { name: "Switch project" });
+    expect(switcher).toHaveAttribute("aria-haspopup", "menu");
+  });
+
+  it("uses the new search placeholder copy", async () => {
+    renderLibrary();
+    const search = await screen.findByRole("searchbox", { name: /search documents/i });
+    expect(search).toHaveAttribute("placeholder", "Find anything in this project…");
   });
 
   it("filters by a full-text query over body and shows an empty state for no match", async () => {
@@ -80,16 +89,32 @@ describe("LibraryPage", () => {
     expect(screen.getByText("No matching documents")).toBeInTheDocument();
   });
 
-  it("filters by status via the dropdown", async () => {
+  it("filters by status via the Select, whose 'all' option reads 'All'", async () => {
     renderLibrary();
-    const filter = await screen.findByRole("combobox", { name: /filter by status/i });
+    await screen.findByText("Eloise and the Midnight Room-Service Caper");
 
-    fireEvent.change(filter, { target: { value: "approved" } });
+    // The status filter is the shared Select (a menu-button, not a native combobox);
+    // its trigger defaults to the "All" sentinel label.
+    const filter = screen.getByRole("button", { name: /filter by status/i });
+    expect(filter).toHaveTextContent("All");
+
+    fireEvent.click(filter);
+    fireEvent.click(screen.getByRole("menuitem", { name: "Approved" }));
+
     // Only the caper is approved in the seed data.
     expect(
       screen.getByText("Eloise and the Midnight Room-Service Caper"),
     ).toBeInTheDocument();
     expect(screen.queryByText("Rooftop idea")).not.toBeInTheDocument();
+  });
+
+  it("renders a Created time for each document row", async () => {
+    renderLibrary();
+    const caper = await screen.findByText("Eloise and the Midnight Room-Service Caper");
+    const row = caper.closest("a");
+    expect(row).not.toBeNull();
+    // The row exposes a "Created …" relative time (mobile meta line).
+    expect(row).toHaveTextContent(/Created /);
   });
 
   it("shows an error state for an unknown project", async () => {

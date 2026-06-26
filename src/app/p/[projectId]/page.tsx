@@ -3,7 +3,7 @@
 import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Search, SquarePen } from "lucide-react";
-import type { Document, Person, SubmissionStatus } from "@/types";
+import type { Document, Person } from "@/types";
 import {
   ALL_STATUSES,
   filterDocuments,
@@ -12,16 +12,28 @@ import {
   type StatusFilter,
 } from "@/lib/library";
 import { useLibraryData } from "@/lib/use-library-data";
-import { AppBreadcrumb } from "@/components/app-breadcrumb";
+import { ProjectSwitcher } from "@/components/project-switcher";
 import { TopBar } from "@/components/top-bar";
 import { ReviewInbox } from "@/components/review-inbox";
 import { Button, buttonClass } from "@/components/button";
+import { Select, type SelectOption } from "@/components/select";
+import { Badge } from "@/components/badge";
 import { STATUS_LABELS, STATUS_ORDER } from "@/components/status-chip";
 import { SUBTYPE_LABELS } from "@/components/subtype-chip";
 import { EmptyState } from "@/components/empty-state";
 import { LoadingState } from "@/components/loading-state";
 import { ErrorState } from "@/components/error-state";
 import { cn } from "@/lib/utils";
+
+/**
+ * Options for the status filter `Select`: the "All" sentinel first, then every
+ * submission status in display order. The sentinel label is just "All" (the
+ * bordered control already reads as a status filter via its aria-label).
+ */
+const STATUS_FILTER_OPTIONS: SelectOption<StatusFilter>[] = [
+  { value: ALL_STATUSES, label: "All" },
+  ...STATUS_ORDER.map((s) => ({ value: s, label: STATUS_LABELS[s] })),
+];
 
 /**
  * Document library route — `/p/[projectId]`. `params` is a Promise in Next 16;
@@ -113,22 +125,14 @@ export function LibraryView({ projectId }: { projectId: string }) {
   const isFiltering = query.trim().length > 0 || status !== ALL_STATUSES;
 
   return (
-    <LibraryShell
-      topBar={
-        <TopBar
-          breadcrumb={
-            <AppBreadcrumb
-              segments={[{ label: project.name, current: true }]}
-              currentProjectId={projectId}
-            />
-          }
-          actions={actions}
-        />
-      }
-    >
+    <LibraryShell topBar={<TopBar actions={actions} />}>
       <div className="flex flex-col gap-8">
         <header className="flex flex-col gap-1.5">
-          <h1 className="text-display text-text-primary">{project.name}</h1>
+          {/* The page title IS the project switcher: the big project name doubles
+              as the trigger that opens the project list. */}
+          <h1 className="text-display text-text-primary">
+            <ProjectSwitcher currentProjectId={projectId} variant="title" />
+          </h1>
           <p className="text-body text-text-secondary">{project.audience}</p>
         </header>
 
@@ -143,7 +147,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search title and body…"
+                placeholder="Find anything in this project…"
                 aria-label="Search documents"
                 className={cn(
                   "h-9 w-full rounded-control border border-border bg-surface pl-9 pr-3",
@@ -152,23 +156,15 @@ export function LibraryView({ projectId }: { projectId: string }) {
                 )}
               />
             </div>
-            <select
+            <Select
               value={status}
-              onChange={(e) => setStatus(e.target.value as StatusFilter)}
-              aria-label="Filter by status"
-              className={cn(
-                "h-9 shrink-0 rounded-control border border-border bg-surface px-3",
-                "text-label-sm text-text-secondary",
-                "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-              )}
-            >
-              <option value={ALL_STATUSES}>All statuses</option>
-              {STATUS_ORDER.map((s: SubmissionStatus) => (
-                <option key={s} value={s}>
-                  {STATUS_LABELS[s]}
-                </option>
-              ))}
-            </select>
+              onChange={setStatus}
+              options={STATUS_FILTER_OPTIONS}
+              variant="bordered"
+              ariaLabel="Filter by status"
+              align="right"
+              triggerClassName="shrink-0"
+            />
           </div>
 
           {/* Announce the filtered result count to assistive tech as the user types
@@ -258,25 +254,61 @@ function DocumentRow({
     <Link
       href={`/p/${projectId}/d/${doc.id}`}
       className={cn(
-        // Title / Subtype / Status as three aligned columns (fixed widths on ≥sm
-        // keep the Subtype and Status columns lined up across rows); the meta line
-        // (owner + reviewer + updated) spans the full width beneath.
-        "grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1 px-2 py-3.5 transition-colors",
-        "sm:grid-cols-[minmax(0,1fr)_8.5rem_10rem]",
+        // Title / Created / Subtype / Status as four aligned columns (fixed widths
+        // on ≥sm keep the Created, Subtype, and Status columns lined up across
+        // rows); the meta line (owner + reviewer + updated) spans the full width
+        // beneath. Last two columns (subtype + status) are vertically centred.
+        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-2 py-3.5 transition-colors",
+        "sm:grid-cols-[minmax(0,1fr)_7rem_8.5rem_8rem]",
         "hover:bg-panel",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
       )}
     >
-      <span className="col-span-2 min-w-0 truncate text-body-emphasis text-text-primary sm:col-span-1">
+      <span className="col-span-2 min-w-0 self-center truncate text-body-emphasis text-text-primary sm:col-span-1">
         {doc.title || "Untitled"}
       </span>
-      <span className="text-label-sm text-text-secondary">{SUBTYPE_LABELS[doc.subtype]}</span>
-      <span className="text-label-sm text-text-secondary">{STATUS_LABELS[doc.status]}</span>
-      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary sm:col-span-3">
+      {/* Created — hidden on mobile (folds into the meta line below), shown ≥sm. */}
+      <span className="hidden text-label-sm text-text-tertiary sm:block">
+        {relativeTime(doc.createdAt)}
+      </span>
+      {/* Subtype is nullable: render a muted em dash when absent rather than
+          indexing SUBTYPE_LABELS with null. */}
+      <span className="hidden sm:block">
+        {doc.subtype ? (
+          <Badge variant="subtype">{SUBTYPE_LABELS[doc.subtype]}</Badge>
+        ) : (
+          <span className="text-label-sm text-text-tertiary" aria-hidden="true">
+            —
+          </span>
+        )}
+      </span>
+      <span className="hidden sm:block">
+        <Badge variant="status" dot>
+          {STATUS_LABELS[doc.status]}
+        </Badge>
+      </span>
+      <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary sm:col-span-4">
+        {/* On mobile the dedicated columns are hidden, so surface subtype + status
+            here too; ≥sm they live in their own columns above. */}
+        <span className="sm:hidden">
+          {doc.subtype ? SUBTYPE_LABELS[doc.subtype] : "—"}
+        </span>
+        <span className="sm:hidden" aria-hidden="true">
+          ·
+        </span>
+        <span className="sm:hidden">{STATUS_LABELS[doc.status]}</span>
+        <span className="sm:hidden" aria-hidden="true">
+          ·
+        </span>
         {/* Owner is always present; reviewer is set at submission (drafts show "—"). */}
         <span>Owner: {owner.name}</span>
         <span aria-hidden="true">·</span>
         <span>Reviewer: {doc.reviewer ? doc.reviewer.name : "—"}</span>
+        {/* Created has its own column ≥sm; only fold it into the meta on mobile. */}
+        <span className="sm:hidden" aria-hidden="true">
+          ·
+        </span>
+        <span className="sm:hidden">Created {relativeTime(doc.createdAt)}</span>
         <span aria-hidden="true">·</span>
         <span>Updated {relativeTime(doc.updatedAt)}</span>
       </div>
