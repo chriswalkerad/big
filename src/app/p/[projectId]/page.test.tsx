@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor, within } from "@testing-library/react";
 import { LibraryView } from "./page";
 
 // The library page reads through StorageRepository, which seeds the four demo
@@ -76,6 +76,14 @@ describe("LibraryPage", () => {
     // The title is plain text now (global nav / project switching lives in the
     // left rail), so it carries no interactive switcher trigger.
     expect(title.querySelector("button")).toBeNull();
+  });
+
+  it("sets a project-specific document title once the project loads (WCAG 2.4.2)", async () => {
+    renderLibrary();
+    // The title syncs in an effect after the project resolves from storage.
+    await waitFor(() =>
+      expect(document.title).toBe("Eloise at The Plaza — Big Review"),
+    );
   });
 
   it("uses the new search placeholder copy", async () => {

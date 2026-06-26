@@ -41,6 +41,13 @@ describe("SignalsAdminPage", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("sets a page-specific document title (WCAG 2.4.2)", async () => {
+    render(<SignalsAdminPage />);
+    await waitFor(() =>
+      expect(document.title).toBe("Signals — Settings — Big Review"),
+    );
+  });
+
   it("shows the six seeded signals on first load", async () => {
     render(<SignalsAdminPage />);
     const list = await screen.findByRole("list", { name: "Signals" });

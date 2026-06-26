@@ -86,6 +86,13 @@ export default function SignalsAdminPage() {
   // shared LoadingState; this also keeps SSR and the first client render in sync.
   const mounted = useMounted();
 
+  // WCAG 2.4.2 (Page Titled): this settings route has a static, page-specific
+  // title (no async data needed). Sync it in an effect since the title isn't
+  // set via server `generateMetadata` for this client route.
+  useEffect(() => {
+    document.title = "Signals — Settings — Big Review";
+  }, []);
+
   function openCreate() {
     setEditor({ kind: "create" });
     setForm(emptySignalForm());

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import type { Document, Person } from "@/types";
@@ -71,6 +71,16 @@ export function LibraryView({ projectId }: { projectId: string }) {
     () => (documents ? filterDocuments(documents, { query, status }) : []),
     [documents, query, status],
   );
+
+  // WCAG 2.4.2 (Page Titled): give this route its own descriptive document
+  // title once the project loads. Data is client-side localStorage, so the
+  // title is synced in an effect rather than via server `generateMetadata`.
+  // The loading/error states keep the static layout title (no project name yet).
+  const projectName =
+    snapshot.status === "ready" ? snapshot.data.project.name : null;
+  useEffect(() => {
+    if (projectName) document.title = `${projectName} — Big Review`;
+  }, [projectName]);
 
   if (snapshot.status === "loading") {
     return (
