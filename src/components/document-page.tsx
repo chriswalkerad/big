@@ -579,6 +579,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // review preview, which is the intended behaviour.
   const [speechAvailable, setSpeechAvailable] = useState(false)
   useEffect(() => {
+    // The mic only ever renders in edit mode, so only probe availability there —
+    // never in read mode, where dictation is impossible. Combined with the
+    // config-only availability check this means a read-mode page neither checks
+    // nor mints a speech token.
+    if (isRead) return
     let alive = true
     void getSpeechAvailable().then((ok) => {
       if (alive) setSpeechAvailable(ok)
@@ -586,7 +591,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     return () => {
       alive = false
     }
-  }, [])
+  }, [isRead])
 
   // Live interim: the full current hypothesis for the in-progress utterance. The canvas
   // ghosts it and replaces the prior interim in place.
@@ -594,11 +599,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     canvasRef.current?.setInterim(text)
   }, [])
 
-  // A finalized utterance: replace the last interim with the settled text plus a trailing
-  // space (so consecutive utterances stay space-separated), then commit it to solid text.
+  // A finalized utterance: hand the settled text to the canvas, which replaces the tracked
+  // interim range with the final text — handling spacing, the post-commit anchor, and undo
+  // grouping itself. (Previously we set the interim to `${text} ` and committed with no
+  // argument, which appended a stray trailing space and could misplace the caret.)
   const handleFinal = useCallback((text: string) => {
-    canvasRef.current?.setInterim(`${text} `)
-    canvasRef.current?.commitInterim()
+    canvasRef.current?.commitInterim(text)
   }, [])
 
   const dictation = useDictation({ onInterim: handleInterim, onFinal: handleFinal })
@@ -631,6 +637,13 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape' && panelOpen) {
+        // The shared Menu (role="menu") and DestinationPicker (role="dialog") register
+        // their OWN window/document Escape handlers and don't stopPropagation, so a
+        // single Escape that dismisses an open popover would also bubble to here and
+        // collapse the panel beneath it. Guard against that: only collapse the panel
+        // when NO such overlay is open — i.e. Escape closes the popover first, and a
+        // second Escape (with nothing open) collapses the panel.
+        if (document.querySelector('[role="menu"],[role="dialog"]')) return
         setPanelOpen(false)
         return
       }

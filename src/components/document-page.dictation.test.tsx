@@ -135,6 +135,9 @@ describe('DocumentPage voice dictation', () => {
     expect(
       screen.queryByRole('button', { name: /voice dictation/i }),
     ).not.toBeInTheDocument()
+    // Read mode can never dictate, so availability is never probed — no speech-token
+    // mint on a page that cannot use it.
+    expect(getSpeechAvailable).not.toHaveBeenCalled()
   })
 
   it('toggles recording state and shows the Listening indicator', async () => {
@@ -176,13 +179,34 @@ describe('DocumentPage voice dictation', () => {
       expect(editor?.textContent ?? '').toContain('this is dicta')
     })
 
-    // The final utterance commits to solid text (with a trailing space).
+    // The final utterance is handed to the canvas via commitInterim(finalText), which
+    // replaces the tracked interim range with the settled text as solid authored text.
     act(() => {
       lastOnFinal?.('this is dictated')
     })
     await waitFor(() => {
       const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
       expect(editor?.textContent ?? '').toContain('this is dictated')
+    })
+  })
+
+  it('commits a final utterance via commitInterim even with no prior interim', async () => {
+    getSpeechAvailable.mockResolvedValue(true)
+    seedDoc({ body: 'Hello world' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    await screen.findByRole('button', { name: /start voice dictation/i })
+    expect(lastOnFinal).not.toBeNull()
+
+    // onFinal goes straight to commitInterim(finalText) — no setInterim('… ') step — so
+    // a final with no preceding interim still lands as solid authored text (the canvas
+    // anchors at the caret and owns spacing).
+    act(() => {
+      lastOnFinal?.('straight to final')
+    })
+    await waitFor(() => {
+      const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+      expect(editor?.textContent ?? '').toContain('straight to final')
     })
   })
 })
