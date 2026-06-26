@@ -96,6 +96,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // The review detail panel (slide-in). Held so Run review can move focus into the
   // freshly revealed feedback.
   const resultsPanelRef = useRef<HTMLElement | null>(null)
+  // The Accept/Discard group revealed when an AI rewrite settles. Held so completion can
+  // move focus there — the `role="group"` does not announce on insertion otherwise.
+  const decisionGroupRef = useRef<HTMLDivElement | null>(null)
 
   const [loaded, setLoaded] = useState(false)
   const [loadError, setLoadError] = useState<AppError | null>(null)
@@ -128,6 +131,14 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // settles (or an error). Read by SRs via the aria-live region below (4.1.3) — the
   // squiggles/panel changes are otherwise silent to assistive tech.
   const [reviewStatus, setReviewStatus] = useState('')
+  // A SINGLE persistent polite live region for the EDITOR lifecycle: dictation
+  // (listening / stopped / error) and the AI-rewrite progress (rewriting / ready). A
+  // live region inserted AT change time often fails to announce its first content, so —
+  // like `reviewStatus` above — these messages are swapped into a node that is mounted
+  // from first render. `editorAlert` is true when the current message is an ERROR, so the
+  // region's role swaps to `alert` (assertive) while keeping the SAME persistent node.
+  const [editorStatus, setEditorStatus] = useState('')
+  const [editorAlert, setEditorAlert] = useState(false)
   const [focusedSignalId, setFocusedSignalId] = useState<string | null>(null)
   const [franchiseOpen, setFranchiseOpen] = useState(false)
   // The expandable review detail panel. Minimal by default (false) — the slim strip
@@ -349,6 +360,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setPreApplyBody(before)
     setApplyError(null)
     setApplying(true)
+    // Announce the in-flight rewrite through the persistent editor live region (polite).
+    setEditorAlert(false)
+    setEditorStatus('Rewriting…')
 
     // `before` is already PLAIN text (body state is plain text), so send it as-is —
     // re-running htmlToText here would double-decode entity-like substrings.
@@ -358,6 +372,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       setApplyError(result.error)
       setApplying(false)
       setPreApplyBody(null)
+      // The failure is already surfaced by the `<ErrorState>` below (its own role="alert"),
+      // so don't ALSO announce it here — a second alert would double-speak. Clear the
+      // in-flight "Rewriting…" message back to silence (polite).
+      setEditorAlert(false)
+      setEditorStatus('')
       return
     }
 
@@ -378,7 +397,24 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setPendingBody(null)
     setApplying(false)
     setAwaitingDecision(true)
+    // #3 — a finished rewrite is otherwise a SILENT document change (the content is
+    // swapped and the `role="group"` Accept/Discard bar doesn't announce on insertion).
+    // Announce completion through the persistent region and move focus to the group
+    // (handled in an effect once it mounts) so it is both heard and reachable.
+    setEditorAlert(false)
+    setEditorStatus('Rewrite ready. Review it, then Accept or Discard.')
   }, [displayReview, project, applying, awaitingDecision])
+
+  // When the Accept/Discard group appears after a rewrite settles, move focus into it so
+  // keyboard/SR users land on the decision (the `role="group"` does not announce on
+  // insertion). A one-time focus MOVE, not a trap.
+  useEffect(() => {
+    if (!awaitingDecision) return
+    const node = decisionGroupRef.current
+    if (node && typeof node.focus === 'function') {
+      node.focus({ preventScroll: true })
+    }
+  }, [awaitingDecision])
 
   // Accept the rewrite: keep the new body (already live in the editor + body state),
   // drop the now-stale review preview + squiggles (the reviewed text changed). If the
@@ -644,6 +680,37 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const { stop: stopDictation } = dictation
   const dictationActive = dictation.status === 'listening'
 
+  // #7 — route the dictation LIFECYCLE (listening → stopped → error) through the SINGLE
+  // persistent editor live region rather than the change-time-mounted "Listening…" /
+  // error nodes (which often fail to announce their first content). The visible
+  // indicator + inline error stay (no visual change) but are no longer live regions
+  // themselves; their announcement comes from here. An error is assertive (alert role);
+  // listening/stopped are polite. The `error` object identity changes per failure, so it
+  // is a dep — a fresh error message re-announces.
+  // This effect SYNCHRONIZES an external system (the persistent ARIA live region) with the
+  // dictation status, the documented "update an external system" use of an effect — the
+  // setState here writes the announcement text, it does not cascade. Suppress the
+  // set-state-in-effect rule for this block exactly like the load effect above.
+  const dictationStatusValue = dictation.status
+  const dictationError = dictation.error
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (dictationStatusValue === 'listening') {
+      setEditorAlert(false)
+      setEditorStatus('Listening…')
+    } else if (dictationStatusValue === 'error') {
+      setEditorAlert(true)
+      setEditorStatus(dictationError?.message ?? 'Dictation failed.')
+    } else {
+      // Idle: announce "Dictation stopped." only if the region was already carrying a
+      // dictation message (we'd previously gone listening/error). On the very first idle
+      // render the region is still empty, so nothing is announced spuriously.
+      setEditorAlert(false)
+      setEditorStatus((prev) => (prev === '' ? '' : 'Dictation stopped.'))
+    }
+  }, [dictationStatusValue, dictationError])
+  /* eslint-enable react-hooks/set-state-in-effect */
+
   // Stop streaming + drop any uncommitted interim ghost. Used when the surface stops being
   // an editable edit-mode canvas (read mode / an AI rewrite locks the editor) and on the
   // mic toggle off.
@@ -702,6 +769,25 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     return () => window.removeEventListener('keydown', onKey)
   }, [isRead, reviewLoading, applying, awaitingDecision, runReview, panelOpen])
 
+  // #21 (optional) — the DriftIndicator's own `role="status"` mounts only when drift
+  // appears, so "Edited since submit" may never announce. Route the drift transition
+  // through the persistent editor live region instead, but ONLY while no higher-priority
+  // editor message is in flight (a rewrite is mid-flow): we never clobber a "Rewriting…"
+  // /"Rewrite ready" message with a drift note. Announces once on the false→true edge.
+  const driftActive = !isRead && hasDrift(body, snapshot)
+  const prevDriftRef = useRef(false)
+  useEffect(() => {
+    const wasDrift = prevDriftRef.current
+    prevDriftRef.current = driftActive
+    if (driftActive && !wasDrift && !applying && !awaitingDecision) {
+      setEditorAlert(false)
+      // Distinct wording from the visible "Edited since submit" indicator so the announcement
+      // and the indicator never collide in text queries (and the indicator's appearance is
+      // the canonical visible cue).
+      setEditorStatus('Your draft now differs from the submitted version under review.')
+    }
+  }, [driftActive, applying, awaitingDecision])
+
   // --- Render guards ---------------------------------------------------------
   if (!loaded) {
     return <LoadingState rows={5} className="mt-8" label="Loading document…" />
@@ -716,7 +802,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     )
   }
 
-  const drift = !isRead && hasDrift(body, snapshot)
+  const drift = driftActive
   const reviewUrl = `/p/${projectId}/d/${docId}/review`
 
   // There is review content to surface (a settled review, an in-flight run, or an
@@ -731,6 +817,19 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
           verdict + flag count, or failure) so SR users aren't left guessing (4.1.3). */}
       <span role="status" aria-live="polite" className="sr-only">
         {reviewStatus}
+      </span>
+      {/* A SECOND persistent visually-hidden live region for the EDITOR lifecycle:
+          dictation (listening / stopped / error) and AI-rewrite progress (rewriting →
+          ready, or failed). Mounted from first render so its initial content is reliably
+          announced (a change-time-mounted region often is not). It carries BOTH polite
+          status and assertive errors from one node: when `editorAlert` is set the role
+          becomes `alert` (assertive) for errors; otherwise `status` (polite). (#7, #3) */}
+      <span
+        role={editorAlert ? 'alert' : 'status'}
+        aria-live={editorAlert ? 'assertive' : 'polite'}
+        className="sr-only"
+      >
+        {editorStatus}
       </span>
       <TopBar
         actions={
@@ -884,6 +983,16 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
 
         {/* The borderless writing surface. */}
         <div className="relative">
+          {/* #2 — flagged phrases are ProseMirror decorations activated by mouse only, so
+              an SR user gets no inline indication a phrase is flagged. Point the editor's
+              accessible description at this visually-hidden note so AT users learn the
+              real path: each flag is a focusable button in the review panel. Only present
+              when there IS review content (the panel exists then). */}
+          {hasReviewContent ? (
+            <span id="editor-flags-hint" className="sr-only">
+              Flagged phrases are listed as buttons in the review panel.
+            </span>
+          ) : null}
           <DocumentCanvas
             ref={canvasRef}
             mode={mode}
@@ -892,16 +1001,17 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
             content={initialContent}
             onChange={isRead ? undefined : handleBodyChange}
             onHighlightClick={handleHighlightClick}
+            describedById={hasReviewContent ? 'editor-flags-hint' : undefined}
           />
 
           {/* AI-rewrite in-flight scrim: dims the column with a spinner + "Rewriting…".
-              The editor is also made non-editable while `applying`. */}
+              The editor is also made non-editable while `applying`. The rewrite lifecycle
+              is announced through the page's persistent editor live region, so this scrim
+              is no longer a live region itself (just a visible, decorative status). */}
           {applying ? (
             <div
               className="document-apply-overlay"
-              role="status"
-              aria-live="polite"
-              aria-label="Rewriting"
+              aria-hidden="true"
             >
               <Loader2 className="size-6 animate-spin text-text-secondary" aria-hidden="true" />
               <span className="text-label-sm font-medium text-text-primary">Rewriting…</span>
@@ -913,11 +1023,22 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               exact pre-apply body. */}
           {awaitingDecision ? (
             <div
+              ref={decisionGroupRef}
               role="group"
               aria-label="Review the rewrite"
+              // Focusable so completion can move focus here (the group does not announce
+              // on insertion); -1 keeps it out of the tab sequence. No visual effect.
+              tabIndex={-1}
               className={cn(
-                'sticky bottom-3 z-10 mt-3 flex flex-wrap items-center justify-between gap-2',
+                // Owner-requested visual change: pin the Accept/Discard bar to the BOTTOM
+                // of the viewport (sticky bottom-0) so it's discoverable without scrolling
+                // whenever a rewrite awaits a decision. It stays within the editor column
+                // width (it's inside the writing column) and uses surface/border tokens.
+                'sticky bottom-0 z-10 mt-3 flex flex-wrap items-center justify-between gap-2',
                 'rounded-card border border-border bg-surface px-3 py-2 shadow-lg',
+                // Programmatic focus target only — suppress the focus ring so there is no
+                // visual change when focus lands on the group container itself.
+                'focus:outline-none',
               )}
             >
               <span className="text-label-sm text-text-secondary">
@@ -950,10 +1071,17 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
             width/height. The ResultsPanel inside renders nothing until there is content. */}
         {hasReviewContent ? (
           <div
+            id="review-detail-panel"
             className={cn('review-panel', panelOpen && 'review-panel--open')}
-            // A closed panel is collapsed and visually hidden; keep it out of the a11y
-            // tree until opened. NOT `inert`/`aria-modal` — when open the panel and the
-            // rest of the page (the editor) are both fully interactive.
+            // #9 — a closed panel is collapsed and visually hidden. The real fix is `inert`:
+            // with the old bare `aria-hidden` the panel's buttons stayed FOCUSABLE, so Tab
+            // could land inside a hidden region (an ARIA violation). `inert` removes the
+            // subtree from BOTH the tab order AND the a11y tree. `aria-hidden` is kept
+            // alongside it as belt-and-braces (and because jsdom/dom-accessibility-api does
+            // not yet derive hidden-ness from `inert`, so it keeps the a11y-tree removal
+            // explicit and testable). When open the panel is fully interactive (neither
+            // applied). `inert` has no visual effect.
+            inert={panelOpen ? undefined : true}
             aria-hidden={panelOpen ? undefined : true}
           >
             <ResultsPanel
@@ -1019,12 +1147,13 @@ function DictationControl({
           <Mic className="size-3.5" aria-hidden="true" />
         )}
       </Button>
+      {/* The visible "Listening…" indicator and inline error are NOT live regions: the
+          dictation lifecycle is announced once through the page's single persistent
+          editor live region (see DocumentPage). Keeping these as live regions too would
+          double-announce — and a change-time-mounted region often misses its first
+          content anyway. They remain visible for sighted users (no visual change). */}
       {listening ? (
-        <span
-          className="inline-flex items-center gap-1.5 text-label-sm text-text-secondary"
-          role="status"
-          aria-live="polite"
-        >
+        <span className="inline-flex items-center gap-1.5 text-label-sm text-text-secondary">
           <span
             aria-hidden="true"
             className="size-1.5 rounded-full bg-accent motion-safe:animate-pulse"
@@ -1033,7 +1162,7 @@ function DictationControl({
         </span>
       ) : null}
       {!listening && error ? (
-        <span className="text-label-sm text-risk-text" role="alert">
+        <span className="text-label-sm text-risk-text">
           {error.message}
         </span>
       ) : null}
@@ -1064,7 +1193,11 @@ function PanelToggle({
         type="button"
         onClick={onToggle}
         disabled={!hasReviewContent}
-        aria-pressed={panelOpen}
+        // #11 — a disclosure toggle: `aria-expanded` (not `aria-pressed`) + `aria-controls`
+        // pointing at the review-panel region it shows/hides. Only reference the panel
+        // when it's actually mounted (there is review content) so the IDREF resolves.
+        aria-expanded={panelOpen}
+        aria-controls={hasReviewContent ? 'review-detail-panel' : undefined}
         aria-label={
           hasReviewContent
             ? panelOpen

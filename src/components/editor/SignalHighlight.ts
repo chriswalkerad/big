@@ -23,7 +23,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
-import type { SignalIssue } from '@/types'
+import type { Severity, SignalIssue } from '@/types'
 
 /**
  * The base `SignalIssue` (quote/message/severity) carries no signal id, but the
@@ -39,6 +39,28 @@ export interface SignalHighlightIssue extends SignalIssue {
 const SET_HIGHLIGHTS_META = 'setSignalHighlights'
 
 export const signalHighlightPluginKey = new PluginKey<DecorationSet>('signalHighlight')
+
+/** Human-readable severity words for the screen-reader-only flag annotation. */
+const SEVERITY_LABEL: Record<Severity, string> = {
+  risk: 'risk',
+  minor: 'minor issue',
+}
+
+/**
+ * Build the visually-hidden severity annotation node placed after a flagged phrase.
+ * It is `.sr-only` (off-screen, not displayed) so the squiggle's appearance is unchanged,
+ * but assistive tech reads e.g. "(flagged: risk)" in the reading flow — the only inline
+ * signal an SR user gets that the preceding phrase was flagged (the squiggle/`title` is
+ * mouse-only). The full message and actions live on the panel button.
+ */
+function buildSeverityAnnotation(severity: Severity): HTMLElement {
+  const span = document.createElement('span')
+  span.className = 'sr-only'
+  span.textContent = ` (flagged: ${SEVERITY_LABEL[severity]}) `
+  // Belt-and-braces: never an edit target or a copy artifact.
+  span.setAttribute('contenteditable', 'false')
+  return span
+}
 
 /**
  * Build a DecorationSet for the given issues against the current document.
@@ -76,6 +98,21 @@ function buildDecorations(
           'data-signal-id': issue.signalId,
           'data-severity': issue.severity,
           title: issue.message,
+        }),
+      )
+      // #2 — the inline highlight is a mouse-only visual cue (the `title` is not reliably
+      // exposed and the squiggle carries no semantics for AT). Add a VISUALLY-HIDDEN widget
+      // immediately AFTER the flagged phrase so the flag is perceivable in the reading flow
+      // for screen-reader users, without changing the visible rendering. `side: 1` keeps it
+      // anchored after the phrase; `ignoreSelection`/no contentEditable interaction so it
+      // never becomes an edit target. The full message stays on the panel button.
+      decorations.push(
+        Decoration.widget(to, () => buildSeverityAnnotation(issue.severity), {
+          side: 1,
+          // A pure annotation, not document content: keep it out of copy and never
+          // treat it as a real cursor stop.
+          ignoreSelection: true,
+          key: `sr-flag-${issue.signalId}-${from}`,
         }),
       )
       placed = true
