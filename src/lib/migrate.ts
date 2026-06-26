@@ -9,9 +9,15 @@
 //   3. Strip a trailing "[paste your text here]" placeholder from `suggestedPrompt`
 //      (Apply garbles + double-sends the body otherwise).
 //
-// Driven by a GLOBAL marker (`bsp:meta:migrated` = MIGRATION_VERSION). The rescale
-// is the only non-idempotent transform; the marker guards the whole pass so it can
-// never double-rescale. Pure transforms here; StorageRepository owns the I/O.
+// Driven by a GLOBAL marker (`bsp:meta:migrated` = MIGRATION_VERSION). The rescale is
+// the only non-idempotent transform, so each record ALSO carries a per-record
+// `migratedVersion` stamp: a record already stamped at the current version is returned
+// untouched. This closes a re-run window — if a pass degrades mid-loop (quota →
+// in-memory store), the GLOBAL marker write lands in memory and is lost on reload while
+// some records were already rescaled and persisted; on the next load the per-record
+// stamp (persisted alongside each rescaled record) makes re-migration a true no-op, so
+// no record can be double-rescaled even with the global marker gone. Pure transforms
+// here; StorageRepository owns the I/O.
 
 import type { Document, Person, ReviewResult, SignalDef, SignalResult } from '@/types'
 import { PEOPLE } from '@/lib/people'
@@ -32,8 +38,10 @@ export const MIGRATION_VERSION = 1
  * A legitimate new-scale review almost always has at least one score above 10 (the
  * seed alone ranges to 100), and a value-by-value test would wrongly rescale a real
  * 0–100 score that happens to be ≤ 10 (e.g. a seeded `10`). Checking the per-record
- * max avoids that, and the global migration marker guarantees the pass — and thus
- * any rescale — runs at most once regardless. Thresholds use the same boundary.
+ * max avoids that. This heuristic only ever runs once per record now: the per-record
+ * `migratedVersion` stamp short-circuits any already-migrated record before we reach
+ * it, so even an edge value that the heuristic would misjudge can't be re-scaled on a
+ * later pass. Thresholds use the same boundary.
  */
 const OLD_SCALE_MAX = 10
 
@@ -92,12 +100,17 @@ function migrateReview(review: ReviewResult): ReviewResult {
 
 /**
  * Migrate a single document to the current shape. Pure: returns a new document
- * (never mutates input). Safe to call on already-current documents within a single
- * pass — but NOT idempotent across passes for the score rescale, which is why the
- * caller gates the whole pass on the global migration marker.
+ * (never mutates input). IDEMPOTENT across passes: a record already stamped at the
+ * current MIGRATION_VERSION is returned unchanged, so re-running after a partial or
+ * degraded pass (where the global marker was lost) can never double-rescale.
  */
 export function migrateDocument(doc: Document): Document {
-  const next: Document = { ...doc, reviewer: resolveReviewer(doc.reviewer) }
+  if (doc.migratedVersion === MIGRATION_VERSION) return doc
+  const next: Document = {
+    ...doc,
+    reviewer: resolveReviewer(doc.reviewer),
+    migratedVersion: MIGRATION_VERSION,
+  }
   if (doc.submittedSnapshot) {
     next.submittedSnapshot = {
       ...doc.submittedSnapshot,
@@ -107,7 +120,14 @@ export function migrateDocument(doc: Document): Document {
   return next
 }
 
-/** Migrate a signal definition: rescale an old-scale threshold to 0–100. */
+/**
+ * Migrate a signal definition: rescale an old-scale threshold to 0–100. IDEMPOTENT
+ * across passes via the per-record `migratedVersion` stamp (see migrateDocument).
+ */
 export function migrateSignal(signal: SignalDef): SignalDef {
-  return signal.threshold <= OLD_SCALE_MAX ? { ...signal, threshold: rescale(signal.threshold) } : signal
+  if (signal.migratedVersion === MIGRATION_VERSION) return signal
+  const next =
+    signal.threshold <= OLD_SCALE_MAX ? { ...signal, threshold: rescale(signal.threshold) } : { ...signal }
+  next.migratedVersion = MIGRATION_VERSION
+  return next
 }

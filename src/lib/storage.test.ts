@@ -236,6 +236,60 @@ describe('StorageRepository migration', () => {
     // Scores stay at 90/20 — not rescaled a second time to 900/200.
     expect(doc.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([90, 20])
   })
+
+  it('does not re-rescale after a re-run when the global marker was lost', () => {
+    // Simulates a prior pass that degraded AFTER rescaling+stamping a record but
+    // BEFORE the global marker landed: the record is persisted at 90/20 with its
+    // per-record migratedVersion stamp, yet `bsp:meta:migrated` is absent.
+    store.map.set('bsp:meta:seeded', '1')
+    const partlyMigrated = legacyUserDoc()
+    partlyMigrated.migratedVersion = 1
+    const snap = partlyMigrated.submittedSnapshot as NonNullable<Document['submittedSnapshot']>
+    snap.review.signals = [
+      { signalId: 'clarity', score: 90, rationale: 'r', issues: [] },
+      { signalId: 'brand_safety', score: 20, rationale: 'r', issues: [] },
+    ]
+    snap.review.suggestedPrompt = 'Revise the following concept:'
+    partlyMigrated.reviewer = PEOPLE.find((p) => p.id === 'person-maya-kambe') as Person
+    store.map.set('bsp:doc:user-legacy', JSON.stringify(partlyMigrated))
+
+    // Re-run migration (no global marker → the pass executes again).
+    const repo = new StorageRepository({ store })
+    const doc = repo.getDocument('user-legacy') as Document
+
+    // The per-record stamp short-circuits the rescale: still 90/20, not 900/200.
+    expect(doc.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([90, 20])
+  })
+
+  it('does not double-rescale records persisted before a mid-loop degrade', () => {
+    // A real mid-loop degrade: localStorage accepts the per-doc writes but throws on
+    // the FINAL global-marker write (e.g. quota hit late in the pass). The marker
+    // lands only in the in-memory fallback and is lost on reload, while the rescaled
+    // doc was already persisted. A fresh repository over that persisted store must
+    // not rescale a second time.
+    store.map.set('bsp:meta:seeded', '1')
+    store.map.set('bsp:doc:user-legacy', JSON.stringify(legacyUserDoc()))
+
+    // Throw only on the global-marker write; per-doc writes succeed and persist.
+    const realSet = store.setItem.bind(store)
+    store.setItem = (key: string, value: string): void => {
+      if (key === 'bsp:meta:migrated') throw quotaError()
+      realSet(key, value)
+    }
+    const repo1 = new StorageRepository({ store })
+    expect(repo1.isInMemory).toBe(true) // degraded on the marker write
+    store.setItem = realSet
+    // The marker never persisted to the backing store...
+    expect(store.getItem('bsp:meta:migrated')).toBeNull()
+    // ...but the doc was rescaled and persisted.
+    const persisted = JSON.parse(store.map.get('bsp:doc:user-legacy') as string) as Document
+    expect(persisted.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([90, 20])
+
+    // Next load re-runs migration over the partially-migrated store.
+    const repo2 = new StorageRepository({ store })
+    const doc = repo2.getDocument('user-legacy') as Document
+    expect(doc.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([90, 20])
+  })
 })
 
 describe('StorageRepository readAll retry-after-degrade', () => {
