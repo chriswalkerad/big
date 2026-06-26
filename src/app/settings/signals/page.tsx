@@ -357,12 +357,7 @@ function Overlay({
   }, [onDismiss]);
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={labelledBy}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <button
         type="button"
         aria-label="Dismiss"
@@ -373,6 +368,9 @@ function Overlay({
           form controls and focus returns to the trigger on close. */}
       <div
         ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
         className="relative w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-lg"
       >
         {children}

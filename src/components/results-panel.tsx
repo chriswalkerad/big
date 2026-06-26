@@ -529,7 +529,6 @@ function PanelHeader({
           type="button"
           onClick={onToggleExplain}
           aria-expanded={explaining}
-          aria-pressed={explaining}
           className={cn(
             'inline-flex h-7 w-fit items-center gap-1.5 rounded-control px-2 text-label-sm text-text-secondary transition-colors',
             'hover:bg-panel hover:text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus',
