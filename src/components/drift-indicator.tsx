@@ -17,11 +17,15 @@ interface DriftIndicatorProps {
  * The "edited since submit" indicator (version drift). Shown when the live body
  * diverges from the submitted snapshot. Offers Resubmit (replace the snapshot)
  * and Unsubmit (clear it, back to draft). Never blocks editing.
+ *
+ * This is NOT a live region: a `role="status"` that mounts only when drift appears often
+ * fails to announce its first content (#21). The drift transition is announced instead by
+ * the page's single PERSISTENT editor live region; this component is purely the visible
+ * affordance, so it carries no announcing role.
  */
 export function DriftIndicator({ onResubmit, onUnsubmit, busy, className }: DriftIndicatorProps) {
   return (
     <div
-      role="status"
       className={cn(
         'flex flex-wrap items-center gap-2 rounded-card border border-minor bg-panel px-3 py-2',
         className,

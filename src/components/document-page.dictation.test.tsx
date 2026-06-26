@@ -170,7 +170,10 @@ describe('DocumentPage voice dictation', () => {
     // Now listening: button flips to "Stop", aria-pressed true, indicator visible.
     const stopBtn = await screen.findByRole('button', { name: /stop voice dictation/i })
     expect(stopBtn).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getByText(/listening/i)).toBeInTheDocument()
+    // "Listening…" now appears twice: the visible indicator AND the persistent sr-only
+    // editor live region that announces the dictation lifecycle (#7). Both are present.
+    const listening = screen.getAllByText(/listening/i)
+    expect(listening.length).toBeGreaterThanOrEqual(1)
 
     fireEvent.click(stopBtn)
     expect(stopSpy).toHaveBeenCalledTimes(1)

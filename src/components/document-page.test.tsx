@@ -237,14 +237,17 @@ describe('DocumentPage edit mode — submit flow', () => {
     // run a review first).
     const toggle = await screen.findByRole('button', { name: /show review panel/i })
     expect(toggle).toBeDisabled()
-    expect(toggle).toHaveAttribute('aria-pressed', 'false')
+    // A disclosure toggle: aria-expanded reflects the panel state (not aria-pressed).
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
 
-    // Run a review → the panel auto-opens and the toggle reflects the open state.
+    // Run a review → the panel auto-opens and the toggle reflects the open state, and
+    // points at the panel region it controls.
     fireEvent.click(screen.getByRole('button', { name: /run review/i }))
     await screen.findByRole('region', { name: 'Review results' })
     const openToggle = screen.getByRole('button', { name: /hide review panel/i })
     expect(openToggle).toBeEnabled()
-    expect(openToggle).toHaveAttribute('aria-pressed', 'true')
+    expect(openToggle).toHaveAttribute('aria-expanded', 'true')
+    expect(openToggle).toHaveAttribute('aria-controls', 'review-detail-panel')
 
     // Clicking it hides the panel (region leaves the a11y tree)…
     fireEvent.click(openToggle)

@@ -103,6 +103,12 @@ export interface DocumentCanvasProps {
   onChange?: (html: string) => void
   /** Optional extra class names for the editor container. */
   className?: string
+  /**
+   * Optional id of an element that DESCRIBES the editor (wired to the contenteditable's
+   * `aria-describedby`). Used to point SR users at the review panel as the accessible
+   * path to flagged phrases — the inline squiggles are mouse-only decorations (#2).
+   */
+  describedById?: string
 }
 
 const PLACEHOLDER_TEXT = 'Start your brief…'
@@ -149,7 +155,8 @@ function DocumentCanvasInner(
   props: DocumentCanvasProps,
   ref: Ref<DocumentCanvasHandle>,
 ): React.ReactElement {
-  const { mode, editable, onHighlightClick, content, value, onChange, className } = props
+  const { mode, editable, onHighlightClick, content, value, onChange, className, describedById } =
+    props
   const initialContent = content ?? value ?? ''
   // Effective editability: an explicit `editable` override wins; otherwise follow mode.
   const isEditable = editable ?? mode === 'edit'
@@ -229,6 +236,18 @@ function DocumentCanvasInner(
   useEffect(() => {
     editor?.setEditable(isEditable)
   }, [editor, isEditable])
+
+  // Keep `aria-describedby` on the contenteditable in sync with `describedById`. It's set
+  // imperatively (not via the static `editorProps.attributes`, which are only read at
+  // mount) because the description toggles AFTER mount — the review-panel hint only exists
+  // once there is review content. Pointing the editor at it gives SR users the accessible
+  // path to flagged phrases (#2). No visual effect.
+  useEffect(() => {
+    const dom = editor?.view.dom
+    if (!dom) return
+    if (describedById) dom.setAttribute('aria-describedby', describedById)
+    else dom.removeAttribute('aria-describedby')
+  }, [editor, describedById])
 
   useImperativeHandle(
     ref,
