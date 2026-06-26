@@ -141,6 +141,10 @@ body {
 /* Smooth in-page scrolling for the squiggle ↔ drawer focus jumps. */
 html {
   scroll-behavior: smooth;
+  /* WCAG 2.4.11 Focus Not Obscured: offset the scroll root so elements focused
+     via keyboard/anchor jumps clear the sticky 46px TopBar instead of hiding
+     beneath it. */
+  scroll-padding-top: var(--doc-topbar-height, 46px);
 }
 
 /* Showpiece skeleton: a soft highlight sweeping across a panel-toned block.
