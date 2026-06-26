@@ -165,6 +165,12 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [applyError, setApplyError] = useState<AppError | null>(null)
   const [preApplyBody, setPreApplyBody] = useState<string | null>(null)
   const [awaitingDecision, setAwaitingDecision] = useState(false)
+  // The review the rewrite was based on, snapshotted at Apply time. It drives DISPLAY
+  // ONLY while a rewrite awaits its Accept/Discard decision so the panel stays open and
+  // keeps showing what the author is fixing. `pendingReview` is still cleared on Apply
+  // (so "Confirm submission" stays gated off during the decision); this separate state
+  // keeps the panel mounted without re-enabling confirm. Cleared on Accept and Discard.
+  const [decisionReview, setDecisionReview] = useState<ReviewResult | null>(null)
 
   // --- Load on mount ---------------------------------------------------------
   // localStorage is client-only and unavailable during SSR, so the document is loaded
@@ -299,8 +305,15 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   // The results reflect, in priority order: a pending preview review (edit mode, not
   // yet confirmed), otherwise the submitted snapshot's review (computed on submit,
   // never live). Edits don't touch the snapshot; they clear the preview.
+  // While a rewrite awaits its Accept/Discard decision, show the review the rewrite was
+  // based on (snapshotted at Apply time) so the panel stays open and the author can see
+  // what they're fixing while deciding. `pendingReview` is cleared on Apply, so this is
+  // the only thing keeping the panel populated during the decision.
   const displayReview: ReviewResult | null =
-    (!isRead && pendingReview) || snapshot?.review || null
+    (!isRead && pendingReview) ||
+    (!isRead && awaitingDecision && decisionReview) ||
+    snapshot?.review ||
+    null
   const displayBody = isRead ? (snapshot?.body ?? body) : body
 
   // The HTML content fed to the canvas. In read mode it is the snapshot body; in edit
@@ -393,6 +406,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     programmaticContentRef.current = false
     bodyRef.current = next
     setBody(next)
+    // Snapshot the review the rewrite was based on so the panel keeps showing it through
+    // the decision. `pendingReview` is still cleared below (confirm-submission stays gated
+    // off while a rewrite is pending); `decisionReview` drives DISPLAY only.
+    setDecisionReview(displayReview)
     setPendingReview(null)
     setPendingBody(null)
     setApplying(false)
@@ -427,6 +444,9 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setApplyError(null)
     setPendingReview(null)
     setPendingBody(null)
+    // The reviewed text changed, so the display snapshot is stale too — drop it. With no
+    // pending preview and (for a draft) no snapshot, the panel reflects "no current review".
+    setDecisionReview(null)
     canvasRef.current?.setSignalHighlights([])
     if (doc && snapshot) {
       // applyUnsubmit clears the snapshot + routing and returns to draft; pair it with
@@ -452,13 +472,24 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setAwaitingDecision(false)
     setPreApplyBody(null)
     setApplyError(null)
-    // The rewrite's preview was dropped on Apply, so the review now showing is the
-    // submitted snapshot's (or none). Re-render the inline squiggles to match the
-    // restored body — Apply's setContent had cleared them.
+    // Restore the review the rewrite was based on as the live preview: the body is back to
+    // its pre-Apply text, so the review (and its squiggles) once again match exactly what's
+    // on the canvas. `pendingBody` is the reviewed body — the restored text — so the
+    // review-then-confirm preview is intact again. On a draft this re-establishes the
+    // pre-Apply preview; if a snapshot exists, displayReview falls back to it as before.
+    const restoredReview = decisionReview
+    setDecisionReview(null)
+    if (restoredReview && restore !== null) {
+      setPendingReview(restoredReview)
+      setPendingBody(restore)
+    }
+    // Re-render the inline squiggles to match the restored body — Apply's setContent had
+    // cleared them. Prefer the restored preview's signals; otherwise the snapshot's.
+    const squiggleReview = restoredReview ?? snapshot?.review ?? null
     canvasRef.current?.setSignalHighlights(
-      snapshot?.review ? toHighlightIssues(snapshot.review.signals, inlineIds) : [],
+      squiggleReview ? toHighlightIssues(squiggleReview.signals, inlineIds) : [],
     )
-  }, [preApplyBody, snapshot, inlineIds])
+  }, [preApplyBody, decisionReview, snapshot, inlineIds])
 
   // --- Review preview (step 1 of review-then-confirm) ------------------------
   // The edit-mode primary action (Run review / Resubmit / Cmd+Enter) runs the AI review

@@ -418,6 +418,17 @@ describe('DocumentPage apply (AI rewrite) — accept / discard', () => {
     })
   }
 
+  // The editor's plain text, collapsed across nodes — robust to inline squiggle spans
+  // splitting a phrase (a flagged word like "vague" sits in its own highlight span).
+  function editorText(): string {
+    const editor = document.querySelector('.document-canvas-prose') as HTMLElement | null
+    return (editor?.textContent ?? '')
+      // Drop the visually-hidden SR annotation a squiggle injects (e.g. "(flagged: …)").
+      .replace(/\(flagged:[^)]*\)/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
   async function runReviewThenApply(rewritten = 'A crisp rewritten concept.') {
     seedDoc()
     mockReviewThenApply(rewritten)
@@ -440,6 +451,58 @@ describe('DocumentPage apply (AI rewrite) — accept / discard', () => {
     expect(hitApply).toBe(true)
   })
 
+  it('keeps the review panel open and showing the review while awaiting the decision', async () => {
+    // Regression: on a draft (no snapshot), Apply dropped the pending preview, which used
+    // to flip the panel off and CLOSE the drawer mid-decision. The panel must stay open and
+    // keep showing the review the rewrite was based on so the author sees what they're fixing.
+    await runReviewThenApply()
+
+    // The Accept/Discard bar is up…
+    expect(await screen.findByRole('button', { name: /^accept$/i })).toBeInTheDocument()
+    // …and the detail panel is still open, still showing the review (its suggested-prompt
+    // Apply affordance + summary live only inside the open detail panel).
+    const panel = screen.getByRole('region', { name: 'Review results' })
+    expect(panel).toBeInTheDocument()
+    expect(within(panel).getByText('Tighten clarity and resubmit.')).toBeInTheDocument()
+  })
+
+  it('does not offer Confirm submission while awaiting the decision', async () => {
+    // The panel stays open during the decision, but confirm-submission must stay UNAVAILABLE
+    // (pendingReview is cleared on Apply; the displayed review comes from a display-only
+    // snapshot that does not re-enable the confirm path).
+    await runReviewThenApply()
+    await screen.findByRole('button', { name: /^accept$/i })
+    expect(screen.queryByRole('button', { name: /confirm submission/i })).not.toBeInTheDocument()
+  })
+
+  it('Discard keeps the original review showing alongside the restored body', async () => {
+    await runReviewThenApply()
+    fireEvent.click(await screen.findByRole('button', { name: /^discard$/i }))
+
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: /^discard$/i })).not.toBeInTheDocument()
+    })
+    // The original body is back AND the original review is still shown in the open panel
+    // (the restored preview re-offers confirm-submission, as it did before Apply). The
+    // restored squiggle splits "vague" into its own span, so compare normalized text.
+    expect(editorText()).toContain('Eloise has a vague plan.')
+    const panel = screen.getByRole('region', { name: 'Review results' })
+    expect(within(panel).getByText('Tighten clarity and resubmit.')).toBeInTheDocument()
+    expect(within(panel).getByRole('button', { name: /confirm submission/i })).toBeInTheDocument()
+  })
+
+  it('Accept clears the review on a draft (panel reflects no current review)', async () => {
+    await runReviewThenApply()
+    fireEvent.click(await screen.findByRole('button', { name: /^accept$/i }))
+
+    // The decision bar goes away and, with no pending preview and no snapshot, the review
+    // detail panel leaves the a11y tree (nothing to show on a draft).
+    await waitFor(() => {
+      expect(screen.queryByRole('region', { name: 'Review results' })).not.toBeInTheDocument()
+    })
+    expect(screen.queryByRole('region', { name: 'Review summary' })).not.toBeInTheDocument()
+  })
+
   it('Accept keeps the rewrite and clears the decision bar', async () => {
     await runReviewThenApply()
     fireEvent.click(await screen.findByRole('button', { name: /^accept$/i }))
@@ -457,8 +520,9 @@ describe('DocumentPage apply (AI rewrite) — accept / discard', () => {
     await waitFor(() => {
       expect(screen.queryByRole('button', { name: /^discard$/i })).not.toBeInTheDocument()
     })
-    // The original seed text is back in the editor.
-    expect(screen.getByText(/Eloise has a vague plan\./)).toBeInTheDocument()
+    // The original seed text is back in the editor. Discard restores the original review,
+    // whose squiggle wraps "vague" in its own span, so compare normalized text.
+    expect(editorText()).toContain('Eloise has a vague plan.')
   })
 
   it('Accept on a submitted doc clears the stale snapshot and commits the rewrite body', async () => {
