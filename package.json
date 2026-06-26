@@ -13,7 +13,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/genai": "^2.10.0",
     "@tiptap/core": "^3.27.1",
     "@tiptap/extension-document": "^3.27.1",
     "@tiptap/extension-paragraph": "^3.27.1",

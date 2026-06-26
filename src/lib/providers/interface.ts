@@ -1,5 +1,5 @@
 // The contract every review provider implements. The API route selects a concrete
-// provider (Gemini when a key is present, otherwise the mock) and calls `review` or
+// provider (Azure when configured, otherwise the mock) and calls `review` or
 // `applyEdit`. See specs/bsp-backend-build-spec.md.
 
 import type { Project, ReviewResult, SignalDef } from '@/types'

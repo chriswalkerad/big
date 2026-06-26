@@ -1,4 +1,4 @@
-// POST /api/review — the only server endpoint. Its sole job is to keep the Gemini
+// POST /api/review — the only server endpoint. Its sole job is to keep the Azure
 // key off the client. It parses the JSON body, delegates to handleReview (the
 // testable core), and serializes the typed ReviewResponse. It stores nothing.
 //
@@ -10,7 +10,7 @@
 import { appError } from '@/lib/errors'
 import { handleReview } from './handler'
 
-// The Gemini SDK and process.env need the Node.js runtime, not the edge runtime.
+// The Azure/OpenAI SDK and process.env need the Node.js runtime, not the edge runtime.
 export const runtime = 'nodejs'
 // Always run per-request; nothing here is cacheable.
 export const dynamic = 'force-dynamic'

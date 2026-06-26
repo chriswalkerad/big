@@ -1,5 +1,4 @@
 import type { TextSubtype } from "@/types";
-import { cn } from "@/lib/utils";
 
 /** Human-readable labels for each text subtype (also used by the subtype dropdown). */
 export const SUBTYPE_LABELS: Record<TextSubtype, string> = {
@@ -17,23 +16,3 @@ export const SUBTYPE_ORDER: TextSubtype[] = [
   "script_excerpt",
   "creative_brief",
 ];
-
-interface SubtypeChipProps {
-  subtype: TextSubtype;
-  className?: string;
-}
-
-/** Neutral, uppercase subtype tag. */
-export function SubtypeChip({ subtype, className }: SubtypeChipProps) {
-  return (
-    <span
-      data-subtype={subtype}
-      className={cn(
-        "inline-flex items-center rounded-pill border border-border bg-surface px-2 py-0.5 text-label-xs uppercase text-text-tertiary",
-        className,
-      )}
-    >
-      {SUBTYPE_LABELS[subtype]}
-    </span>
-  );
-}

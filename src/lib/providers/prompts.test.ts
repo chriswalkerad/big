@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPrompt, buildSystemInstruction, DEFAULT_GEMINI_MODEL_ID } from './gemini'
+import { buildPrompt, buildSystemInstruction } from './prompts'
 import { seedProject, seedSignals } from '@/lib/seed-data'
 import type { ReviewInput } from './interface'
 
@@ -9,11 +9,7 @@ const input: ReviewInput = {
   signals: seedSignals,
 }
 
-describe('GeminiProvider prompt building', () => {
-  it('defaults the model id to gemini-3.5-flash', () => {
-    expect(DEFAULT_GEMINI_MODEL_ID).toBe('gemini-3.5-flash')
-  })
-
+describe('shared prompt building', () => {
   it('system instruction carries project context and the verbatim-quote rule', () => {
     const sys = buildSystemInstruction(input)
     expect(sys).toContain(seedProject.name)

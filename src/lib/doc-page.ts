@@ -10,7 +10,6 @@ import type {
   ReviewResult,
   RoutingDestination,
   SignalDef,
-  SignalIssue,
   SignalResult,
   SubmissionStatus,
   SubmittedSnapshot,
@@ -275,9 +274,4 @@ export function applyManualSubtype(doc: Document, subtype: TextSubtype): Documen
 /** Index signal definitions by id for O(1) lookup when rendering rows. */
 export function signalDefMap(signals: readonly SignalDef[]): Map<string, SignalDef> {
   return new Map(signals.map((s) => [s.id, s]))
-}
-
-/** Issues for a single signal, useful when listing flagged phrases in a row. */
-export function issuesForSignal(signal: SignalResult): SignalIssue[] {
-  return signal.issues
 }

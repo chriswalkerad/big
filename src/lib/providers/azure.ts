@@ -4,8 +4,8 @@
 // only constructed from the API route. It uses OpenAI structured outputs
 // (response_format json_schema) so the model returns a shape close to
 // ReviewResult; the route still re-validates with zod before trusting it.
-// Failures map to typed AppErrors. The system/user prompt is shared with the
-// Gemini provider so both real providers review against the identical rules.
+// Failures map to typed AppErrors. The system/user prompt builders are shared
+// (./prompts) so every real provider reviews against the identical rules.
 
 import OpenAI from 'openai'
 import type { ReviewResult } from '@/types'
@@ -16,7 +16,7 @@ import {
   buildApplySystemInstruction,
   buildPrompt,
   buildSystemInstruction,
-} from './gemini'
+} from './prompts'
 
 export const DEFAULT_AZURE_DEPLOYMENT = 'gpt-5.5'
 
