@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MIGRATION_VERSION,
   migrateDocument,
   migrateSignal,
   resolveReviewer,
@@ -126,6 +127,37 @@ describe('migrateDocument', () => {
     expect(twice).toEqual(once)
   })
 
+  it('stamps the record with the migration version', () => {
+    const doc = migrateDocument(legacyDoc())
+    expect(doc.migratedVersion).toBe(MIGRATION_VERSION)
+  })
+
+  it('short-circuits on the stamp even if scores would re-trip the ≤10 heuristic', () => {
+    // A stamped record whose scores are all ≤ 10 (e.g. a real 0–100 review of low
+    // values). Without the stamp the heuristic would wrongly rescale it on a re-run;
+    // the stamp must keep it untouched and return the SAME reference (true no-op).
+    const stamped = migrateDocument(
+      legacyDoc({
+        migratedVersion: MIGRATION_VERSION,
+        submittedSnapshot: {
+          body: 'b',
+          review: {
+            detectedSubtype: 'story_premise',
+            suggestedTitle: 'Low',
+            themes: [],
+            signals: [
+              { signalId: 'clarity', score: 3, rationale: 'r', issues: [] },
+              { signalId: 'brand_safety', score: 5, rationale: 'r', issues: [] },
+            ],
+            verdict: { label: 'not_ready', flagCount: 2 },
+          },
+          submittedAt: '2026-06-01T00:00:00.000Z',
+        },
+      }),
+    )
+    expect(stamped.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([3, 5])
+  })
+
   it('leaves a new-scale review untouched (no double rescale)', () => {
     const doc = legacyDoc({
       reviewer: PEOPLE[0],
@@ -165,5 +197,12 @@ describe('migrateSignal', () => {
     const sig = { id: 's', name: 'C', prompt: 'p', threshold: 70, mode: 'inline' as const }
     expect(migrateSignal(sig).threshold).toBe(70)
     expect(migrateSignal(migrateSignal(sig))).toEqual(migrateSignal(sig))
+  })
+
+  it('stamps and short-circuits a stamped old-scale threshold (no re-rescale)', () => {
+    const out = migrateSignal({ id: 's', name: 'C', prompt: 'p', threshold: 7, mode: 'inline' })
+    expect(out.migratedVersion).toBe(MIGRATION_VERSION)
+    // A stamped signal whose threshold is still ≤ 10 must not be rescaled again.
+    expect(migrateSignal(out).threshold).toBe(70)
   })
 })

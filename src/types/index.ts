@@ -49,6 +49,14 @@ export interface SignalDef {
   prompt: string
   threshold: number
   mode: SignalMode
+  /**
+   * The migration version this record was last brought forward to (see
+   * @/lib/migrate). Absent on pre-marker records. A per-record stamp that makes
+   * re-applying the migration a no-op even if the GLOBAL `bsp:meta:migrated` marker
+   * was lost (e.g. a mid-pass storage degrade landed it in memory). Optional so older
+   * persisted records stay valid.
+   */
+  migratedVersion?: number
 }
 
 export interface SignalIssue {
@@ -114,6 +122,14 @@ export interface Document {
   submittedSnapshot?: SubmittedSnapshot
   createdAt: string
   updatedAt: string
+  /**
+   * The migration version this record was last brought forward to (see
+   * @/lib/migrate). Absent on pre-marker records. A per-record stamp that makes
+   * re-applying the migration a no-op even if the GLOBAL `bsp:meta:migrated` marker
+   * was lost (e.g. a mid-pass storage degrade landed it in memory). Optional so older
+   * persisted records stay valid.
+   */
+  migratedVersion?: number
 }
 
 /** Request body for POST /api/review. */

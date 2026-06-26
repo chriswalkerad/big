@@ -307,9 +307,15 @@ export class StorageRepository {
    * shapes (0–10 scores, a string reviewer, a "[paste your text here]" placeholder).
    * This walks every document and signal and brings each forward (see @/lib/migrate).
    *
-   * Gated on the `bsp:meta:migrated` marker (= MIGRATION_VERSION). The score rescale
-   * is not idempotent, so the marker — not a value heuristic — is what guarantees the
-   * pass runs at most once. Never crashes the app: any failure degrades and returns.
+   * Gated on the `bsp:meta:migrated` marker (= MIGRATION_VERSION) as a fast skip. But
+   * the marker alone is NOT sufficient: this loop rewrites each record and only writes
+   * the marker LAST, so a mid-loop degrade (quota → in-memory store) lands the marker
+   * write in memory — lost on reload — while records already rewritten this pass were
+   * persisted to localStorage. The next load would re-run migration over a partially
+   * migrated store. migrateDocument/migrateSignal defend against that: each stamps the
+   * record with `migratedVersion` and returns an already-stamped record untouched, so
+   * re-running is a per-record no-op and no score can be double-rescaled even with the
+   * global marker gone. Never crashes the app: any failure degrades and returns.
    */
   private migrate(): void {
     try {
