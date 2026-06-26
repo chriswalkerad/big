@@ -104,7 +104,8 @@ export interface Document {
   title: string
   /** The author's LIVE working copy. */
   body: string
-  subtype: TextSubtype
+  /** The text subtype; `null` on a fresh draft until detected or chosen. */
+  subtype: TextSubtype | null
   subtypeSource: 'auto' | 'user'
   status: SubmissionStatus
   routing?: RoutingDestination

@@ -270,7 +270,9 @@ function DocumentRow({
       <span className="col-span-2 min-w-0 truncate text-body-emphasis text-text-primary sm:col-span-1">
         {doc.title || "Untitled"}
       </span>
-      <span className="text-label-sm text-text-secondary">{SUBTYPE_LABELS[doc.subtype]}</span>
+      <span className="text-label-sm text-text-secondary">
+        {doc.subtype ? SUBTYPE_LABELS[doc.subtype] : "—"}
+      </span>
       <span className="text-label-sm text-text-secondary">{STATUS_LABELS[doc.status]}</span>
       <div className="col-span-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-label-sm text-text-tertiary sm:col-span-3">
         {/* Owner is always present; reviewer is set at submission (drafts show "—"). */}
