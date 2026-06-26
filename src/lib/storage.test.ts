@@ -162,6 +162,120 @@ describe('StorageRepository seeding', () => {
   })
 })
 
+describe('StorageRepository migration', () => {
+  /** A pre-redesign user document: 0–10 scores, string reviewer, prompt placeholder. */
+  function legacyUserDoc(): Document {
+    const review = {
+      detectedSubtype: 'story_premise' as const,
+      suggestedTitle: 'Legacy',
+      themes: ['t'],
+      signals: [
+        { signalId: 'clarity', score: 9, rationale: 'r', issues: [] },
+        { signalId: 'brand_safety', score: 2, rationale: 'r', issues: [] },
+      ],
+      verdict: { label: 'needs_work' as const, flagCount: 1 },
+      suggestedPrompt: 'Revise the following concept:\n\n[paste your text here]',
+    }
+    return {
+      id: 'user-legacy',
+      projectId: 'proj-eloise',
+      title: 'Legacy',
+      body: 'body',
+      subtype: 'story_premise',
+      subtypeSource: 'auto',
+      status: 'submitted',
+      createdBy: 'Me',
+      reviewer: 'person-maya-kambe' as unknown as Person,
+      submittedSnapshot: { body: 'body', review, submittedAt: '2026-01-01T00:00:00.000Z' },
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+  }
+
+  it('migrates a pre-redesign user document on load', () => {
+    // Legacy store: seeded at an old version, with one stale user doc and no marker.
+    // A legacy persisted store: seeded at an old version, a stale user doc, and no
+    // migration marker. Written directly so no constructor pre-runs migrate().
+    store.map.set('bsp:meta:seeded', '1')
+    store.map.set('bsp:doc:user-legacy', JSON.stringify(legacyUserDoc()))
+
+    const repo = new StorageRepository({ store })
+    const migrated = repo.getDocument('user-legacy') as Document
+
+    expect(migrated.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([90, 20])
+    expect(migrated.reviewer).toEqual(PEOPLE.find((p) => p.id === 'person-maya-kambe'))
+    expect(migrated.submittedSnapshot?.review.suggestedPrompt).toBe('Revise the following concept:')
+    expect(store.getItem('bsp:meta:migrated')).toBe('1')
+  })
+
+  it('does not double-rescale already-migrated seed scores', () => {
+    // Fresh seed → seed docs already on 0–100, including a literal score of 10.
+    const repo = new StorageRepository({ store })
+    const before = JSON.stringify(repo.listDocuments())
+    // A second construction must early-return on the marker and change nothing.
+    const repo2 = new StorageRepository({ store })
+    expect(JSON.stringify(repo2.listDocuments())).toBe(before)
+    // The haunted-elevator seed doc carries a brand_safety score of 20 (not 200).
+    const haunted = repo2.getDocument('doc-haunted-elevator') as Document
+    const brand = haunted.submittedSnapshot?.review.signals.find((s) => s.signalId === 'brand_safety')
+    expect(brand?.score).toBe(20)
+  })
+
+  it('is idempotent: a second load does not re-migrate', () => {
+    // A legacy persisted store: seeded at an old version, a stale user doc, and no
+    // migration marker. Written directly so no constructor pre-runs migrate().
+    store.map.set('bsp:meta:seeded', '1')
+    store.map.set('bsp:doc:user-legacy', JSON.stringify(legacyUserDoc()))
+
+    new StorageRepository({ store }) // migrates → sets marker
+    const spy = vi.spyOn(store, 'setItem')
+    const repo2 = new StorageRepository({ store }) // marker present → no writes
+    expect(spy).not.toHaveBeenCalled()
+    spy.mockRestore()
+
+    const doc = repo2.getDocument('user-legacy') as Document
+    // Scores stay at 90/20 — not rescaled a second time to 900/200.
+    expect(doc.submittedSnapshot?.review.signals.map((s) => s.score)).toEqual([90, 20])
+  })
+})
+
+describe('StorageRepository readAll retry-after-degrade', () => {
+  it('skips a single corrupt value without truncating the rest of the list', () => {
+    const repo = new StorageRepository({ store, seed: false })
+    store.map.set('bsp:doc:d1', JSON.stringify({ ...({} as Document), id: 'd1' }))
+    store.map.set('bsp:doc:d2', '{ not valid json')
+    store.map.set('bsp:doc:d3', JSON.stringify({ ...({} as Document), id: 'd3' }))
+
+    const docs = repo.listDocuments()
+
+    expect(docs.map((d) => d.id).sort()).toEqual(['d1', 'd3'])
+  })
+
+  it('re-reads against the recovered MemoryStore when the store fails mid-iteration', () => {
+    // A store that throws on the first read of a doc key, then (after degrade swaps
+    // in the carried-over MemoryStore) reads fine. Mirrors read()'s retry path.
+    const repo = new StorageRepository({ store, seed: false })
+    store.map.set('bsp:doc:d1', JSON.stringify({ ...({} as Document), id: 'd1' }))
+    store.map.set('bsp:doc:d2', JSON.stringify({ ...({} as Document), id: 'd2' }))
+
+    let thrown = false
+    const realGet = store.getItem.bind(store)
+    store.getItem = (key: string): string | null => {
+      if (!thrown && key.startsWith('bsp:doc:')) {
+        thrown = true
+        throw new Error('store read failed mid-iteration')
+      }
+      return realGet(key)
+    }
+
+    const docs = repo.listDocuments()
+
+    // Degraded to memory, but BOTH docs survived (no silent truncation).
+    expect(repo.isInMemory).toBe(true)
+    expect(docs.map((d) => d.id).sort()).toEqual(['d1', 'd2'])
+  })
+})
+
 describe('StorageRepository degradation', () => {
   it('maps a quota failure to STORAGE_QUOTA and continues in memory', () => {
     const errors: AppError[] = []

@@ -9,6 +9,7 @@
 import type { Document, Person, Project, SignalDef } from '@/types'
 import { type AppError, appError, toAppError } from '@/lib/errors'
 import { PEOPLE } from '@/lib/people'
+import { MIGRATION_VERSION, migrateDocument, migrateSignal } from '@/lib/migrate'
 import { SEED_VERSION, seedDocuments, seedProjects, seedSignals } from '@/lib/seed-data'
 
 const NS = 'bsp'
@@ -17,6 +18,7 @@ const KEY = {
   doc: (id: string) => `${NS}:doc:${id}`,
   signal: (id: string) => `${NS}:signal:${id}`,
   seeded: `${NS}:meta:seeded`,
+  migrated: `${NS}:meta:migrated`,
 } as const
 
 const PREFIX = {
@@ -74,6 +76,9 @@ export class StorageRepository {
     if (options.seed !== false) {
       this.seedIfStale()
     }
+    // Migration runs regardless of seeding: it brings forward USER-created records,
+    // which seeding never touches. Gated on its own marker so it runs at most once.
+    this.migrate()
   }
 
   /** True once the repository has fallen back to in-memory storage. */
@@ -191,17 +196,42 @@ export class StorageRepository {
   }
 
   private readAll<T>(prefix: string): T[] {
-    const out: T[] = []
     try {
-      for (let i = 0; i < this.store.length; i++) {
-        const k = this.store.key(i)
-        if (k && k.startsWith(prefix)) {
-          const raw = this.store.getItem(k)
-          if (raw !== null) out.push(JSON.parse(raw) as T)
+      return this.collect<T>(prefix)
+    } catch (e) {
+      // A corrupt key (or a store that failed mid-iteration) shouldn't silently
+      // truncate the list. Degrade — which swaps in the MemoryStore carrying every
+      // key we could rescue — then RE-READ against the new store so one bad entry
+      // can't drop the rest. Mirror read()'s retry-after-degrade.
+      this.degrade(toAppError(e))
+      try {
+        return this.collect<T>(prefix)
+      } catch {
+        return []
+      }
+    }
+  }
+
+  /**
+   * Read every value whose key starts with `prefix`. A single un-parseable VALUE is
+   * skipped (it can't poison the rest of the list), but a STORE-level failure
+   * (length/key/getItem throwing) propagates so readAll() can degrade and retry
+   * against the recovered MemoryStore.
+   */
+  private collect<T>(prefix: string): T[] {
+    const out: T[] = []
+    for (let i = 0; i < this.store.length; i++) {
+      const k = this.store.key(i)
+      if (k && k.startsWith(prefix)) {
+        const raw = this.store.getItem(k)
+        if (raw !== null) {
+          try {
+            out.push(JSON.parse(raw) as T)
+          } catch {
+            // Corrupt value on this one key — skip it, keep collecting the rest.
+          }
         }
       }
-    } catch (e) {
-      this.degrade(toAppError(e))
     }
     return out
   }
@@ -267,6 +297,33 @@ export class StorageRepository {
       this.writeRaw(KEY.seeded, String(SEED_VERSION))
     } catch (e) {
       // Seeding must never crash the app; degrade and keep going.
+      this.degrade(toAppError(e))
+    }
+  }
+
+  /**
+   * One-time, idempotent migration of ALL persisted records to the current shapes.
+   * seedIfStale() only upserts SEED ids, so user-created documents keep pre-redesign
+   * shapes (0–10 scores, a string reviewer, a "[paste your text here]" placeholder).
+   * This walks every document and signal and brings each forward (see @/lib/migrate).
+   *
+   * Gated on the `bsp:meta:migrated` marker (= MIGRATION_VERSION). The score rescale
+   * is not idempotent, so the marker — not a value heuristic — is what guarantees the
+   * pass runs at most once. Never crashes the app: any failure degrades and returns.
+   */
+  private migrate(): void {
+    try {
+      if (this.store.getItem(KEY.migrated) === String(MIGRATION_VERSION)) return
+      for (const doc of this.collect<Document>(PREFIX.doc)) {
+        this.write(KEY.doc(doc.id), migrateDocument(doc))
+      }
+      for (const signal of this.collect<SignalDef>(PREFIX.signal)) {
+        this.write(KEY.signal(signal.id), migrateSignal(signal))
+      }
+      this.writeRaw(KEY.migrated, String(MIGRATION_VERSION))
+    } catch (e) {
+      // Migration must never crash the app; degrade and keep going. The marker is
+      // left unset so a later construction can retry once the store is healthy.
       this.degrade(toAppError(e))
     }
   }
