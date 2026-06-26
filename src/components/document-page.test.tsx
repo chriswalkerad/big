@@ -274,6 +274,42 @@ describe('DocumentPage edit mode — submit flow', () => {
   })
 })
 
+describe('DocumentPage — TopBar review inbox', () => {
+  // seedDoc() constructs a repository, which seeds the demo data into the freshly
+  // cleared localStorage. proj-eloise's seed includes documents awaiting review, so the
+  // inbox in the doc-page TopBar lists this project's queue from inside a document.
+  it('renders the review inbox in the TopBar and lists this project\'s queue (edit mode)', async () => {
+    seedDoc({ title: 'A Concept' })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
+
+    const inbox = await screen.findByRole('button', { name: 'Review inbox' })
+    fireEvent.click(inbox)
+
+    const menu = within(screen.getByRole('menu', { name: 'Review inbox' }))
+    const links = menu.getAllByRole('menuitem')
+    // The seed for proj-eloise has three documents awaiting review.
+    expect(links).toHaveLength(3)
+    for (const link of links) {
+      expect(link.getAttribute('href')).toMatch(/\/review$/)
+    }
+    // Each links to a doc in this project's review view.
+    expect(
+      menu.getByText('A New Friend at the Plaza').closest('a'),
+    ).toHaveAttribute('href', '/p/proj-eloise/d/doc-new-friend/review')
+  })
+
+  it('renders the review inbox in the TopBar in read mode too', async () => {
+    seedDoc({
+      status: 'submitted',
+      title: 'A Concept',
+      submittedSnapshot: { body: 'snapshot body', review: REVIEW, submittedAt: 'T1' },
+    })
+    render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="read" />)
+
+    expect(await screen.findByRole('button', { name: 'Review inbox' })).toBeInTheDocument()
+  })
+})
+
 describe('DocumentPage apply (AI rewrite) — accept / discard', () => {
   const REVIEW_WITH_PROMPT: ReviewResult = {
     ...REVIEW,

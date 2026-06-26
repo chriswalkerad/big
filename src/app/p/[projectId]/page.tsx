@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Inbox, Search, SquarePen } from "lucide-react";
+import { Search, SquarePen } from "lucide-react";
 import type { Document, Person, SubmissionStatus } from "@/types";
 import {
   ALL_STATUSES,
@@ -14,7 +14,7 @@ import {
 import { useLibraryData } from "@/lib/use-library-data";
 import { AppBreadcrumb } from "@/components/app-breadcrumb";
 import { TopBar } from "@/components/top-bar";
-import { Menu } from "@/components/menu";
+import { ReviewInbox } from "@/components/review-inbox";
 import { Button, buttonClass } from "@/components/button";
 import { STATUS_LABELS, STATUS_ORDER } from "@/components/status-chip";
 import { SUBTYPE_LABELS } from "@/components/subtype-chip";
@@ -74,7 +74,7 @@ export function LibraryView({ projectId }: { projectId: string }) {
   // the reviewer INBOX (left) then the icon-only ink "New" pencil (compose a doc).
   const actions = (
     <>
-      <InboxMenu projectId={projectId} queue={queue} owner={owner} />
+      <ReviewInbox projectId={projectId} queue={queue} owner={owner} />
       <Link
         href={`/p/${projectId}/d/new`}
         aria-label="New document"
@@ -281,86 +281,5 @@ function DocumentRow({
         <span>Updated {relativeTime(doc.updatedAt)}</span>
       </div>
     </Link>
-  );
-}
-
-/**
- * The reviewer INBOX: an icon button in the library TopBar that opens a popover
- * listing this project's documents awaiting review (the `queue`, already filtered
- * by `reviewQueue`). Each row links to the document's read/reviewer view at
- * `/p/{projectId}/d/{docId}/review`. A small count badge appears when the queue is
- * non-empty. Built on the shared `Menu` so it inherits roving focus, Escape, and
- * outside-click dismissal.
- *
- * Scope is the current project only (the library is per-project). A cross-project
- * inbox is a future extension — see `reviewQueue` in `lib/library.ts`.
- */
-function InboxMenu({
-  projectId,
-  queue,
-  owner,
-}: {
-  projectId: string;
-  queue: Document[];
-  owner: Person | null;
-}) {
-  const count = queue.length;
-  return (
-    <Menu
-      ariaLabel="Review inbox"
-      align="right"
-      triggerClassName={buttonClass("ghost", "relative px-2")}
-      label={
-        <>
-          <Inbox className="size-4" aria-hidden="true" />
-          {count > 0 ? (
-            <span
-              className={cn(
-                "absolute -right-1 -top-1 inline-flex min-w-4 items-center justify-center rounded-pill px-1",
-                "bg-ink text-[10px] font-medium leading-4 text-ink-foreground",
-              )}
-            >
-              {count}
-            </span>
-          ) : null}
-        </>
-      }
-    >
-      {(close) => (
-        <div className="w-72 max-w-[min(20rem,calc(100vw-2rem))]">
-          {count === 0 ? (
-            <p className="px-2.5 py-2 text-label-sm text-text-tertiary">
-              No submissions to review.
-            </p>
-          ) : (
-            <ul className="flex flex-col">
-              {queue.map((doc) => (
-                <li key={doc.id}>
-                  <Link
-                    href={`/p/${projectId}/d/${doc.id}/review`}
-                    role="menuitem"
-                    onClick={close}
-                    className={cn(
-                      "flex flex-col gap-0.5 rounded-control px-2.5 py-2 transition-colors",
-                      "hover:bg-panel",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
-                    )}
-                  >
-                    <span className="truncate text-body-emphasis text-text-primary">
-                      {doc.title || "Untitled"}
-                    </span>
-                    <span className="text-label-sm text-text-tertiary">
-                      {owner ? `Owner · ${owner.name} · ` : ""}
-                      Reviewer · {doc.reviewer ? doc.reviewer.name : "—"} ·{" "}
-                      {STATUS_LABELS[doc.status]} · {relativeTime(doc.updatedAt)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-    </Menu>
   );
 }

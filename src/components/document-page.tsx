@@ -20,6 +20,7 @@ import { requestApply } from '@/lib/apply-client'
 import { getTranscribeAvailable } from '@/lib/transcribe-client'
 import { useDictation } from '@/lib/use-dictation'
 import { htmlToText, textToHtml } from '@/lib/doc-body'
+import { reviewQueue } from '@/lib/library'
 import {
   ROUTING_LABELS,
   applyApprove,
@@ -35,7 +36,7 @@ import { cn } from '@/lib/utils'
 import { AppBreadcrumb } from '@/components/app-breadcrumb'
 import { Button } from '@/components/button'
 import { TopBar } from '@/components/top-bar'
-import { ContextChip } from '@/components/context-chip'
+import { ReviewInbox } from '@/components/review-inbox'
 import { StatusChip } from '@/components/status-chip'
 import { SubtypeChip } from '@/components/subtype-chip'
 import { SubtypeSelect } from '@/components/subtype-select'
@@ -101,6 +102,10 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   const [signals, setSignals] = useState<SignalDef[]>([])
   const [project, setProject] = useState<Project | null>(null)
   const [people, setPeople] = useState<Person[]>([])
+  // The full set of documents in THIS project — read once on mount (same source as the
+  // library) so the reviewer inbox in the TopBar can show this project's review queue
+  // from inside a document. Separate from the single loaded `doc` above.
+  const [projectDocs, setProjectDocs] = useState<Document[]>([])
 
   // Live working state (edit mode mutates these before persisting on key events).
   const [title, setTitle] = useState('')
@@ -163,6 +168,11 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
     setSignals(repo.listSignals())
     setPeople(repo.listPeople())
     setProject(repo.getProject(found.projectId) ?? repo.getProject(projectId))
+    // Read all of this project's documents (the same source the library uses) so the
+    // TopBar review inbox can show this project's queue from inside a document.
+    setProjectDocs(
+      repo.listDocuments().filter((d) => d.projectId === found.projectId),
+    )
     setTitle(found.title)
     setBody(found.body)
     bodyRef.current = found.body
@@ -177,6 +187,16 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
+
+  // The reviewer inbox for THIS project: its documents awaiting review. The currently
+  // open document is merged in from live state (`doc`) so the badge/count stay accurate
+  // after a submit/unsubmit here, without re-reading storage. Empty until loaded.
+  const inboxQueue = useMemo(() => {
+    const merged = doc
+      ? [doc, ...projectDocs.filter((d) => d.id !== doc.id)]
+      : projectDocs
+    return reviewQueue(merged)
+  }, [doc, projectDocs])
 
   // When the detail panel opens, move focus into it so keyboard/SR users land on the
   // freshly revealed review (and Esc-to-close has a sensible focus origin). This is a
@@ -604,7 +624,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
 
   const drift = !isRead && hasDrift(body, snapshot)
   const reviewUrl = `/p/${projectId}/d/${docId}/review`
-  const audienceShort = shortAudience(project.audience)
 
   // There is review content to surface (a settled review, an in-flight run, or an
   // error) → the slim strip renders, and the detail panel may be opened.
@@ -617,31 +636,40 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
       <TopBar
         breadcrumb={
           <AppBreadcrumb
-            segments={[
-              { label: project.name, href: `/p/${projectId}` },
-              { label: title || 'Untitled', current: true },
-            ]}
+            segments={[{ label: project.name, current: true }]}
             className="min-w-0"
           />
         }
         actions={
           <>
             {!isRead ? (
-              <Button
-                variant="ink"
-                onClick={() => void runReview()}
-                disabled={reviewLoading}
-                aria-busy={reviewLoading ? true : undefined}
-              >
-                {reviewLoading ? (
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Sparkles className="size-3.5 text-accent" aria-hidden="true" />
-                )}
-                {reviewLoading ? 'Reviewing…' : status === 'draft' ? 'Run review' : 'Resubmit'}
-              </Button>
+              <>
+                <ReviewInbox
+                  projectId={projectId}
+                  queue={inboxQueue}
+                  owner={project.owner}
+                />
+                <Button
+                  variant="ink"
+                  onClick={() => void runReview()}
+                  disabled={reviewLoading}
+                  aria-busy={reviewLoading ? true : undefined}
+                >
+                  {reviewLoading ? (
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Sparkles className="size-3.5 text-accent" aria-hidden="true" />
+                  )}
+                  {reviewLoading ? 'Reviewing…' : status === 'draft' ? 'Run review' : 'Resubmit'}
+                </Button>
+              </>
             ) : (
               <>
+                <ReviewInbox
+                  projectId={projectId}
+                  queue={inboxQueue}
+                  owner={project.owner}
+                />
                 <ReviewerStatusControl
                   status={status}
                   routing={routing}
@@ -683,8 +711,6 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
               }}
             />
           )}
-          <span aria-hidden="true" className="text-text-tertiary">·</span>
-          <ContextChip name={project.name} audience={audienceShort} />
           <span aria-hidden="true" className="text-text-tertiary">·</span>
           <StatusChip status={status} />
           {isRead && routing ? <RoutedNote destination={routing} /> : null}
@@ -951,13 +977,4 @@ function RoutedNote({ destination }: { destination: RoutingDestination }) {
       Routed to <span className="text-text-secondary">{ROUTING_LABELS[destination]}</span>.
     </p>
   )
-}
-
-/** Trim the long seed audience string to the short chip form. */
-function shortAudience(audience: string): string {
-  const match = audience.match(/(kids?\s*\d+\s*-\s*\d+)/i)
-  return match ? capitalize(match[1]) : audience
-}
-function capitalize(s: string): string {
-  return s.charAt(0).toUpperCase() + s.slice(1)
 }
