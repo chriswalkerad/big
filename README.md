@@ -101,7 +101,7 @@ To enable **voice dictation**, set `AZURE_SPEECH_ENDPOINT` + `AZURE_SPEECH_KEY` 
 | `npm run dev` | Start the dev server (Turbopack) on the mock |
 | `npm run build` | Production build (passes with no env vars) |
 | `npm run lint` | ESLint |
-| `npm test` | Run the Vitest suite once (**472 tests across 50 files**) |
+| `npm test` | Run the Vitest suite once (**461 tests across 47 files**) |
 | `npm run typecheck` | `tsc --noEmit` (strict) |
 
 ### Deploy
@@ -194,6 +194,7 @@ Explicitly out of scope per the build specs (`bsp-frontend-build-spec.md` "Out o
 - **Rich-text formatting** (bold/italic/headings/marks) in the editor.
 - **A board / kanban library** — the document list is a filterable list of rows, not a board, and there's no broader project-management UI.
 - **Per-project signal sets.** Signals (the configurable review criteria) are a single **global** set edited in Settings and applied to every project; `SignalDef` has no `projectId` and storage keys them `bsp:signal:<id>` globally. Ideally each project would own its own signal set, but that was a conscious scope decision — keeping one shared set keeps the review pipeline and Settings simple. Per-project signals would mean scoping signals by `projectId` across storage, the review pipeline, and the Settings UI.
+- **No delete.** Projects and documents/briefs can be created and edited but not deleted — there is no remove action for either. A conscious scope decision (it also sidesteps destructive-action confirmation UX); a real build would add archive/delete with guards.
 - **Live prompting against the franchise** from the signal view — the Franchise Fit row links to a static franchise detail; it does not re-prompt the model live.
 - **Batch file transcription** — an earlier `/api/transcribe` batch route was removed in favor of streaming dictation only; voice is real-time via `/api/speech-token`.
 
@@ -227,7 +228,7 @@ The human orchestrator made the product/UX calls (snapshot-vs-pointer, in-panel 
 Beyond the automated suite, these were checked by hand:
 
 - **Zero-config run:** `npm install && npm run dev` with no environment variables starts cleanly and loads the seeded projects.
-- **Build / lint / types / tests:** `npm run build`, `npm run lint`, `npm test` (472 tests / 50 files), and `npm run typecheck` all pass.
+- **Build / lint / types / tests:** `npm run build`, `npm run lint`, `npm test` (461 tests / 47 files), and `npm run typecheck` all pass.
 - **Seeded review fidelity:** a live mock re-review of the seeded *Haunted Service Elevator* doc reproduces its stored `not_ready` verdict and the expected red Brand Safety squiggles.
 - **Submit + drift:** submitting opens the panel with verdict and six bars, requires a reviewer, sets status, and applies prefill; editing afterward shows the drift indicator with working Resubmit (replaces snapshot) and Unsubmit (returns to Draft).
 - **AI rewrite:** Apply hands the body to `/api/apply`, shows the rewriting state, and gates the change behind Accept / Discard.
@@ -249,7 +250,6 @@ All optional — absent keys fall back to the mock (review/apply) or hide the fe
 | `AZURE_SPEECH_ENDPOINT` | Azure Speech resource endpoint (voice dictation) | — |
 | `AZURE_SPEECH_KEY` | Azure Speech subscription key (server-side only) | — |
 | `AZURE_SPEECH_REGION` | Azure Speech region — required for streaming dictation | — |
-| `AZURE_SPEECH_TRANSCRIBE_MODEL` | Speech model name | `mai-transcribe-1.5` |
 
 ---
 
