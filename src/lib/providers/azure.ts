@@ -10,7 +10,7 @@
 import OpenAI, { toFile } from 'openai'
 import type { ReviewResult } from '@/types'
 import { appError, toAppError } from '@/lib/errors'
-import { hasTranscribeConfig, type TranscribeEnv } from './select'
+import { hasTranscribeConfig, resolveTranscribeConfig, type TranscribeEnv } from './select'
 import type { ApplyInput, ReviewInput, ReviewProvider } from './interface'
 import {
   buildApplyPrompt,
@@ -169,9 +169,14 @@ export class AzureProvider implements ReviewProvider {
 // ---------------------------------------------------------------------------
 // Speech-to-text (voice dictation). Azure-only, and intentionally NOT part of the
 // ReviewProvider interface: it has nothing to do with reviewing text, and the mock /
-// Gemini providers don't offer it. It reuses the same OpenAI-compatible client as
-// AzureProvider but targets the audio transcriptions endpoint with a separate
-// deployment (AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT, e.g. gpt-4o-transcribe / whisper).
+// Gemini providers don't offer it. It uses a dedicated OpenAI-compatible client via
+// the audio transcriptions path, with a separate deployment
+// (AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT, e.g. a Whisper model like
+// openai--whisper-large-v3-turbo). A Foundry/HF-hosted transcription model can live
+// on a DIFFERENT inference endpoint than the main chat one, so the endpoint and key
+// are independently configurable (AZURE_OPENAI_TRANSCRIBE_ENDPOINT /
+// AZURE_OPENAI_TRANSCRIBE_API_KEY), each falling back to the main AZURE_OPENAI_*
+// value — see resolveTranscribeConfig.
 
 /** Transcription deployments are speech models, not gpt-5-class reasoning ones. */
 const TRANSCRIBE_TIMEOUT_MS = 60_000
@@ -191,9 +196,9 @@ export async function transcribeAudio(
       // Defensive: the route short-circuits before calling, but never assume.
       throw appError('AI_UNAVAILABLE', 'Speech-to-text is not configured.')
     }
-    const endpoint = env.AZURE_OPENAI_ENDPOINT!.trim()
-    const apiKey = env.AZURE_OPENAI_API_KEY!.trim()
-    const model = env.AZURE_OPENAI_TRANSCRIBE_DEPLOYMENT!.trim()
+    // Endpoint/key resolve to the transcription-specific overrides when set, else
+    // the main Azure values. The model is the transcription deployment name.
+    const { endpoint, apiKey, deployment: model } = resolveTranscribeConfig(env)
 
     const client = new OpenAI({ baseURL: endpoint, apiKey })
 
