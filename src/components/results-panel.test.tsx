@@ -219,6 +219,21 @@ describe('ResultsPanel score explanation', () => {
     expect(toggle()).toHaveAttribute('aria-expanded', 'true')
   })
 
+  it('links the toggle to the methodology region via aria-controls (no aria-pressed)', () => {
+    renderPanel()
+    const button = toggle()
+    // The disclosure exposes aria-expanded + aria-controls, never the contradictory aria-pressed.
+    expect(button).not.toHaveAttribute('aria-pressed')
+    const controls = button.getAttribute('aria-controls')
+    expect(controls).toBeTruthy()
+    fireEvent.click(button)
+    // aria-controls points at the disclosed region's id.
+    expect(document.getElementById(controls as string)).toHaveAttribute(
+      'aria-label',
+      'How the score is calculated',
+    )
+  })
+
   it('lists each signal with its pass threshold in the explanation', () => {
     renderPanel()
     fireEvent.click(toggle())

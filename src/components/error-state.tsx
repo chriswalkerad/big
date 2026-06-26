@@ -10,6 +10,12 @@ interface ErrorStateProps {
   onRetry?: () => void;
   className?: string;
   title?: string;
+  /**
+   * The heading level for `title`. The title renders as a real heading (not a `<p>`)
+   * so heading-navigation finds it; `role="alert"` still announces it live. Defaults
+   * to `2`. Visual styling is unchanged regardless of level.
+   */
+  headingLevel?: 2 | 3 | 4;
 }
 
 /**
@@ -21,7 +27,9 @@ export function ErrorState({
   onRetry,
   className,
   title = "Something went wrong",
+  headingLevel = 2,
 }: ErrorStateProps) {
+  const Heading = `h${headingLevel}` as const;
   const canRetry = error.retryable && typeof onRetry === "function";
 
   return (
@@ -35,7 +43,7 @@ export function ErrorState({
     >
       <AlertTriangle className="size-5 text-text-tertiary" aria-hidden="true" />
       <div className="flex flex-col gap-1">
-        <p className="text-body-emphasis text-text-primary">{title}</p>
+        <Heading className="text-body-emphasis text-text-primary">{title}</Heading>
         <p className="text-body text-text-secondary">{error.message}</p>
       </div>
       {canRetry ? (

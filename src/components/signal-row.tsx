@@ -3,6 +3,7 @@
 import { forwardRef } from 'react'
 import type { SignalDef, SignalResult } from '@/types'
 import { cn } from '@/lib/utils'
+import { barTone } from '@/lib/doc-page'
 import { SignalBar } from '@/components/signal-bar'
 
 interface SignalRowProps {
@@ -37,6 +38,14 @@ export const SignalRow = forwardRef<HTMLDivElement, SignalRowProps>(function Sig
 ) {
   const { score, rationale, issues } = result
 
+  // The bar encodes pass/flag only by color (green/amber/red). Restate it as text so
+  // a screen reader announces the verdict and threshold, not just the raw score (1.4.1).
+  const tone = barTone(score, def.threshold)
+  const statusText =
+    tone === 'pass'
+      ? `${def.name}, ${score} out of 100, meets threshold ${def.threshold} — passes.`
+      : `${def.name}, ${score} out of 100, below threshold ${def.threshold} — flagged.`
+
   return (
     <div
       ref={ref}
@@ -51,6 +60,10 @@ export const SignalRow = forwardRef<HTMLDivElement, SignalRowProps>(function Sig
         <span className="text-body-emphasis text-text-primary">{def.name}</span>
         <span className="text-label-sm tabular-nums text-text-primary">{score}</span>
       </div>
+
+      {/* The visible name + score say nothing about pass/flag (that's color-only in the
+          bar). This restates the verdict + threshold as text for assistive tech. */}
+      <span className="sr-only">{statusText}</span>
 
       <SignalBar score={score} threshold={def.threshold} />
 
@@ -85,6 +98,9 @@ export const SignalRow = forwardRef<HTMLDivElement, SignalRowProps>(function Sig
                   “{issue.quote}”
                 </span>
                 <span className="text-label-sm text-text-secondary">{issue.message}</span>
+                {/* The button navigates to (focuses) the matching phrase in the canvas;
+                    say so for screen readers, since the visible name is just the quote. */}
+                <span className="sr-only"> — go to this phrase.</span>
               </button>
             </li>
           ))}
