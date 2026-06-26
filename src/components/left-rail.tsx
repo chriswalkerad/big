@@ -5,6 +5,7 @@ import {
   useEffect,
   useId,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -25,6 +26,7 @@ import type { Document, Person, Project } from "@/types";
 import { createStorageRepository } from "@/lib/storage";
 import { relativeTime, reviewQueue } from "@/lib/library";
 import { useRailState } from "@/lib/use-rail-state";
+import { useFocusTrap } from "@/lib/use-focus-trap";
 import { AccountDialog } from "@/components/account-dialog";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { STATUS_LABELS } from "@/components/status-chip";
@@ -211,6 +213,24 @@ export function LeftRail() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // The off-canvas drawer (phones, <sm) is a MODAL dialog while open: focus is
+  // trapped inside the <nav>, Escape closes it, and focus returns to the
+  // hamburger that opened it. The persistent sm+ in-flow rail never enters this
+  // path — `drawerOpen` only toggles on phones and the trap/Escape are gated on
+  // it. `useFocusTrap` restores focus to whatever was focused when it activated
+  // (the hamburger), satisfying focus-return on close.
+  const navRef = useRef<HTMLElement | null>(null);
+  useFocusTrap(navRef, drawerOpen);
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setDrawerOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [drawerOpen]);
+
   // Until hydration, render the rail at its default (expanded) width so the
   // server and first client render agree; the persisted collapsed value is
   // applied once `mounted` is true. Computed before the early return so the
@@ -253,7 +273,14 @@ export function LeftRail() {
       ) : null}
 
       <nav
+        ref={navRef}
         aria-label="Primary"
+        // While the off-canvas drawer is OPEN (phones, <sm) the rail is a modal
+        // dialog: a focus trap + Escape are active, so it advertises itself as
+        // such. At sm+ (or when closed) it is a persistent in-flow landmark with
+        // no dialog semantics.
+        role={drawerOpen ? "dialog" : undefined}
+        aria-modal={drawerOpen ? true : undefined}
         data-collapsed={isCollapsed ? "true" : undefined}
         className={cn(
           // Base: a subtly-tinted panel column (bg-panel ≈ #fafafa, dark-mode
@@ -360,6 +387,11 @@ function NavMode({
   const homeHref = `/p/${currentProjectId}`;
   const homeActive = pathname === homeHref || pathname === "/";
 
+  // Compose targets the project's new-document route; mark it current when the
+  // route is actually there (it was previously hardcoded inactive). 1.3.1.
+  const composeHref = `/p/${currentProjectId}/d/new`;
+  const composeActive = pathname === composeHref;
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* Brand mark. The expanded header matches the editor TopBar's horizontal
@@ -411,11 +443,11 @@ function NavMode({
 
         {/* Compose a new document. */}
         <RailLink
-          href={`/p/${currentProjectId}/d/new`}
+          href={composeHref}
           icon={<SquarePen className="size-4" aria-hidden="true" />}
           label="Compose"
           collapsed={collapsed}
-          active={false}
+          active={composeActive}
           onNavigate={onNavigate}
         />
 
@@ -428,7 +460,7 @@ function NavMode({
             icon={
               <span
                 aria-hidden="true"
-                className="inline-flex size-4 items-center justify-center rounded-[4px] bg-panel text-[10px] font-medium text-text-tertiary"
+                className="inline-flex size-4 items-center justify-center rounded-[4px] bg-panel text-[0.625rem] font-medium text-text-tertiary"
               >
                 {project.name.slice(0, 1).toUpperCase()}
               </span>
@@ -440,12 +472,17 @@ function NavMode({
           />
         ))}
 
-        {/* Inbox — switches the rail into inbox mode (does not navigate). */}
+        {/* Inbox — switches the rail into inbox mode (does not navigate). It
+            toggles the rail's inbox panel, so it advertises that disclosure
+            relationship via aria-expanded. In nav mode the panel is closed
+            (false); activating it swaps the rail into inbox mode, where this
+            button is replaced by the panel's Back control. 1.3.1. */}
         <RailButton
           icon={<Inbox className="size-4" aria-hidden="true" />}
           label="Inbox"
           collapsed={collapsed}
           badge={inboxCount}
+          expanded={false}
           onClick={onOpenInbox}
         />
 
@@ -522,23 +559,22 @@ function InboxMode({ collapsed, projectId, onBack, onNavigate }: InboxModeProps)
           </p>
         ) : (
           <ul className="flex flex-col gap-0.5">
-            {queue.map((doc) => (
-              <li key={doc.id}>
+            {queue.map((doc) => {
+              const title = doc.title || "Untitled";
+              const row = (
                 <Link
                   href={`/p/${projectId}/d/${doc.id}/review`}
                   onClick={onNavigate}
-                  title={collapsed ? doc.title || "Untitled" : undefined}
+                  aria-label={collapsed ? title : undefined}
                   className={cn(
-                    "flex flex-col gap-0.5 rounded-control px-2.5 py-2 transition-colors",
+                    "flex w-full flex-col gap-0.5 rounded-control px-2.5 py-2 transition-colors",
                     "hover:bg-panel",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus",
                     collapsed ? "items-center" : "",
                   )}
                 >
                   <span className="truncate text-body-emphasis text-text-primary">
-                    {collapsed
-                      ? (doc.title || "Untitled").slice(0, 1).toUpperCase()
-                      : doc.title || "Untitled"}
+                    {collapsed ? title.slice(0, 1).toUpperCase() : title}
                   </span>
                   {!collapsed ? (
                     <span className="text-label-sm text-text-tertiary">
@@ -548,8 +584,16 @@ function InboxMode({ collapsed, projectId, onBack, onNavigate }: InboxModeProps)
                     </span>
                   ) : null}
                 </Link>
-              </li>
-            ))}
+              );
+              return (
+                <li key={doc.id}>
+                  {/* Collapsed → the row shows only an initial, so the styled
+                      Tooltip (hover + keyboard focus) stands in for the dropped
+                      title, replacing the native `title=`. 1.4.13 + 1.4.4. */}
+                  {collapsed ? <Tooltip label={title}>{row}</Tooltip> : row}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -641,10 +685,12 @@ interface RailButtonProps {
   label: string;
   collapsed: boolean;
   badge?: number;
+  /** When set, exposes a disclosure relationship via `aria-expanded`. */
+  expanded?: boolean;
   onClick: () => void;
 }
 
-function RailButton({ icon, label, collapsed, badge, onClick }: RailButtonProps) {
+function RailButton({ icon, label, collapsed, badge, expanded, onClick }: RailButtonProps) {
   const showBadge = typeof badge === "number" && badge > 0;
   // The badge is decorative for the a11y name (it would otherwise smear into the
   // label, e.g. "Inbox3"); the count is voiced via the button's aria-label.
@@ -654,6 +700,7 @@ function RailButton({ icon, label, collapsed, badge, onClick }: RailButtonProps)
       type="button"
       onClick={onClick}
       aria-label={accessibleName}
+      aria-expanded={expanded}
       className={cn(railRowClass(false, collapsed), "relative")}
     >
       <span className="shrink-0">{icon}</span>
@@ -665,7 +712,7 @@ function RailButton({ icon, label, collapsed, badge, onClick }: RailButtonProps)
           {showBadge ? (
             <span
               aria-hidden="true"
-              className="inline-flex min-w-4 items-center justify-center rounded-pill bg-ink px-1 text-[10px] font-medium leading-4 text-ink-foreground"
+              className="inline-flex min-w-4 items-center justify-center rounded-pill bg-ink px-1 text-[0.625rem] font-medium leading-4 text-ink-foreground"
             >
               {badge}
             </span>
@@ -674,7 +721,7 @@ function RailButton({ icon, label, collapsed, badge, onClick }: RailButtonProps)
       ) : showBadge ? (
         <span
           aria-hidden="true"
-          className="absolute right-1 top-1 inline-flex min-w-4 items-center justify-center rounded-pill bg-ink px-1 text-[10px] font-medium leading-4 text-ink-foreground"
+          className="absolute right-1 top-1 inline-flex min-w-4 items-center justify-center rounded-pill bg-ink px-1 text-[0.625rem] font-medium leading-4 text-ink-foreground"
         >
           {badge}
         </span>

@@ -54,7 +54,11 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
         className,
       )}
     >
-      <div className="flex h-[46px] w-full items-center justify-between gap-4 px-4 sm:px-6">
+      {/* The row WRAPS below sm so the actions cluster can drop to a second line
+          on a narrow phone (320px) instead of forcing the sticky header to
+          scroll horizontally (1.4.10 Reflow). At sm+ it stays a single ~46px
+          line. `min-w-0` lets the breadcrumb truncate rather than push width. */}
+      <div className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-1 px-4 py-1.5 sm:h-[46px] sm:flex-nowrap sm:py-0 sm:px-6">
         <div className="flex min-w-0 items-center gap-2.5">
           <Link
             href="/"
@@ -76,7 +80,10 @@ export function TopBar({ breadcrumb, actions, className }: TopBarProps) {
           </Link>
           {breadcrumb ? <div className="min-w-0">{breadcrumb}</div> : null}
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        {/* The actions cluster also wraps internally so that, even on its own
+            second line, a long set (inbox + Run review + copy-link + ⋯) never
+            exceeds 320px and forces horizontal scroll. */}
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
           {actions}
           <Menu
             ariaLabel="More options"
