@@ -17,6 +17,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Settings,
+  SquarePen,
   UserRound,
 } from "lucide-react";
 import type { Document, Person, Project } from "@/types";
@@ -102,17 +103,23 @@ type RailMode = "nav" | "inbox";
  *               to the reviewer view. "Back" returns to nav mode.
  *
  * Two WIDTHS (persisted via `useRailState`): expanded (~240px, icon + label)
- * and collapsed (~56px, icons only with `title`/aria tooltips). The width
- * transition is reduced-motion-safe (the global rule in globals.css neutralizes
- * long transitions).
+ * and collapsed (~56px, icons only with a styled hover/focus {@link Tooltip}).
+ * The width transition is reduced-motion-safe (the global rule in globals.css
+ * neutralizes long transitions).
  *
- * Below `lg` the rail is an off-canvas drawer toggled by a slim top strip's
- * hamburger; the page content is full-width.
+ * RESPONSIVE MODEL. At `sm+` (≥640px, i.e. small tablets through desktop) the
+ * rail is a PERSISTENT in-flow flex sibling that PUSHES the content column —
+ * never an overlay — and the collapsed/expanded width applies at every one of
+ * those widths (it does NOT revert to the wide base width when narrow). The
+ * off-canvas drawer + backdrop are used ONLY on true narrow phones (`<sm`),
+ * toggled by the slim top strip's hamburger, and the backdrop renders only
+ * while the drawer is open. The collapse toggle itself lives OUTSIDE the rail
+ * (a floating edge control rendered by {@link AppShell}); see {@link RailEdgeToggle}.
  */
 export function LeftRail() {
   const pathname = usePathname();
   const currentProjectId = useCurrentProjectId();
-  const { collapsed, toggle, mounted } = useRailState();
+  const { collapsed, mounted } = useRailState();
 
   const [mode, setMode] = useState<RailMode>("nav");
   const [accountOpen, setAccountOpen] = useState(false);
@@ -131,16 +138,18 @@ export function LeftRail() {
 
   return (
     <>
-      {/* Mobile (<lg): slim top strip with a hamburger that opens the drawer. */}
+      {/* Phones (<sm): slim top strip with a hamburger that opens the drawer. */}
       <MobileStrip onOpen={() => setDrawerOpen(true)} />
 
-      {/* Mobile drawer backdrop. */}
+      {/* Drawer backdrop — phones ONLY, and only while the drawer is open. At
+          sm+ the rail is in-flow and pushes content, so there is never an
+          overlay. */}
       {drawerOpen ? (
         <button
           type="button"
           aria-label="Close navigation"
           onClick={closeDrawer}
-          className="fixed inset-0 z-40 cursor-default bg-text-primary/20 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 cursor-default bg-text-primary/20 backdrop-blur-sm sm:hidden"
         />
       ) : null}
 
@@ -150,22 +159,22 @@ export function LeftRail() {
         className={cn(
           // Base: a subtly-tinted panel column (bg-panel ≈ #fafafa, dark-mode
           // safe), divided from the white content area by a hairline right edge.
-          // On lg+ it is a static flex sibling; below lg an off-canvas drawer.
+          // On sm+ it is a static in-flow flex sibling that pushes content;
+          // below sm an off-canvas drawer.
           "flex shrink-0 flex-col border-r border-border bg-panel",
           "fixed inset-y-0 left-0 z-50 w-60 max-w-[80vw] transition-transform duration-200",
           drawerOpen ? "translate-x-0" : "-translate-x-full",
-          // lg+: in-flow, no transform, width toggles between expanded/collapsed.
-          "lg:static lg:z-auto lg:max-w-none lg:translate-x-0 lg:transition-[width] lg:duration-200",
-          isCollapsed ? "lg:w-14" : "lg:w-60",
+          // sm+: in-flow, no transform, width toggles between expanded/collapsed
+          // at THESE widths too (no reverting to the wide base width when narrow).
+          "sm:static sm:z-auto sm:max-w-none sm:translate-x-0 sm:transition-[width] sm:duration-200",
+          isCollapsed ? "sm:w-14" : "sm:w-60",
         )}
       >
         {mode === "nav" ? (
           <NavMode
             collapsed={isCollapsed}
-            mounted={mounted}
             currentProjectId={currentProjectId}
             pathname={pathname}
-            onToggleCollapse={toggle}
             onOpenInbox={() => setMode("inbox")}
             onOpenAccount={() => {
               closeDrawer();
@@ -188,10 +197,10 @@ export function LeftRail() {
   );
 }
 
-/** The slim mobile-only top strip: brand mark + a hamburger that opens the drawer. */
+/** The slim phone-only top strip: brand mark + a hamburger that opens the drawer. */
 function MobileStrip({ onOpen }: { onOpen: () => void }) {
   return (
-    <div className="sticky top-0 z-30 flex h-[46px] items-center gap-2 border-b border-border bg-bg/85 px-3 backdrop-blur lg:hidden">
+    <div className="sticky top-0 z-30 flex h-[46px] items-center gap-2 border-b border-border bg-bg/85 px-3 backdrop-blur sm:hidden">
       <button
         type="button"
         onClick={onOpen}
@@ -220,10 +229,8 @@ function MobileStrip({ onOpen }: { onOpen: () => void }) {
 
 interface NavModeProps {
   collapsed: boolean;
-  mounted: boolean;
   currentProjectId: string;
   pathname: string;
-  onToggleCollapse: () => void;
   onOpenInbox: () => void;
   onOpenAccount: () => void;
   onNavigate: () => void;
@@ -231,10 +238,8 @@ interface NavModeProps {
 
 function NavMode({
   collapsed,
-  mounted,
   currentProjectId,
   pathname,
-  onToggleCollapse,
   onOpenInbox,
   onOpenAccount,
   onNavigate,
@@ -253,13 +258,15 @@ function NavMode({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Brand + collapse toggle. The expanded header matches the editor TopBar's
-          horizontal padding (px-4 sm:px-6) so the brand mark sits in the SAME spot
-          whether or not the rail is present — it must not jump between pages. */}
+      {/* Brand mark. The expanded header matches the editor TopBar's horizontal
+          padding (px-4 sm:px-6) so the brand mark sits in the SAME spot whether
+          or not the rail is present — it must not jump between pages. The
+          collapse toggle now lives OUTSIDE the rail (a floating edge control
+          rendered by AppShell), so the header holds only the brand. */}
       <div
         className={cn(
           "flex h-[46px] items-center gap-2 border-b border-border",
-          collapsed ? "px-2.5" : "px-4 sm:px-6",
+          collapsed ? "justify-center px-2.5" : "px-4 sm:px-6",
         )}
       >
         <Link
@@ -285,27 +292,6 @@ function NavMode({
             Creative Review
           </span>
         ) : null}
-        {/* The collapse toggle only makes sense at lg+ where the width is fixed;
-            in the mobile drawer the full label width is always shown. Until
-            mounted we render the expand icon as a stable placeholder. */}
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
-          title={collapsed ? "Expand navigation" : "Collapse navigation"}
-          className={cn(
-            "hidden size-7 shrink-0 items-center justify-center rounded-control lg:inline-flex",
-            "text-text-tertiary transition-colors hover:bg-panel hover:text-text-primary",
-            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
-            collapsed ? "mx-auto" : "",
-          )}
-        >
-          {mounted && collapsed ? (
-            <PanelLeftOpen className="size-4" aria-hidden="true" />
-          ) : (
-            <PanelLeftClose className="size-4" aria-hidden="true" />
-          )}
-        </button>
       </div>
 
       {/* Scrollable nav body. */}
@@ -316,6 +302,16 @@ function NavMode({
           label="Home"
           collapsed={collapsed}
           active={homeActive}
+          onNavigate={onNavigate}
+        />
+
+        {/* Compose a new document (was the library header's pencil button). */}
+        <RailLink
+          href={`/p/${currentProjectId}/d/new`}
+          icon={<SquarePen className="size-4" aria-hidden="true" />}
+          label="Compose"
+          collapsed={collapsed}
+          active={false}
           onNavigate={onNavigate}
         />
 
@@ -365,7 +361,17 @@ function NavMode({
           collapsed={collapsed}
           onClick={onOpenAccount}
         />
-        <ThemeToggle asMenuItem className={railRowClass(false, collapsed)} />
+        {collapsed ? (
+          <Tooltip label="Theme">
+            <ThemeToggle
+              asMenuItem
+              collapsed
+              className={railRowClass(false, true)}
+            />
+          </Tooltip>
+        ) : (
+          <ThemeToggle asMenuItem className={railRowClass(false, false)} />
+        )}
       </div>
     </div>
   );
@@ -447,6 +453,44 @@ function InboxMode({ collapsed, projectId, onBack, onNavigate }: InboxModeProps)
   );
 }
 
+/**
+ * A small styled hover/focus tooltip for COLLAPSED rail items — white text on a
+ * near-black surface (`bg-ink`/`text-ink-foreground`), positioned just to the
+ * RIGHT of the icon. Replaces the native `title` attribute so the hint is
+ * legibly styled and consistent across browsers.
+ *
+ * The trigger (its single child) and the tip share a `group` wrapper; the tip
+ * is shown on `group-hover` AND `group-focus-within` (so it appears on keyboard
+ * focus too). It is `aria-hidden` — the trigger already carries the label as its
+ * accessible name (`aria-label`), so the tip is purely visual and must not be
+ * double-announced. The fade is reduced-motion-safe via the global rule.
+ */
+function Tooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <span className="group relative flex w-full">
+      {children}
+      <span
+        role="tooltip"
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none absolute left-full top-1/2 z-50 ml-2 -translate-y-1/2",
+          "whitespace-nowrap rounded-control bg-ink px-2 py-1 text-label-sm text-ink-foreground shadow-sm",
+          "opacity-0 transition-opacity duration-150",
+          "group-hover:opacity-100 group-focus-within:opacity-100",
+        )}
+      >
+        {label}
+      </span>
+    </span>
+  );
+}
+
 /** Shared row class for rail items (links, buttons, the theme toggle). */
 function railRowClass(active: boolean, collapsed: boolean): string {
   return cn(
@@ -471,12 +515,11 @@ interface RailLinkProps {
 }
 
 function RailLink({ href, icon, label, collapsed, active, onNavigate }: RailLinkProps) {
-  return (
+  const link = (
     <Link
       href={href}
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
-      title={collapsed ? label : undefined}
       aria-label={collapsed ? label : undefined}
       className={railRowClass(active, collapsed)}
     >
@@ -484,6 +527,9 @@ function RailLink({ href, icon, label, collapsed, active, onNavigate }: RailLink
       {!collapsed ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
     </Link>
   );
+  // Collapsed → the label is dropped, so a styled tooltip stands in for it
+  // (replacing the native `title`); shown on hover AND keyboard focus.
+  return collapsed ? <Tooltip label={label}>{link}</Tooltip> : link;
 }
 
 interface RailButtonProps {
@@ -499,11 +545,10 @@ function RailButton({ icon, label, collapsed, badge, onClick }: RailButtonProps)
   // The badge is decorative for the a11y name (it would otherwise smear into the
   // label, e.g. "Inbox3"); the count is voiced via the button's aria-label.
   const accessibleName = showBadge ? `${label}, ${badge} awaiting review` : label;
-  return (
+  const button = (
     <button
       type="button"
       onClick={onClick}
-      title={collapsed ? label : undefined}
       aria-label={accessibleName}
       className={cn(railRowClass(false, collapsed), "relative")}
     >
@@ -530,6 +575,52 @@ function RailButton({ icon, label, collapsed, badge, onClick }: RailButtonProps)
           {badge}
         </span>
       ) : null}
+    </button>
+  );
+  // Collapsed → label dropped; a styled tooltip stands in (hover + focus).
+  return collapsed ? <Tooltip label={label}>{button}</Tooltip> : button;
+}
+
+/**
+ * The collapse/expand toggle, rendered OUTSIDE the rail as a small floating edge
+ * control sitting just to the RIGHT of the rail at the rail/content boundary.
+ * Present in BOTH collapsed and expanded states. Rendered by {@link AppShell}
+ * (a flex sibling at the top of the content column) rather than inside the rail
+ * header.
+ *
+ * It is shown only at `sm+` — the widths where the rail is the persistent
+ * in-flow collapsible column. On phones (`<sm`) the rail is a full-width drawer
+ * toggled by the {@link MobileStrip} hamburger, so the edge control is hidden.
+ * Returns `null` on editor routes (where the rail itself is absent).
+ */
+export function RailEdgeToggle() {
+  const pathname = usePathname();
+  const { collapsed, toggle, mounted } = useRailState();
+
+  if (isEditorPath(pathname)) return null;
+
+  const isCollapsed = mounted && collapsed;
+
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      aria-label={isCollapsed ? "Expand navigation" : "Collapse navigation"}
+      className={cn(
+        // A floating control pinned to the content column's left edge (the
+        // rail/content boundary), vertically near the top. `hidden sm:inline-flex`
+        // keeps it off phones, where the hamburger owns the drawer.
+        "absolute left-0 top-2 z-30 hidden size-7 -translate-x-1/2 items-center justify-center sm:inline-flex",
+        "rounded-control border border-border bg-surface text-text-tertiary shadow-sm",
+        "transition-colors hover:bg-panel hover:text-text-primary",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus",
+      )}
+    >
+      {isCollapsed ? (
+        <PanelLeftOpen className="size-4" aria-hidden="true" />
+      ) : (
+        <PanelLeftClose className="size-4" aria-hidden="true" />
+      )}
     </button>
   );
 }
