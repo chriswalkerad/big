@@ -3,9 +3,9 @@
 // provider key off the client: the SDK authenticates with this
 // token + region, never the subscription key.
 //   GET:  cheap availability probe — returns { available: boolean } from config
-//         alone (no token minted, no Azure round-trip). Mirrors /api/transcribe's
-//         GET so a doc-page mount can decide whether to show the mic affordance
-//         without burning a token mint per render. Leaks no key material.
+//         alone (no token minted, no Azure round-trip), so a doc-page mount can
+//         decide whether to show the mic affordance without burning a token mint
+//         per render. Leaks no key material.
 //   POST: mints a token, returning a typed SpeechTokenResponse over a no-store
 //         response. Delegates to handleSpeechToken (testable core). Stores nothing.
 //
@@ -14,9 +14,8 @@
 // browsers/proxies never write it to cache. `dynamic='force-dynamic'` only
 // disables Next's render cache, not the HTTP response cache, so the header matters.
 //
-// Next 16 route-handler convention (per node_modules/next/dist/docs/01-app/
-// 03-api-reference/03-file-conventions/route.md): export an async function named
-// after the HTTP method that takes the Web `Request` and returns a `Response`.
+// Next 16 route-handler convention: export an async function named after the HTTP
+// method that takes the Web `Request` and returns a `Response`.
 
 import type { SpeechTokenAvailability } from '@/types'
 import { hasSpeechTokenConfig } from '@/lib/providers/select'

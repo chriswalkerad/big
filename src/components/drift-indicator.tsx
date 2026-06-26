@@ -14,8 +14,8 @@ interface DriftIndicatorProps {
 }
 
 /**
- * The "edited since submit" indicator (version drift, EPIC 12). Shown when the live
- * body diverges from the submitted snapshot. Offers Resubmit (replace the snapshot)
+ * The "edited since submit" indicator (version drift). Shown when the live body
+ * diverges from the submitted snapshot. Offers Resubmit (replace the snapshot)
  * and Unsubmit (clear it, back to draft). Never blocks editing.
  */
 export function DriftIndicator({ onResubmit, onUnsubmit, busy, className }: DriftIndicatorProps) {

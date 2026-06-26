@@ -1,6 +1,6 @@
 // The contract every review provider implements. The API route selects a concrete
 // provider (Azure when configured, otherwise the mock) and calls `review` or
-// `applyEdit`. See specs/bsp-backend-build-spec.md.
+// `applyEdit`.
 
 import type { Project, ReviewResult, SignalDef } from '@/types'
 

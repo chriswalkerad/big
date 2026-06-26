@@ -4,7 +4,7 @@
 // @/lib/seed-data. Storage failures are caught and mapped to STORAGE_UNAVAILABLE /
 // STORAGE_QUOTA; the repository then continues entirely in memory for the session so
 // the app never crashes. Safe to construct on the client (and during SSR, where it
-// runs in-memory-only). See specs/bsp-backend-build-spec.md.
+// runs in-memory-only).
 
 import type { Document, Person, Project, SignalDef } from '@/types'
 import { type AppError, appError, toAppError } from '@/lib/errors'

@@ -1,7 +1,6 @@
 // Provider selection. The only reason the server exists is to keep provider keys
 // off the client. Priority: Azure (OpenAI-compatible) when configured, else the
 // deterministic mock. Factored out so it can be unit-tested without any keys.
-// See specs/bsp-backend-build-spec.md.
 
 import { AzureProvider } from './azure'
 import { MockProvider } from './mock'

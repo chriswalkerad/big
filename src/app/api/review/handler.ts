@@ -2,7 +2,7 @@
 // be unit-tested directly (the route stays a thin Web Request/Response wrapper). It
 // validates the request body, short-circuits empty text, runs the selected provider,
 // re-validates the provider's output, and always returns a typed ReviewResponse —
-// it never throws. See specs/bsp-backend-build-spec.md.
+// it never throws.
 
 import type { ReviewResponse } from '@/types'
 import { appError, toAppError } from '@/lib/errors'

@@ -57,7 +57,7 @@ describe("LeftRail", () => {
       within(nav).getByRole("link", { name: /Eloise at The Plaza/ }),
     ).toBeInTheDocument();
     expect(within(nav).getByRole("button", { name: /Inbox/ })).toBeInTheDocument();
-    // Compose links to the new-document route (moved here from the library header).
+    // Compose links to the new-document route.
     expect(within(nav).getByRole("link", { name: "Compose" })).toHaveAttribute(
       "href",
       "/p/proj-eloise/d/new",

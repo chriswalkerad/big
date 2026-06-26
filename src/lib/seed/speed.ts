@@ -1,8 +1,7 @@
 // Seed records for the second franchise, Speed — The Anime (teens 13-24, global).
-// Mirrors src/lib/seed-data.ts: one *_BODY constant and one *_REVIEW: ReviewResult
-// per submitted doc, then the Document[]. Inline issue `quote` values are EXACT
-// substrings of each body so canvas highlighting anchors.
-// See specs/bsp-seed-data-spec.md — do not paraphrase the bodies.
+// One *_BODY constant and one *_REVIEW: ReviewResult per submitted doc, then the
+// Document[]. Inline issue `quote` values are EXACT substrings of each body so canvas
+// highlighting anchors — do not paraphrase the bodies.
 
 import type { Document, Project, ReviewResult } from '@/types'
 import { personById } from '@/lib/people'

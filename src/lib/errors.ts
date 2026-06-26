@@ -1,6 +1,6 @@
 // Typed application error model. Endpoints and the storage layer return these
 // instead of throwing raw — the UI reads `code` to render a specific reason and
-// `retryable` to decide whether to offer a retry. See specs/bsp-backend-build-spec.md.
+// `retryable` to decide whether to offer a retry.
 
 export type AppErrorCode =
   | 'AI_TIMEOUT'

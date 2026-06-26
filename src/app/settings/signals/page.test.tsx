@@ -27,7 +27,7 @@ describe("SignalsAdminPage", () => {
   it("renders the plain in-column page header (no global-nav chrome)", async () => {
     render(<SignalsAdminPage />);
     // The slim header keeps the page <h1> and the + New Signal action; the
-    // persistent left-rail (sibling work) now owns all global nav, so the page
+    // persistent left-rail now owns all global nav, so the page
     // no longer renders a TopBar or breadcrumb.
     expect(
       screen.getByRole("heading", { level: 1, name: "Signals" }),

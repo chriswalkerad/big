@@ -1,7 +1,6 @@
 // Zod schemas for everything that crosses a trust boundary: the POST /api/review
 // request body and the ReviewResult a provider returns. All external/AI data is
 // validated here so the rest of the app can rely on the typed shapes from @/types.
-// See specs/bsp-backend-build-spec.md.
 
 import { z } from 'zod'
 import type {

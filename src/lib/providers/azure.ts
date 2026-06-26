@@ -4,8 +4,7 @@
 // only constructed from the API route. It uses OpenAI structured outputs
 // (response_format json_schema) so the model returns a shape close to
 // ReviewResult; the route still re-validates with zod before trusting it.
-// Failures map to typed AppErrors. The system/user prompt builders are shared
-// (./prompts) so every real provider reviews against the identical rules.
+// Failures map to typed AppErrors. The system/user prompt builders live in ./prompts.
 
 import OpenAI from 'openai'
 import type { ReviewResult } from '@/types'

@@ -188,8 +188,7 @@ export function DocumentPage({ projectId, docId, mode }: DocumentPageProps) {
 
   const inlineIds = useMemo(() => inlineSignalIdSet(signals), [signals])
 
-  // The doc-type options for the bare Select (label per SUBTYPE_ORDER). Static, but
-  // memoized so the array identity is stable across renders.
+  // The doc-type options for the bare Select. Static; memoized for stable identity.
   const subtypeOptions = useMemo<SelectOption<TextSubtype>[]>(
     () => SUBTYPE_ORDER.map((s) => ({ value: s, label: SUBTYPE_LABELS[s] })),
     [],

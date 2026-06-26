@@ -166,7 +166,7 @@ describe('DocumentPage edit mode — submit flow', () => {
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
     fireEvent.click(await screen.findByRole('button', { name: /run review/i }))
 
-    // The Apply button is wired (orchestrator implements the rewrite); Copy is gone.
+    // The Apply button is wired; Copy is gone.
     expect(await screen.findByRole('button', { name: /apply suggested prompt/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /copy suggested prompt/i })).not.toBeInTheDocument()
   })

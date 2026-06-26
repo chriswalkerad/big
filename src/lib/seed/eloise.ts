@@ -2,7 +2,7 @@
 // kids 6-12). The eight documents are designed to produce a spread of scorecards so
 // the demo shows range: happy paths, soft-gates, a brand-safety risk, and thin stubs.
 // Inline issue `quote` values are EXACT substrings of each body so canvas highlighting
-// anchors. Do not paraphrase the bodies — see specs/bsp-seed-data-spec.md.
+// anchors — do not paraphrase the bodies.
 
 import type { Document, Project, ReviewResult } from '@/types'
 import { personById } from '@/lib/people'
