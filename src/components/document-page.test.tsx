@@ -65,7 +65,9 @@ describe('DocumentPage edit mode — submit flow', () => {
 
   it('runs a review preview WITHOUT submitting, then confirm commits status + storage', async () => {
     seedDoc()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // Fresh Response per call: the capability check (GET /api/transcribe) and the
+    // review POST both read a body, and a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
     )
 
@@ -152,7 +154,9 @@ describe('DocumentPage edit mode — submit flow', () => {
       summary: 'Tighten clarity and resubmit.',
       suggestedPrompt: 'Revise the following concept: …',
     }
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // Fresh Response per call: the capability check (GET /api/transcribe) and the
+    // review POST both read a body, and a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ ok: true, data: REVIEW_WITH_PROMPT }), { status: 200 }),
     )
 
@@ -179,7 +183,9 @@ describe('DocumentPage edit mode — submit flow', () => {
 
   it('auto-opens the detail panel on Run review; the × collapses to the minimal strip', async () => {
     seedDoc()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // Fresh Response per call: the capability check (GET /api/transcribe) and the
+    // review POST both read a body, and a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
     )
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
@@ -250,7 +256,9 @@ describe('DocumentPage edit mode — submit flow', () => {
 
   it('renders a typed error in the panel when the review fails (retryable)', async () => {
     seedDoc()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // Fresh Response per call: the capability check (GET /api/transcribe) and the
+    // review POST both read a body, and a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ ok: false, error: { code: 'AI_RATE_LIMIT', message: 'rate limited', retryable: true } }), { status: 429 }),
     )
 
@@ -398,7 +406,9 @@ describe('DocumentPage version drift (edit mode)', () => {
 
   it('Resubmit previews then confirm replaces the snapshot with the current body', async () => {
     seedDrifted()
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+    // Fresh Response per call: the capability check (GET /api/transcribe) and the
+    // review POST both read a body, and a Response body can only be read once.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       new Response(JSON.stringify({ ok: true, data: REVIEW }), { status: 200 }),
     )
     render(<DocumentPage projectId="proj-eloise" docId="doc-test" mode="edit" />)
