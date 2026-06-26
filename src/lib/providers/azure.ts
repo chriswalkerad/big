@@ -253,11 +253,12 @@ export async function transcribeAudio(
     }
 
     const body = (await res.json()) as FastTranscriptionResponse
-    const text = extractTranscript(body)
-    if (!text) {
-      throw appError('AI_BAD_JSON', 'The transcription came back empty.')
-    }
-    return text
+    // An empty transcript is a VALID success, not an error: a silent / no-speech
+    // clip (the user paused to think) simply has nothing to transcribe. Return ''
+    // so the handler reports `{ ok: true, data: { text: '' } }` and the client
+    // treats it as a benign no-op. Real failures (non-2xx, timeout, offline,
+    // malformed JSON) still throw above / in the catch.
+    return extractTranscript(body)
   } catch (e) {
     // Maps AbortError -> AI_TIMEOUT, offline -> NETWORK_OFFLINE, and passes
     // AppErrors through unchanged.

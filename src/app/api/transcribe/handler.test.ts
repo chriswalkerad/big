@@ -90,10 +90,12 @@ describe('handleTranscribe', () => {
     if (!res.ok) expect(res.error.code).toBe('NETWORK_OFFLINE')
   })
 
-  it('treats an empty transcript as AI_BAD_JSON', async () => {
+  it('treats an empty/whitespace transcript as a successful no-op (not an error)', async () => {
+    // A silent / no-speech clip has nothing to transcribe: the handler returns it as
+    // success so the client can ignore it without surfacing an error.
     const transcribeAudio = vi.fn(async () => '   ')
     const res = await handleTranscribe(formWithAudio(), { env: CONFIGURED, transcribeAudio })
-    expect(res.ok).toBe(false)
-    if (!res.ok) expect(res.error.code).toBe('AI_BAD_JSON')
+    expect(res.ok).toBe(true)
+    if (res.ok) expect(res.data.text.trim()).toBe('')
   })
 })

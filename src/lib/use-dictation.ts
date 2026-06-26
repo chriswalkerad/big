@@ -186,11 +186,17 @@ export function useDictation({ onPhrase }: UseDictationOptions): UseDictation {
   const finalizePhrase = useCallback(() => {
     if (stoppedRef.current) return
     if (chunksRef.current.length === 0) return
-    // Snapshot + reset the buffer for the next phrase.
+    // Snapshot + reset the buffer (and segmentation flags) for the next phrase.
     const parts = chunksRef.current
+    const hadSpeech = speechSeenRef.current
     chunksRef.current = []
     speechSeenRef.current = false
     silenceStartRef.current = null
+
+    // Speech gate: only encode + POST a segment in which the RMS actually crossed the
+    // speech threshold. A pure-silence segment (the user paused to think without
+    // speaking) is DISCARDED — nothing to transcribe — and we keep listening.
+    if (!hadSpeech) return
 
     const pcm = concatChunks(parts)
     if (pcm.length === 0) return
@@ -201,6 +207,8 @@ export function useDictation({ onPhrase }: UseDictationOptions): UseDictation {
     void requestTranscribe(blob).then((result) => {
       if (stoppedRef.current) return
       if (result.ok) {
+        // Empty/whitespace text is a benign no-op (a near-silent clip the model
+        // had nothing to transcribe for): don't insert, don't error — keep listening.
         const text = result.data.text.trim()
         if (text) onPhraseRef.current(text)
         setStatus('listening')
