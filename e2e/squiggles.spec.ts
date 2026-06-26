@@ -1,13 +1,12 @@
 import { test, expect } from '@playwright/test'
-import { DOC, resultsPanel, reviewUrl } from './helpers'
+import { DOC, openReviewPanel, resultsPanel, reviewUrl } from './helpers'
 
 test.describe('Inline squiggles & bidirectional focus', () => {
   test('inline signals render squiggles for the seeded risky doc', async ({ page }) => {
     await page.goto(reviewUrl(DOC.haunted))
 
-    // The review panel shows the snapshot review inline in read mode.
-    await expect(resultsPanel(page)).toBeVisible()
-
+    // The squiggles render onto the canvas from the snapshot on load — independent of the
+    // review detail panel, which is collapsed by default.
     // Two Brand Safety risk squiggles render in the body.
     const squiggles = page.locator('.document-canvas-prose .signal-highlight[data-signal-id="brand_safety"]')
     await expect(squiggles).toHaveCount(2)
@@ -26,7 +25,7 @@ test.describe('Inline squiggles & bidirectional focus', () => {
 
   test('clicking a squiggle focuses its panel row', async ({ page }) => {
     await page.goto(reviewUrl(DOC.haunted))
-    await expect(resultsPanel(page)).toBeVisible()
+    await openReviewPanel(page)
 
     const brandRow = resultsPanel(page).locator('[data-signal-id="brand_safety"]')
     await expect(brandRow).not.toHaveAttribute('data-focused', 'true')
@@ -45,7 +44,7 @@ test.describe('Inline squiggles & bidirectional focus', () => {
 
   test('clicking a panel flagged phrase emphasizes the matching squiggle', async ({ page }) => {
     await page.goto(reviewUrl(DOC.haunted))
-    await expect(resultsPanel(page)).toBeVisible()
+    await openReviewPanel(page)
 
     // Click the flagged-phrase button inside the Brand Safety row.
     const phraseButton = resultsPanel(page)

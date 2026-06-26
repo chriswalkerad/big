@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { DOC, docUrl, resultsPanel, typeInBody } from './helpers'
+import { DOC, confirmSubmission, docUrl, resultsPanel, typeInBody } from './helpers'
 
 const SAMPLE_BODY =
   ' Eloise organizes a treasure hunt across the Plaza for the bored children of weekend guests, ' +
@@ -10,18 +10,19 @@ test.describe('Submit flow (review preview → confirm)', () => {
   test('Run review previews the verdict, then Confirm submission commits', async ({ page }) => {
     await page.goto(docUrl(DOC.rooftop))
 
-    // The draft stub is editable. The inline results region is always present, but shows
-    // its empty placeholder until a review is run — no verdict, no confirm affordance.
+    // The draft stub is editable. The inline review panel is not mounted until a review
+    // is run (it only renders once there is review content), so there is no panel and no
+    // confirm affordance yet — just the draft status and the Run-review action.
     await expect(page.getByRole('button', { name: 'Run review' })).toBeVisible()
     const panel = resultsPanel(page)
-    await expect(panel).toBeVisible()
-    await expect(panel.getByText('No review yet.')).toBeVisible()
+    await expect(panel).toHaveCount(0)
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
 
     await typeInBody(page, SAMPLE_BODY)
     await page.getByRole('button', { name: 'Run review' }).click()
 
     // The panel populates with a verdict header and exactly six signal rows.
+    await expect(panel).toBeVisible()
     const verdict = panel.getByRole('heading', { level: 2 })
     await expect(verdict).toHaveAttribute('data-verdict', /looks_ready|needs_work|not_ready/)
     await expect(panel.getByText(/of 6 need attention/)).toBeVisible()
@@ -42,13 +43,12 @@ test.describe('Submit flow (review preview → confirm)', () => {
     // This is a preview only — nothing is submitted yet, so the status is still Draft and
     // the panel offers a Confirm submission action.
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
-    const confirm = panel.getByRole('button', { name: 'Confirm submission' })
-    await expect(confirm).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Confirm submission' })).toBeVisible()
 
-    // Confirm commits the submission: status advances Draft → Submitted and the
-    // confirm affordance disappears (the panel now reflects a snapshot, not a preview).
-    await confirm.click()
-    await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
+    // Confirm opens the in-panel choose-reviewer view; picking a reviewer there and
+    // submitting commits: status advances Draft → Submitted and the confirm affordance
+    // disappears (the panel now reflects a snapshot, not a preview).
+    await confirmSubmission(page)
     await expect(panel.getByRole('button', { name: 'Confirm submission' })).toHaveCount(0)
   })
 
@@ -65,9 +65,8 @@ test.describe('Submit flow (review preview → confirm)', () => {
     // Still a preview: Draft, with a confirm action awaiting commit.
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
 
-    // Confirm submission commits via the keyboard-driven preview.
-    await panel.getByRole('button', { name: 'Confirm submission' }).click()
-    await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
+    // Confirm submission → pick a reviewer → submit commits the keyboard-driven preview.
+    await confirmSubmission(page)
   })
 
   test('empty draft gets an AI-suggested title on confirm', async ({ page }) => {
@@ -84,8 +83,7 @@ test.describe('Submit flow (review preview → confirm)', () => {
     // The preview alone does not prefill the title.
     await expect(title).toHaveValue('')
 
-    await panel.getByRole('button', { name: 'Confirm submission' }).click()
-    await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
+    await confirmSubmission(page)
     // The title is filled from the AI suggestion (no longer empty) once confirmed.
     await expect(title).not.toHaveValue('')
   })

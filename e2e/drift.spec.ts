@@ -1,20 +1,15 @@
 import { test, expect, type Page } from '@playwright/test'
-import { DOC, docUrl, resultsPanel, typeInBody } from './helpers'
+import { DOC, confirmSubmission, docUrl, resultsPanel, typeInBody } from './helpers'
 
 const BODY =
   ' Eloise stages a surprise birthday breakfast for the night doorman, recruiting the kitchen ' +
   'staff and a very sleepy bellhop. A warm 6-minute animated short for kids 6-12, built as a YouTube pilot.'
 
-/** Dismiss the post-confirm GREENLIGHT celebration overlay so it stops covering the page. */
-async function dismissCelebration(page: Page) {
-  // The celebration is a full-screen role="dialog" that auto-dismisses; Escape skips it.
-  await page.keyboard.press('Escape')
-  await expect(page.getByRole('dialog', { name: 'Submission confirmed' })).toHaveCount(0)
-}
-
 /**
- * Submit the draft stub so it has a snapshot to drift from. The submit is now two steps:
- * Run review produces a preview, then Confirm submission commits it (Draft → Submitted).
+ * Submit the draft stub so it has a snapshot to drift from. The submit is now three
+ * steps: Run review produces a preview, Confirm submission opens an in-panel
+ * choose-reviewer view, and submitting there with the chosen reviewer commits it
+ * (Draft → Submitted). There is no post-submit celebration overlay to dismiss.
  */
 async function submitDraft(page: Page) {
   await page.goto(docUrl(DOC.rooftop))
@@ -23,10 +18,7 @@ async function submitDraft(page: Page) {
 
   const panel = resultsPanel(page)
   await expect(panel.locator('[data-signal-id]')).toHaveCount(6)
-  await panel.getByRole('button', { name: 'Confirm submission' }).click()
-
-  await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
-  await dismissCelebration(page)
+  await confirmSubmission(page)
 }
 
 test.describe('Version drift', () => {
@@ -55,30 +47,26 @@ test.describe('Version drift', () => {
 
     const panel = resultsPanel(page)
     await expect(panel.locator('[data-signal-id]')).toHaveCount(6)
-    const confirm = panel.getByRole('button', { name: 'Confirm submission' })
-    await expect(confirm).toBeVisible()
+    await expect(panel.getByRole('button', { name: 'Confirm submission' })).toBeVisible()
     await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
 
-    // Confirming replaces the snapshot with the current body and keeps status Submitted.
-    await confirm.click()
-    await expect(page.getByText('Submitted', { exact: true })).toBeVisible()
-    await dismissCelebration(page)
-    // The snapshot now matches the body again → drift clears.
+    // Confirming (pick a reviewer → submit) replaces the snapshot with the current body
+    // and keeps the status Submitted; the snapshot now matches the body → drift clears.
+    await confirmSubmission(page)
     await expect(drift).toHaveCount(0)
   })
 
-  test('Unsubmit clears the review, empties the panel, and returns to Draft', async ({ page }) => {
+  test('Unsubmit clears the review, tears down the panel, and returns to Draft', async ({ page }) => {
     await submitDraft(page)
     await typeInBody(page, ' Extra drift text for the unsubmit path.')
 
     const drift = page.getByRole('status').filter({ hasText: 'Edited since submit' })
     await drift.getByRole('button', { name: 'Unsubmit' }).click()
 
-    // The inline panel stays mounted but clears back to its empty placeholder, the status
-    // returns to Draft, and the drift indicator is gone.
-    const panel = resultsPanel(page)
-    await expect(panel.getByText('No review yet.')).toBeVisible()
-    await expect(panel.locator('[data-signal-id]')).toHaveCount(0)
+    // Unsubmit clears the snapshot review entirely: the inline panel (which only mounts
+    // while there is review content) unmounts, the status returns to Draft, and the drift
+    // indicator is gone.
+    await expect(resultsPanel(page)).toHaveCount(0)
     await expect(page.getByText('Draft', { exact: true })).toBeVisible()
     await expect(drift).toHaveCount(0)
   })

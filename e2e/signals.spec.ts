@@ -25,9 +25,12 @@ test.describe('Signal admin CRUD', () => {
 
     const form = page.getByRole('form', { name: 'Create signal' })
     await form.getByLabel('Name').fill('Originality')
-    await form.getByLabel('Prompt').fill('Judge whether the concept feels fresh and not derivative. Score 0-10.')
-    await form.getByLabel(/Threshold/).fill('6')
-    await form.getByLabel('Mode').selectOption({ label: 'Document' })
+    await form.getByLabel('Prompt').fill('Judge whether the concept feels fresh and not derivative. Score 0-100.')
+    await form.getByLabel(/Threshold/).fill('60')
+    // Mode is the shared Select (a listbox of options), not a native <select>: open it
+    // from its labelled trigger and pick the option.
+    await form.getByRole('button', { name: /Mode/ }).click()
+    await page.getByRole('option', { name: 'Document' }).click()
     await form.getByRole('button', { name: 'Create signal' }).click()
 
     const list = page.getByRole('list', { name: 'Signals' })
@@ -44,14 +47,15 @@ test.describe('Signal admin CRUD', () => {
 
     const form = page.getByRole('form', { name: 'Edit signal' })
     const threshold = form.getByLabel(/Threshold/)
-    await expect(threshold).toHaveValue('7')
-    await threshold.fill('9')
+    // Thresholds are on a 0–100 scale; Clarity seeds at 70.
+    await expect(threshold).toHaveValue('70')
+    await threshold.fill('90')
     await form.getByRole('button', { name: 'Save changes' }).click()
 
     // Reload and re-open to confirm the new threshold persisted.
     await page.reload()
     await expect(
-      page.getByRole('list', { name: 'Signals' }).getByText('threshold 9'),
+      page.getByRole('list', { name: 'Signals' }).getByText('threshold 90'),
     ).toBeVisible()
   })
 
