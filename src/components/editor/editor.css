@@ -10,6 +10,10 @@
   --doc-column: 720px;
   /* The slide-in review detail panel. */
   --review-panel-width: 380px;
+  /* The slim sticky TopBar action line (matches top-bar.tsx h-[46px]). The
+     content area below it is bounded to the remaining viewport so its two
+     children can scroll independently on lg+. */
+  --doc-topbar-height: 46px;
 }
 
 /* Writing surface ("the page").
@@ -151,6 +155,26 @@
 
 .document-content-area {
   width: 100%;
+}
+
+/* --- Independent scroll (lg+) -------------------------------------------
+   Below lg the panel stacks and the page scrolls normally (no scroll trap):
+   the content area grows with its content and the window scrolls.
+
+   On lg+ the content area becomes a bounded-height region (the viewport minus
+   the sticky TopBar) with hidden overflow, and its two children — the writing
+   column and the panel's scroll region — each scroll INTERNALLY. Scrolling one
+   never moves the other, and the TopBar stays fixed. */
+@media (min-width: 1024px) {
+  .document-content-area {
+    height: calc(100vh - var(--doc-topbar-height));
+    overflow: hidden;
+  }
+
+  .document-page-column {
+    min-height: 0;
+    overflow-y: auto;
+  }
 }
 
 .review-panel {
