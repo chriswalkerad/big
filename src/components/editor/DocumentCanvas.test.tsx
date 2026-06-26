@@ -132,6 +132,71 @@ describe('DocumentCanvas', () => {
     expect(onChange.mock.calls.at(-1)?.[0]).toContain('Hello world')
   })
 
+  it('refines interim in place then commits to normal text, firing onChange', async () => {
+    const onChange = vi.fn()
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="" onChange={onChange} />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    // First hypothesis → ghost text appears.
+    ref.current!.setInterim('hello')
+    await waitFor(() => {
+      const ghost = container.querySelector<HTMLElement>('.dictation-interim')
+      expect(ghost?.textContent).toBe('hello')
+    })
+
+    // Refined hypothesis → REPLACES in place; still exactly one ghost span.
+    ref.current!.setInterim('hello there')
+    await waitFor(() => {
+      const ghosts = container.querySelectorAll('.dictation-interim')
+      expect(ghosts.length).toBe(1)
+      expect(ghosts[0]?.textContent).toBe('hello there')
+    })
+    const prose = container.querySelector<HTMLElement>('.ProseMirror')
+    expect(prose?.textContent).toBe('hello there')
+    expect(prose?.textContent).not.toContain('hellohello')
+
+    onChange.mockClear()
+
+    // Commit → text persists as normal authored text; the ghost mark is gone; onChange fired.
+    ref.current!.commitInterim()
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')).toBeNull()
+    })
+    expect(container.querySelector<HTMLElement>('.ProseMirror')?.textContent).toBe(
+      'hello there',
+    )
+    expect(onChange).toHaveBeenCalled()
+    expect(onChange.mock.calls.at(-1)?.[0]).toContain('hello there')
+  })
+
+  it('clears an uncommitted interim, removing the provisional text', async () => {
+    const ref = createRef<DocumentCanvasHandle>()
+    const { container } = render(
+      <DocumentCanvas ref={ref} mode="edit" content="" />,
+    )
+
+    await waitFor(() => expect(ref.current).toBeTruthy())
+    await waitFor(() => expect(container.querySelector('.ProseMirror')).toBeTruthy())
+
+    ref.current!.setInterim('draft')
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')?.textContent).toBe('draft')
+    })
+
+    ref.current!.clearInterim()
+    await waitFor(() => {
+      expect(container.querySelector('.dictation-interim')).toBeNull()
+    })
+    expect(container.querySelector<HTMLElement>('.ProseMirror')?.textContent).not.toContain(
+      'draft',
+    )
+  })
+
   it('fires onHighlightClick with the data-signal-id on mousedown', async () => {
     const onHighlightClick = vi.fn()
     const ref = createRef<DocumentCanvasHandle>()

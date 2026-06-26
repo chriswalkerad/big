@@ -100,6 +100,23 @@
   background-color: color-mix(in oklab, var(--minor) 12%, transparent);
 }
 
+/* DictationInterim ghost text.
+ *
+ * Streaming voice dictation paints its in-flight hypothesis as provisional "ghost"
+ * text at the caret (see DictationInterim.ts). It reads as not-yet-committed by
+ * sitting in the muted, decorative `--text-tertiary` token tier — the same ghost
+ * color the empty-paragraph placeholder uses — while remaining legible (AA against
+ * the page background, owned by the token layer). It commits to normal authored text
+ * by having the mark removed (the text keeps the document's primary color again).
+ *
+ * No animation: the text already refines visibly as hypotheses stream in, and any
+ * pulsing/fading would be motion noise. There is nothing to gate behind
+ * prefers-reduced-motion because there is no motion to begin with. */
+
+.dictation-interim {
+  color: var(--text-tertiary);
+}
+
 /* ---------------------------------------------------------------------------
    Continuous document page.
 

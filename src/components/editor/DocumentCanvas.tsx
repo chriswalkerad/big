@@ -5,6 +5,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useRef,
   type Ref,
 } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -15,6 +16,7 @@ import { UndoRedo, Placeholder } from '@tiptap/extensions'
 import type { EditorView } from '@tiptap/pm/view'
 import { cn } from '@/lib/utils'
 import { SignalHighlight, type SignalHighlightIssue } from './SignalHighlight'
+import { DictationInterim, DICTATION_INTERIM_MARK_NAME } from './DictationInterim'
 import './editor.css'
 
 export type DocumentCanvasMode = 'edit' | 'read'
@@ -31,11 +33,33 @@ export type DocumentCanvasMode = 'edit' | 'read'
  * - `insertText` inserts plain text at the current cursor/selection (e.g. a
  *   voice-dictation transcript). It is a GENUINE author edit: it goes through the
  *   normal command pipeline, fires `onUpdate` → the parent's `onChange` syncs body.
+ *
+ * Streaming dictation (interim → final) is driven by the trio below. Streaming feeds
+ * INTERIM hypotheses (updating several times a second) and a FINAL string per
+ * utterance. The interim shows as ghosted provisional text at the caret that REPLACES
+ * itself in place as it refines (`setInterim`), then either commits to normal authored
+ * text (`commitInterim`) or is discarded (`clearInterim`). The provisional range is
+ * tracked internally; positions are re-validated against the live doc on every call so
+ * a stale range can never corrupt the document.
+ *
+ * - `setInterim(text)`: insert OR replace the tracked provisional range at the caret
+ *   with `text`, carrying the `DictationInterim` mark (the ghost). The next call deletes
+ *   the prior interim and inserts the new one in place, so there is only ever ONE
+ *   interim span. `setInterim('')` clears the visible interim (and tracking). If no
+ *   interim is active, the new one is anchored at the current selection.
+ * - `commitInterim()`: strip the `DictationInterim` mark across the tracked range so the
+ *   provisional text becomes normal authored text, clear tracking, and fire `onUpdate`
+ *   (the parent's `onChange`/body syncs). No-op if no interim is active.
+ * - `clearInterim()`: delete the tracked provisional range entirely (discard an
+ *   uncommitted interim) and clear tracking. No-op if no interim is active.
  */
 export interface DocumentCanvasHandle {
   setSignalHighlights: (issues: readonly SignalHighlightIssue[]) => void
   setContent: (html: string) => void
   insertText: (text: string) => void
+  setInterim: (text: string) => void
+  commitInterim: () => void
+  clearInterim: () => void
 }
 
 export interface DocumentCanvasProps {
@@ -62,6 +86,26 @@ export interface DocumentCanvasProps {
 
 const PLACEHOLDER_TEXT = 'Start your brief…'
 
+/**
+ * Re-validate a tracked interim range against the current document size.
+ *
+ * The interim range is held in a ref across renders and dictation ticks; an unrelated
+ * edit (or content replacement) can shrink the doc out from under it. Before EVERY use
+ * we clamp `from`/`to` into `[0, docSize]`; if the range collapses or inverts after
+ * clamping it is treated as gone (`null`). This guarantees the insert/replace/remove/
+ * delete transactions can never address out-of-bounds positions and corrupt the doc.
+ */
+function clampInterimRange(
+  range: { from: number; to: number } | null,
+  docSize: number,
+): { from: number; to: number } | null {
+  if (!range) return null
+  const from = Math.max(0, Math.min(range.from, docSize))
+  const to = Math.max(0, Math.min(range.to, docSize))
+  if (to < from) return null
+  return { from, to }
+}
+
 function DocumentCanvasInner(
   props: DocumentCanvasProps,
   ref: Ref<DocumentCanvasHandle>,
@@ -70,6 +114,13 @@ function DocumentCanvasInner(
   const initialContent = content ?? value ?? ''
   // Effective editability: an explicit `editable` override wins; otherwise follow mode.
   const isEditable = editable ?? mode === 'edit'
+
+  // The live provisional-dictation range, or `null` when no interim is active.
+  // `from`/`to` are document positions bounding the currently shown ghost text; the
+  // next `setInterim` replaces exactly this span. Positions are re-validated against
+  // the live doc on every use (see `currentInterimRange`) so a stale range — e.g. after
+  // an unrelated edit shrank the doc — can never address out-of-bounds and corrupt it.
+  const interimRangeRef = useRef<{ from: number; to: number } | null>(null)
 
   // Read `data-signal-id` off the clicked element via handleDOMEvents (NOT a React
   // onClick) so clicks land on the ProseMirror decoration DOM, per spec rule 5.
@@ -96,6 +147,7 @@ function DocumentCanvasInner(
       UndoRedo,
       Placeholder.configure({ placeholder: PLACEHOLDER_TEXT }),
       SignalHighlight,
+      DictationInterim,
     ],
     content: initialContent,
     editable: isEditable,
@@ -142,8 +194,77 @@ function DocumentCanvasInner(
         // `onUpdate` fires and the parent's `onChange` syncs the plain-text body.
         editor?.commands.insertContent(text)
       },
+      setInterim: (text) => {
+        if (!editor) return
+        const { state } = editor.view
+        const { doc, tr } = state
+        const markType = state.schema.marks[DICTATION_INTERIM_MARK_NAME]
+        if (!markType) return
+
+        // Re-validate any tracked range against the LIVE doc. If it no longer fits
+        // (stale after an unrelated edit), drop tracking and re-anchor at the caret —
+        // never address out-of-bounds.
+        const tracked = clampInterimRange(interimRangeRef.current, doc.content.size)
+
+        // Where the new interim goes: replace the tracked span if we have one, else
+        // anchor at the current selection (collapsing any selection to its head).
+        const from = tracked ? tracked.from : state.selection.from
+        const to = tracked ? tracked.to : state.selection.from
+
+        const mark = markType.create()
+        if (text.length === 0) {
+          // Empty interim → just remove the previously shown ghost (if any).
+          if (tracked) tr.delete(tracked.from, tracked.to)
+          interimRangeRef.current = null
+        } else {
+          const node = state.schema.text(text, [mark])
+          if (to > from) {
+            tr.replaceWith(from, to, node)
+          } else {
+            tr.insert(from, node)
+          }
+          interimRangeRef.current = { from, to: from + text.length }
+        }
+        // `addToHistory: false` keeps the in-flight refinement churn out of undo —
+        // only the committed text should be an undoable author edit.
+        tr.setMeta('addToHistory', false)
+        editor.view.dispatch(tr)
+      },
+      commitInterim: () => {
+        if (!editor) return
+        const tracked = interimRangeRef.current
+        if (!tracked) return
+        const { state } = editor.view
+        const markType = state.schema.marks[DICTATION_INTERIM_MARK_NAME]
+        if (!markType) {
+          interimRangeRef.current = null
+          return
+        }
+        const range = clampInterimRange(tracked, state.doc.content.size)
+        interimRangeRef.current = null
+        if (!range || range.to <= range.from) return
+        // Strip the ghost mark: the text stays, now as normal authored text. This IS a
+        // genuine author edit, so it belongs in history and must fire `onUpdate` so the
+        // parent's `onChange`/body syncs.
+        const tr = state.tr.removeMark(range.from, range.to, markType)
+        editor.view.dispatch(tr)
+        onChange?.(editor.getHTML())
+      },
+      clearInterim: () => {
+        if (!editor) return
+        const tracked = interimRangeRef.current
+        interimRangeRef.current = null
+        if (!tracked) return
+        const { state } = editor.view
+        const range = clampInterimRange(tracked, state.doc.content.size)
+        if (!range || range.to <= range.from) return
+        // Discard the uncommitted ghost entirely; keep it out of undo history.
+        const tr = state.tr.delete(range.from, range.to)
+        tr.setMeta('addToHistory', false)
+        editor.view.dispatch(tr)
+      },
     }),
-    [editor],
+    [editor, onChange],
   )
 
   return (
