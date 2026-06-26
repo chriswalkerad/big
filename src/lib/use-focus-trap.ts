@@ -19,6 +19,35 @@ function focusableWithin(container: HTMLElement): HTMLElement[] {
 }
 
 /**
+ * Hide everything *outside* the dialog from assistive tech and pointer/keyboard
+ * interaction while it is open (the missing half of the modal dialog pattern:
+ * trapping Tab is not enough — VoiceOver/JAWS browse-mode can still read past the
+ * dialog into the obscured page). We walk from the dialog up to `<body>` and mark
+ * every sibling NOT on the ancestor path as `inert`, which both removes it from
+ * the a11y tree and blocks interaction. Returns a cleanup that restores prior
+ * state, so dialogs nested inside (or stacked on) each other behave correctly.
+ */
+function inertSiblingsOutside(container: HTMLElement): () => void {
+  const marked: HTMLElement[] = []
+  let node: HTMLElement | null = container
+  while (node && node !== document.body && node.parentElement) {
+    const parent: HTMLElement = node.parentElement
+    for (const sibling of Array.from(parent.children)) {
+      if (sibling === node || !(sibling instanceof HTMLElement)) continue
+      // Skip anything already inert (e.g. an outer dialog's backdrop) so we don't
+      // clobber and then prematurely clear a previously-applied trap.
+      if (sibling.inert) continue
+      sibling.inert = true
+      marked.push(sibling)
+    }
+    node = parent
+  }
+  return () => {
+    for (const el of marked) el.inert = false
+  }
+}
+
+/**
  * Trap keyboard focus inside a modal dialog while it is open (WCAG 2.1.2 No Keyboard
  * Trap is about *escaping* a widget; a modal must instead keep Tab focus within its
  * own controls and restore focus on close — the modal dialog pattern).
@@ -41,6 +70,9 @@ export function useFocusTrap(
     if (!container) return
 
     const previouslyFocused = document.activeElement as HTMLElement | null
+
+    // Hide the rest of the page from AT / interaction while the dialog is open.
+    const restoreInert = inertSiblingsOutside(container)
 
     // Move focus inside the dialog.
     const initial = focusableWithin(container)
@@ -77,8 +109,20 @@ export function useFocusTrap(
     document.addEventListener('keydown', onKeyDown, true)
     return () => {
       document.removeEventListener('keydown', onKeyDown, true)
-      // Restore focus to the trigger that opened the dialog.
-      previouslyFocused?.focus()
+      // Un-hide the background BEFORE restoring focus, or the fallback anchor
+      // (and the original trigger) may still be inert and silently reject focus.
+      restoreInert()
+      // Restore focus to the trigger that opened the dialog. After a save/delete
+      // the trigger often unmounts, so `focus()` would drop focus to <body>;
+      // fall back to a stable, page-level focusable anchor in that case.
+      if (previouslyFocused?.isConnected) {
+        previouslyFocused.focus()
+      } else {
+        const fallback =
+          document.querySelector<HTMLElement>('h1[tabindex="-1"]') ??
+          document.getElementById('main-content')
+        fallback?.focus()
+      }
     }
   }, [active, containerRef])
 }

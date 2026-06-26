@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { RoutingDestination } from '@/types'
 import { Button } from '@/components/button'
 import { cn } from '@/lib/utils'
@@ -33,6 +33,7 @@ function DestinationPickerBody({
   onConfirm,
 }: Omit<DestinationPickerProps, 'open'>) {
   const [selected, setSelected] = useState<RoutingDestination>(current ?? DEFAULT_ROUTING)
+  const descriptionId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
 
   // Move focus into the dialog, trap Tab, restore focus to the trigger on close.
@@ -59,11 +60,12 @@ function DestinationPickerBody({
         role="dialog"
         aria-modal="true"
         aria-label="Choose a destination"
+        aria-describedby={descriptionId}
         className="relative z-10 flex w-full max-w-sm flex-col gap-4 rounded-card border border-border bg-surface p-5 shadow-lg"
       >
         <div className="flex flex-col gap-1">
           <h2 className="text-title text-text-primary">Approve & route</h2>
-          <p className="text-body text-text-secondary">
+          <p id={descriptionId} className="text-body text-text-secondary">
             Pick where this concept goes next. You can change it later.
           </p>
         </div>

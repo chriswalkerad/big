@@ -306,11 +306,18 @@ function ConfirmDelete({
   onConfirm: () => void;
 }) {
   return (
-    <Overlay onDismiss={onCancel} labelledBy="confirm-delete-title">
+    <Overlay
+      onDismiss={onCancel}
+      labelledBy="confirm-delete-title"
+      describedBy="confirm-delete-description"
+    >
       <h2 id="confirm-delete-title" className="text-title text-text-primary">
         Delete signal
       </h2>
-      <p className="mt-2 text-body text-text-secondary">
+      <p
+        id="confirm-delete-description"
+        className="mt-2 text-body text-text-secondary"
+      >
         Delete <span className="text-text-primary">{signal.name}</span>? Reviews
         run after this will no longer check it. This cannot be undone.
       </p>
@@ -338,10 +345,12 @@ function Overlay({
   children,
   onDismiss,
   labelledBy,
+  describedBy,
 }: {
   children: React.ReactNode;
   onDismiss: () => void;
   labelledBy: string;
+  describedBy?: string;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -371,6 +380,7 @@ function Overlay({
         role="dialog"
         aria-modal="true"
         aria-labelledby={labelledBy}
+        aria-describedby={describedBy}
         className="relative w-full max-w-lg rounded-card border border-border bg-surface p-6 shadow-lg"
       >
         {children}
