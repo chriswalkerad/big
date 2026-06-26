@@ -196,6 +196,7 @@ Explicitly out of scope per the build specs (`bsp-frontend-build-spec.md` "Out o
 - **Per-project signal sets.** Signals (the configurable review criteria) are a single **global** set edited in Settings and applied to every project; `SignalDef` has no `projectId` and storage keys them `bsp:signal:<id>` globally. Ideally each project would own its own signal set, but that was a conscious scope decision — keeping one shared set keeps the review pipeline and Settings simple. Per-project signals would mean scoping signals by `projectId` across storage, the review pipeline, and the Settings UI.
 - **No delete.** Projects and documents/briefs can be created and edited but not deleted — there is no remove action for either. A conscious scope decision (it also sidesteps destructive-action confirmation UX); a real build would add archive/delete with guards.
 - **Live prompting against the franchise** from the signal view — the Franchise Fit row links to a static franchise detail; it does not re-prompt the model live.
+- **Live-updating counts.** The rail's inbox badge reads the review queue once on mount (mirroring the original project switcher), so it refreshes on navigation rather than ticking the instant a doc is submitted. A demo simplification; a real build would subscribe to storage changes.
 - **Batch file transcription** — an earlier `/api/transcribe` batch route was removed in favor of streaming dictation only; voice is real-time via `/api/speech-token`.
 
 ---
