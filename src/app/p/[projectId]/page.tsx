@@ -2,7 +2,7 @@
 
 import { use, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Plus, Search } from "lucide-react";
+import { Search, SquarePen } from "lucide-react";
 import type { Document, Person, SubmissionStatus } from "@/types";
 import {
   ALL_STATUSES,
@@ -61,12 +61,16 @@ export function LibraryView({ projectId }: { projectId: string }) {
     [documents, query, status],
   );
 
-  // The New action is a navigation link styled as the ink primary button; it
-  // sits in the TopBar's actions slot on every state so the chrome stays stable.
+  // The New action is an icon-only ink button (pencil-on-paper = compose a new doc);
+  // it sits in the TopBar's actions slot on every state so the chrome stays stable.
   const newAction = (
-    <Link href={`/p/${projectId}/d/new`} className={buttonClass("ink")}>
-      <Plus className="size-4" aria-hidden="true" />
-      New
+    <Link
+      href={`/p/${projectId}/d/new`}
+      aria-label="New document"
+      title="New document"
+      className={buttonClass("ink", "px-2")}
+    >
+      <SquarePen className="size-4" aria-hidden="true" />
     </Link>
   );
 
