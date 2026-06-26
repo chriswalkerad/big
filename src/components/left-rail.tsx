@@ -253,8 +253,15 @@ function NavMode({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* Brand + collapse toggle. */}
-      <div className="flex h-[46px] items-center gap-2 border-b border-border px-2.5">
+      {/* Brand + collapse toggle. The expanded header matches the editor TopBar's
+          horizontal padding (px-4 sm:px-6) so the brand mark sits in the SAME spot
+          whether or not the rail is present — it must not jump between pages. */}
+      <div
+        className={cn(
+          "flex h-[46px] items-center gap-2 border-b border-border",
+          collapsed ? "px-2.5" : "px-4 sm:px-6",
+        )}
+      >
         <Link
           href={homeHref}
           onClick={onNavigate}

@@ -24,7 +24,7 @@ export interface AppShellProps {
  */
 export function AppShell({ children, className }: AppShellProps) {
   return (
-    <div className="flex min-h-full flex-1 flex-row bg-app-canvas">
+    <div className="flex min-h-full flex-1 flex-col bg-bg lg:flex-row">
       <LeftRail />
       {/* The content column. `min-w-0` lets it shrink beside the rail without
           overflowing; `flex-1` claims the remaining width. When the rail
